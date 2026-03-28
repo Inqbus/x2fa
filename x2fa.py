@@ -21,6 +21,54 @@ app = Bottle()
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
 DOMAIN = os.environ.get("X2FA_DOMAIN", "localhost")
 
+_ERROR_TITLES = {
+    400: "Ungültige Anfrage",
+    401: "Nicht autorisiert",
+    403: "Zugriff verweigert",
+    404: "Nicht gefunden",
+    500: "Interner Fehler",
+}
+
+_ERROR_MESSAGES = {
+    400: "Die Anfrage konnte nicht verarbeitet werden.",
+    401: "Bitte melde dich erneut an.",
+    403: "Du hast keine Berechtigung für diese Seite.",
+    404: "Die aufgerufene Seite existiert nicht.",
+    500: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuche es später erneut.",
+}
+
+
+def _error_page(code: int, message: str | None = None) -> str:
+    response.content_type = "text/html; charset=utf-8"
+    return _render(
+        "error.html",
+        status_code=str(code),
+        title=_ERROR_TITLES.get(code, "Fehler"),
+        message=message or _ERROR_MESSAGES.get(code, ""),
+    )
+
+
+@app.error(400)
+def error_400(err):
+    return _error_page(400, err.body)
+
+@app.error(401)
+def error_401(err):
+    return _error_page(401, err.body)
+
+@app.error(403)
+def error_403(err):
+    return _error_page(403, err.body)
+
+@app.error(404)
+def error_404(err):
+    return _error_page(404, err.body)
+
+@app.error(500)
+def error_500(err):
+    return _error_page(500)
+
+
 # In-Memory Rate-Limiter: user_id → [timestamp, ...]
 _backup_attempts: dict[str, list[float]] = {}
 
