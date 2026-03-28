@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "vendor"))
 
 from bottle import Bottle, abort, request, response, static_file
 
+import audit
 import crypto
 import totp_helpers
 import webauthn_helpers
@@ -98,6 +99,14 @@ def _error_json(message: str, status: int = 400) -> str:
     return _json_response({"error": message}, status)
 
 
+def _client_ip() -> str:
+    """Gibt die Client-IP zurück (X-Forwarded-For hat Vorrang hinter Reverse-Proxy)."""
+    return (
+        request.environ.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
+        or request.environ.get("REMOTE_ADDR", "unknown")
+    )
+
+
 # ---------------------------------------------------------------------------
 # GET /setup
 # ---------------------------------------------------------------------------
@@ -163,6 +172,7 @@ def setup_complete():
     try:
         reg = webauthn_helpers.verify_registration(challenge, credential_json)
     except ValueError as exc:
+        audit.log(audit.FIDO2_SETUP_FAIL, user_id, _client_ip(), False, str(exc))
         return _error_json(str(exc), 400)
 
     CredentialRepo.save(
@@ -178,6 +188,8 @@ def setup_complete():
     codes = crypto.generate_backup_codes(10)
     code_hashes = [crypto.hash_backup_code(c) for c in codes]
     BackupRepo.save_many(user_id, code_hashes)
+
+    audit.log(audit.FIDO2_SETUP_OK, user_id, _client_ip(), True)
 
     # Return-JWT für die Hauptanwendung (1 Minute gültig)
     return_token = crypto.create_jwt(
@@ -282,9 +294,11 @@ def verify_complete():
             stored_sign_count=cred.sign_count,
         )
     except ValueError as exc:
+        audit.log(audit.FIDO2_VERIFY_FAIL, user_id, _client_ip(), False, str(exc))
         return _error_json(str(exc), 400)
 
     CredentialRepo.update_sign_count(raw_id, new_sign_count)
+    audit.log(audit.FIDO2_VERIFY_OK, user_id, _client_ip(), True)
 
     return_token = crypto.create_jwt(
         {"sub": user_id, "result": "verified", "amr": ["fido2"]},
@@ -352,12 +366,13 @@ def totp_setup_verify():
     secret = crypto.decrypt_totp_secret(bytes(totp_record.secret_encrypted))
 
     if not totp_helpers.verify_code(secret, code):
-        # Zurück zum Setup mit Fehlermeldung
+        audit.log(audit.TOTP_VERIFY_FAIL, user_id, _client_ip(), False, "setup_verify")
         response.status = 302
         response.set_header("Location", f"/totp/setup?token={token}&error=Falscher+Code.+Bitte+erneut+versuchen.")
         return ""
 
     TOTPRepo.set_verified(user_id)
+    audit.log(audit.TOTP_SETUP_OK, user_id, _client_ip(), True)
 
     return_token = crypto.create_jwt(
         {"sub": user_id, "result": "success", "amr": ["totp"]},
@@ -421,11 +436,13 @@ def totp_verify_post():
     last_used = totp_record.last_used_at
 
     if not totp_helpers.verify_code(secret, code, last_used_at=last_used):
+        audit.log(audit.TOTP_VERIFY_FAIL, user_id, _client_ip(), False)
         response.status = 302
         response.set_header("Location", f"/totp/verify?token={token}&error=Falscher+oder+bereits+verwendeter+Code.")
         return ""
 
     TOTPRepo.update_last_used(user_id)
+    audit.log(audit.TOTP_VERIFY_OK, user_id, _client_ip(), True)
 
     return_token = crypto.create_jwt(
         {"sub": user_id, "result": "verified", "amr": ["totp"]},
@@ -478,6 +495,7 @@ def backup_verify_post():
 
     # Rate-Limit: max 5 Versuche pro Minute
     if not _backup_rate_limit_ok(user_id):
+        audit.log(audit.BACKUP_RATE_LIMITED, user_id, _client_ip(), False)
         response.status = 302
         response.set_header("Location", f"/backup/verify?token={token}&error=Zu+viele+Versuche.+Bitte+1+Minute+warten.")
         return ""
@@ -491,12 +509,14 @@ def backup_verify_post():
             break
 
     if matched_hash is None:
+        audit.log(audit.BACKUP_VERIFY_FAIL, user_id, _client_ip(), False)
         response.status = 302
         response.set_header("Location", f"/backup/verify?token={token}&error=Ungültiger+Backup-Code.")
         return ""
 
     BackupRepo.consume(matched_hash, user_id)
     remaining = BackupRepo.count_valid(user_id)
+    audit.log(audit.BACKUP_VERIFY_OK, user_id, _client_ip(), True, f"remaining={remaining}")
 
     return_token = crypto.create_jwt(
         {"sub": user_id, "result": "verified", "amr": ["backup"], "remaining_codes": remaining},

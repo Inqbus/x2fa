@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from models import BackupCode, Challenge, Credential, SessionLocal, TOTPSecret
+from models import AuditLog, BackupCode, Challenge, Credential, SessionLocal, TOTPSecret
 
 
 # ---------------------------------------------------------------------------
@@ -213,3 +213,54 @@ class BackupRepo:
         with SessionLocal() as db:
             db.query(BackupCode).filter_by(user_id=user_id).delete()
             db.commit()
+
+
+# ---------------------------------------------------------------------------
+# AuditRepo
+# ---------------------------------------------------------------------------
+
+class AuditRepo:
+
+    @staticmethod
+    def log(
+        event: str,
+        user_id: str,
+        ip_hash: str,
+        success: bool,
+        detail: str | None = None,
+    ) -> None:
+        with SessionLocal() as db:
+            db.add(AuditLog(
+                event=event,
+                user_id=user_id,
+                ip_hash=ip_hash,
+                success=success,
+                detail=detail,
+            ))
+            db.commit()
+
+    @staticmethod
+    def list_by_user(user_id: str, limit: int = 50) -> list[AuditLog]:
+        with SessionLocal() as db:
+            return (
+                db.query(AuditLog)
+                .filter_by(user_id=user_id)
+                .order_by(AuditLog.created_at.desc())
+                .limit(limit)
+                .all()
+            )
+
+    @staticmethod
+    def stats() -> dict:
+        with SessionLocal() as db:
+            from sqlalchemy import func
+            rows = (
+                db.query(AuditLog.event, AuditLog.success, func.count())
+                .group_by(AuditLog.event, AuditLog.success)
+                .all()
+            )
+            result = {}
+            for event, success, count in rows:
+                key = f"{event}.{'ok' if success else 'fail'}"
+                result[key] = count
+            return result

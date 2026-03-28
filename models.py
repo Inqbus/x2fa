@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 
 from sqlalchemy import (
-    Boolean, Column, DateTime, Integer, LargeBinary, String, create_engine
+    Boolean, Column, DateTime, Integer, LargeBinary, String, Text, create_engine
 )
 from sqlalchemy.orm import declarative_base, sessionmaker
 
@@ -53,6 +53,18 @@ class BackupCode(Base):
     user_id = Column(String(255), nullable=False, index=True)
     used_at = Column(DateTime, nullable=True)  # NULL = gültig
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_log"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    event = Column(String(64), nullable=False, index=True)
+    user_id = Column(String(255), nullable=False, index=True)
+    ip_hash = Column(String(64), nullable=False)   # SHA256 der IP, kein Klartext
+    success = Column(Boolean, nullable=False)
+    detail = Column(Text, nullable=True)           # Optionale Zusatzinfo (kein PII)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
 
 
 def init_db():
