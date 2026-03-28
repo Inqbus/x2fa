@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2FA einrichten – X2FA</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 420px; margin: 80px auto; padding: 0 1rem; color: #111; }
+  h1   { font-size: 1.4rem; margin-bottom: 0.25rem; }
+  p    { color: #555; margin-top: 0; }
+  button {
+    width: 100%; padding: 0.8rem; font-size: 1rem; border: none; border-radius: 6px;
+    background: #1a56db; color: white; cursor: pointer; margin-top: 1rem;
+  }
+  button:disabled { background: #9ab; cursor: not-allowed; }
+  .error { color: #c00; margin-top: 1rem; display: none; }
+  .hint  { font-size: 0.85rem; color: #888; margin-top: 1.5rem; }
+</style>
+</head>
+<body>
+
+<h1>Sicherheitsschlüssel einrichten</h1>
+<p>Verwende FaceID, TouchID, Windows Hello oder einen Sicherheitsschlüssel.</p>
+
+<button id="btn" onclick="startRegistration()">Jetzt einrichten</button>
+<div class="error" id="err"></div>
+<p class="hint">Kein kompatibler Authenticator? <a href="/totp/setup?token={{token}}">TOTP-Fallback einrichten</a></p>
+
+<script nonce="{{nonce}}">
+const TOKEN    = "{{token}}";
+const OPTIONS  = {{!options_json}};
+const CHALLENGE_ID = "{{challenge_id}}";
+
+function b64url(buf) {
+  return btoa(String.fromCharCode(...new Uint8Array(buf)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+function fromB64url(s) {
+  const b = atob(s.replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from(b, c => c.charCodeAt(0)).buffer;
+}
+
+async function startRegistration() {
+  if (!window.PublicKeyCredential) {
+    window.location = "/totp/setup?token=" + TOKEN;
+    return;
+  }
+  const btn = document.getElementById("btn");
+  btn.disabled = true;
+  btn.textContent = "Warte auf Authenticator…";
+
+  try {
+    const opts = structuredClone(OPTIONS);
+    opts.challenge        = fromB64url(opts.challenge);
+    opts.user.id          = fromB64url(opts.user.id);
+    if (opts.excludeCredentials) {
+      opts.excludeCredentials = opts.excludeCredentials.map(c => ({...c, id: fromB64url(c.id)}));
+    }
+
+    const cred = await navigator.credentials.create({ publicKey: opts });
+
+    const payload = {
+      token: TOKEN,
+      challenge_id: CHALLENGE_ID,
+      id: cred.id,
+      rawId: b64url(cred.rawId),
+      type: cred.type,
+      response: {
+        clientDataJSON:    b64url(cred.response.clientDataJSON),
+        attestationObject: b64url(cred.response.attestationObject),
+      }
+    };
+
+    const res = await fetch("/setup/complete", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Unbekannter Fehler");
+    window.location = data.redirect_url;
+
+  } catch (e) {
+    const err = document.getElementById("err");
+    err.textContent = e.message || "Einrichtung fehlgeschlagen.";
+    err.style.display = "block";
+    btn.disabled = false;
+    btn.textContent = "Erneut versuchen";
+  }
+}
+</script>
+</body>
+</html>
