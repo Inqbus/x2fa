@@ -23,4 +23,7 @@ migrations = ["alembic>=1.12.0"]
 x2fa = "start:main"
 
 [dependency-groups]
-dev = []
+dev = [
+    "pytest>=9.0.2",
+    "pytest-mock>=3.15.1",
+]
