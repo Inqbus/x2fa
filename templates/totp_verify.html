@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2FA-Code eingeben – X2FA</title>
+<style>
+  body   { font-family: system-ui, sans-serif; max-width: 420px; margin: 80px auto; padding: 0 1rem; color: #111; }
+  h1     { font-size: 1.4rem; margin-bottom: 0.25rem; }
+  p      { color: #555; margin-top: 0; }
+  label  { font-size: 0.9rem; font-weight: 600; }
+  input  { width: 100%; box-sizing: border-box; padding: 0.7rem; font-size: 1.5rem;
+           letter-spacing: 0.5rem; border: 1px solid #ccc; border-radius: 6px;
+           margin-top: 0.3rem; text-align: center; }
+  button { width: 100%; padding: 0.8rem; font-size: 1rem; border: none;
+           border-radius: 6px; background: #1a56db; color: white;
+           cursor: pointer; margin-top: 0.75rem; }
+  .error { color: #c00; margin-top: 0.75rem; display: none; }
+  .hint  { font-size: 0.85rem; color: #888; margin-top: 1.5rem; }
+</style>
+</head>
+<body>
+
+<h1>Authenticator-Code eingeben</h1>
+<p>Öffne deine Authenticator-App und gib den aktuellen 6-stelligen Code ein.</p>
+
+<form method="POST" action="/totp/verify">
+  <input type="hidden" name="token" value="{{token}}">
+  <label for="code">Einmalcode</label>
+  <input type="text" id="code" name="code" inputmode="numeric"
+         pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code"
+         placeholder="000000" required>
+  <button type="submit">Bestätigen</button>
+  <div class="error" id="err">{{error}}</div>
+</form>
+
+<p class="hint">Kein Zugriff auf die App? <a href="/backup/verify?token={{token}}">Backup-Code verwenden</a></p>
+
+<script nonce="{{nonce}}">
+  const err = document.getElementById('err');
+  if ("{{error}}" !== "") {
+    err.style.display = "block";
+  }
+  document.getElementById('code').focus();
+</script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-"""X2FA – Bottle-Routen für FIDO2 Setup und Verify (Phase 2)."""
+"""X2FA – Bottle-Routen für FIDO2 Setup/Verify und TOTP-Fallback."""
 
 import json
 import os
@@ -10,8 +10,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "vendor"))
 from bottle import Bottle, abort, request, response, static_file
 
 import crypto
+import totp_helpers
 import webauthn_helpers
-from repositories import BackupRepo, ChallengeRepo, CredentialRepo
+from repositories import BackupRepo, ChallengeRepo, CredentialRepo, TOTPRepo
 
 app = Bottle()
 
@@ -278,3 +279,144 @@ def verify_complete():
     redirect_url = f"{return_url}?token={return_token}"
 
     return _json_response({"redirect_url": redirect_url})
+
+
+# ---------------------------------------------------------------------------
+# GET /totp/setup
+# ---------------------------------------------------------------------------
+
+@app.route("/totp/setup")
+def totp_setup_get():
+    payload = _validate_request_jwt("setup")
+    user_id = payload["sub"]
+
+    secret = totp_helpers.generate_secret()
+    secret_encrypted = crypto.encrypt_totp_secret(secret)
+    TOTPRepo.save(user_id, secret_encrypted)
+
+    provisioning_uri = totp_helpers.build_provisioning_uri(secret, user_id, issuer=DOMAIN)
+    qr_data_uri = totp_helpers.generate_qr_data_uri(provisioning_uri)
+
+    nonce = _csp_nonce()
+    _set_csp(nonce)
+    response.content_type = "text/html; charset=utf-8"
+
+    return _render(
+        "totp_setup.html",
+        token=request.query.get("token"),
+        secret=secret,
+        qr_data_uri=qr_data_uri,
+        error=request.query.get("error", ""),
+        nonce=nonce,
+    )
+
+
+# ---------------------------------------------------------------------------
+# POST /totp/setup/verify
+# ---------------------------------------------------------------------------
+
+@app.route("/totp/setup/verify", method="POST")
+def totp_setup_verify():
+    token = request.forms.get("token", "")
+    code = request.forms.get("code", "").strip()
+
+    try:
+        payload = crypto.verify_jwt(token)
+    except Exception:
+        abort(400, "Ungültiger oder abgelaufener Token.")
+
+    if payload.get("action") != "setup":
+        abort(400, "Falscher Token-Typ.")
+
+    user_id = payload["sub"]
+
+    totp_record = TOTPRepo.get(user_id)
+    if totp_record is None:
+        abort(400, "Kein TOTP-Secret gefunden. Bitte Setup erneut starten.")
+
+    secret = crypto.decrypt_totp_secret(bytes(totp_record.secret_encrypted))
+
+    if not totp_helpers.verify_code(secret, code):
+        # Zurück zum Setup mit Fehlermeldung
+        response.status = 302
+        response.set_header("Location", f"/totp/setup?token={token}&error=Falscher+Code.+Bitte+erneut+versuchen.")
+        return ""
+
+    TOTPRepo.set_verified(user_id)
+
+    return_token = crypto.create_jwt(
+        {"sub": user_id, "result": "success", "amr": ["totp"]},
+        expiry_minutes=1,
+    )
+    return_url = payload.get("return_url", "/")
+    response.status = 302
+    response.set_header("Location", f"{return_url}?token={return_token}")
+    return ""
+
+
+# ---------------------------------------------------------------------------
+# GET /totp/verify
+# ---------------------------------------------------------------------------
+
+@app.route("/totp/verify")
+def totp_verify_get():
+    payload = _validate_request_jwt("verify")
+    user_id = payload["sub"]
+
+    totp_record = TOTPRepo.get(user_id)
+    if totp_record is None or not totp_record.verified:
+        abort(400, "Kein verifiziertes TOTP-Secret vorhanden.")
+
+    nonce = _csp_nonce()
+    _set_csp(nonce)
+    response.content_type = "text/html; charset=utf-8"
+
+    return _render(
+        "totp_verify.html",
+        token=request.query.get("token"),
+        error=request.query.get("error", ""),
+        nonce=nonce,
+    )
+
+
+# ---------------------------------------------------------------------------
+# POST /totp/verify
+# ---------------------------------------------------------------------------
+
+@app.route("/totp/verify", method="POST")
+def totp_verify_post():
+    token = request.forms.get("token", "")
+    code = request.forms.get("code", "").strip()
+
+    try:
+        payload = crypto.verify_jwt(token)
+    except Exception:
+        abort(400, "Ungültiger oder abgelaufener Token.")
+
+    if payload.get("action") != "verify":
+        abort(400, "Falscher Token-Typ.")
+
+    user_id = payload["sub"]
+
+    totp_record = TOTPRepo.get(user_id)
+    if totp_record is None or not totp_record.verified:
+        abort(400, "Kein verifiziertes TOTP-Secret vorhanden.")
+
+    secret = crypto.decrypt_totp_secret(bytes(totp_record.secret_encrypted))
+    last_used = totp_record.last_used_at
+
+    if not totp_helpers.verify_code(secret, code, last_used_at=last_used):
+        response.status = 302
+        response.set_header("Location", f"/totp/verify?token={token}&error=Falscher+oder+bereits+verwendeter+Code.")
+        return ""
+
+    TOTPRepo.update_last_used(user_id)
+
+    return_token = crypto.create_jwt(
+        {"sub": user_id, "result": "verified", "amr": ["totp"]},
+        expiry_minutes=1,
+    )
+    return_url = payload.get("return_url", "/")
+    response.status = 302
+    response.set_header("Location", f"{return_url}?token={return_token}")
+    return ""
