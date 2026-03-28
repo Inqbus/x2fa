@@ -1,9 +1,10 @@
-"""X2FA – Bottle-Routen für FIDO2 Setup/Verify und TOTP-Fallback."""
+"""X2FA – Bottle-Routen für FIDO2 Setup/Verify, TOTP-Fallback und Backup-Codes."""
 
 import json
 import os
 import secrets
 import sys
+import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "vendor"))
 
@@ -18,6 +19,20 @@ app = Bottle()
 
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
 DOMAIN = os.environ.get("X2FA_DOMAIN", "localhost")
+
+# In-Memory Rate-Limiter: user_id → [timestamp, ...]
+_backup_attempts: dict[str, list[float]] = {}
+
+
+def _backup_rate_limit_ok(user_id: str, max_attempts: int = 5, window: int = 60) -> bool:
+    now = time.monotonic()
+    attempts = [t for t in _backup_attempts.get(user_id, []) if now - t < window]
+    if len(attempts) >= max_attempts:
+        _backup_attempts[user_id] = attempts
+        return False
+    attempts.append(now)
+    _backup_attempts[user_id] = attempts
+    return True
 
 # ---------------------------------------------------------------------------
 # Hilfsfunktionen
@@ -414,6 +429,77 @@ def totp_verify_post():
 
     return_token = crypto.create_jwt(
         {"sub": user_id, "result": "verified", "amr": ["totp"]},
+        expiry_minutes=1,
+    )
+    return_url = payload.get("return_url", "/")
+    response.status = 302
+    response.set_header("Location", f"{return_url}?token={return_token}")
+    return ""
+
+
+# ---------------------------------------------------------------------------
+# GET /backup/verify
+# ---------------------------------------------------------------------------
+
+@app.route("/backup/verify")
+def backup_verify_get():
+    _validate_request_jwt("verify")
+
+    nonce = _csp_nonce()
+    _set_csp(nonce)
+    response.content_type = "text/html; charset=utf-8"
+
+    return _render(
+        "backup_verify.html",
+        token=request.query.get("token"),
+        error=request.query.get("error", ""),
+        nonce=nonce,
+    )
+
+
+# ---------------------------------------------------------------------------
+# POST /backup/verify
+# ---------------------------------------------------------------------------
+
+@app.route("/backup/verify", method="POST")
+def backup_verify_post():
+    token = request.forms.get("token", "")
+    code = request.forms.get("code", "").strip().upper()
+
+    try:
+        payload = crypto.verify_jwt(token)
+    except Exception:
+        abort(400, "Ungültiger oder abgelaufener Token.")
+
+    if payload.get("action") != "verify":
+        abort(400, "Falscher Token-Typ.")
+
+    user_id = payload["sub"]
+
+    # Rate-Limit: max 5 Versuche pro Minute
+    if not _backup_rate_limit_ok(user_id):
+        response.status = 302
+        response.set_header("Location", f"/backup/verify?token={token}&error=Zu+viele+Versuche.+Bitte+1+Minute+warten.")
+        return ""
+
+    # Alle gültigen Codes des Users laden und gegen Code prüfen
+    valid_codes = BackupRepo.find_valid(user_id)
+    matched_hash = None
+    for record in valid_codes:
+        if crypto.verify_backup_code(code, record.code_hash):
+            matched_hash = record.code_hash
+            break
+
+    if matched_hash is None:
+        response.status = 302
+        response.set_header("Location", f"/backup/verify?token={token}&error=Ungültiger+Backup-Code.")
+        return ""
+
+    BackupRepo.consume(matched_hash, user_id)
+    remaining = BackupRepo.count_valid(user_id)
+
+    return_token = crypto.create_jwt(
+        {"sub": user_id, "result": "verified", "amr": ["backup"], "remaining_codes": remaining},
         expiry_minutes=1,
     )
     return_url = payload.get("return_url", "/")
