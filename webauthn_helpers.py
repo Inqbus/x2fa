@@ -20,11 +20,15 @@ from webauthn.helpers.structs import (
 )
 
 _DOMAIN: str | None = None
+_ORIGIN: str | None = None
 
 
 def init_webauthn(domain: str) -> None:
-    global _DOMAIN
+    global _DOMAIN, _ORIGIN
     _DOMAIN = domain
+    # X2FA_ORIGIN überschreibt den Standard (https://<domain>).
+    # Für lokale Tests: X2FA_ORIGIN=http://localhost:5000
+    _ORIGIN = os.environ.get("X2FA_ORIGIN") or f"https://{domain}"
 
 
 def _require_domain() -> str:
@@ -74,7 +78,7 @@ def verify_registration(challenge: bytes, credential_json: str) -> dict:
             credential=credential,
             expected_challenge=challenge,
             expected_rp_id=domain,
-            expected_origin=f"https://{domain}",
+            expected_origin=_ORIGIN,
             require_user_verification=True,
         )
     except Exception as exc:
@@ -133,7 +137,7 @@ def verify_authentication(
             credential=credential,
             expected_challenge=challenge,
             expected_rp_id=domain,
-            expected_origin=f"https://{domain}",
+            expected_origin=_ORIGIN,
             credential_public_key=stored_public_key,
             credential_current_sign_count=stored_sign_count,
             require_user_verification=True,

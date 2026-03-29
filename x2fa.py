@@ -69,6 +69,36 @@ def error_500(err):
     return _error_page(500)
 
 
+# ---------------------------------------------------------------------------
+# Demo-Callback (nur für lokale Tests — nicht in Produktion verwenden)
+# ---------------------------------------------------------------------------
+
+@app.route("/done")
+def demo_callback():
+    token = request.query.get("token", "")
+    if not token:
+        return "<h2>Kein Token empfangen.</h2>"
+    try:
+        payload = crypto.verify_jwt(token)
+    except Exception as e:
+        return f"<h2>Token ungültig:</h2><pre>{e}</pre>"
+
+    rows = "".join(f"<tr><td><b>{k}</b></td><td>{v}</td></tr>" for k, v in payload.items())
+    return f"""<!DOCTYPE html>
+<html lang="de"><head><meta charset="UTF-8">
+<title>Demo-Callback</title>
+<style>body{{font-family:system-ui;max-width:500px;margin:60px auto;padding:0 1rem}}
+table{{border-collapse:collapse;width:100%}}td{{padding:.5rem;border-bottom:1px solid #eee}}
+.ok{{color:#16a34a;font-size:1.3rem;font-weight:bold}}</style></head>
+<body>
+<p class="ok">&#10003; 2FA erfolgreich</p>
+<table>{rows}</table>
+<p style="color:#888;font-size:.85rem;margin-top:2rem">
+  Dies ist ein Test-Endpunkt. In der echten Anwendung verarbeitet dein Server diesen JWT.
+</p>
+</body></html>"""
+
+
 # In-Memory Rate-Limiter: user_id → [timestamp, ...]
 _backup_attempts: dict[str, list[float]] = {}
 
@@ -113,11 +143,12 @@ def _csp_nonce() -> str:
     return secrets.token_urlsafe(16)
 
 
-def _set_csp(nonce: str) -> None:
+def _set_csp(nonce: str, allow_data_images: bool = False) -> None:
+    img_src = "img-src data:; " if allow_data_images else ""
     response.set_header(
         "Content-Security-Policy",
         f"default-src 'none'; script-src 'nonce-{nonce}'; style-src 'unsafe-inline'; "
-        f"form-action https:; base-uri 'none'; frame-ancestors 'none';",
+        f"{img_src}form-action https: http:; base-uri 'none'; frame-ancestors 'none';",
     )
     response.set_header("X-Frame-Options", "DENY")
     response.set_header("X-Content-Type-Options", "nosniff")
@@ -375,7 +406,7 @@ def totp_setup_get():
     qr_data_uri = totp_helpers.generate_qr_data_uri(provisioning_uri)
 
     nonce = _csp_nonce()
-    _set_csp(nonce)
+    _set_csp(nonce, allow_data_images=True)
     response.content_type = "text/html; charset=utf-8"
 
     return _render(
