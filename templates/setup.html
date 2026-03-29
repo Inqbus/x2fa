@@ -22,7 +22,7 @@
 <h1>Sicherheitsschlüssel einrichten</h1>
 <p>Verwende FaceID, TouchID, Windows Hello oder einen Sicherheitsschlüssel.</p>
 
-<button id="btn" onclick="startRegistration()">Jetzt einrichten</button>
+<button id="btn">Jetzt einrichten</button>
 <div class="error" id="err"></div>
 <p class="hint">Kein kompatibler Authenticator? <a href="/totp/setup?token={{token}}">TOTP-Fallback einrichten</a></p>
 
@@ -39,6 +39,8 @@ function fromB64url(s) {
   const b = atob(s.replace(/-/g, '+').replace(/_/g, '/'));
   return Uint8Array.from(b, c => c.charCodeAt(0)).buffer;
 }
+
+document.getElementById('btn').addEventListener('click', startRegistration);
 
 async function startRegistration() {
   if (!window.PublicKeyCredential) {

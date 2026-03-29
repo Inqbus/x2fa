@@ -23,7 +23,7 @@
 <h1>Identität bestätigen</h1>
 <p>Verwende FaceID, TouchID, Windows Hello oder einen Sicherheitsschlüssel.</p>
 
-<button id="btn" onclick="startAuthentication()">Bestätigen</button>
+<button id="btn">Bestätigen</button>
 <div class="error" id="err"></div>
 <p class="hint">Probleme?
   <span class="links">
@@ -50,6 +50,8 @@ function fromB64url(s) {
 if (!window.PublicKeyCredential) {
   window.location = "/totp/verify?token=" + TOKEN;
 }
+
+document.getElementById('btn').addEventListener('click', startAuthentication);
 
 async function startAuthentication() {
   const btn = document.getElementById("btn");
