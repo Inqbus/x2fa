@@ -259,7 +259,7 @@ def setup_complete():
         user_id=user_id,
         public_key=reg["public_key"],
         sign_count=reg["sign_count"],
-        authenticator_type="platform",
+        authenticator_type=reg.get("authenticator_type", "roaming"),
         is_passkey=reg["is_passkey"],
     )
 

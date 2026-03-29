@@ -10,7 +10,6 @@ from webauthn import (
     verify_registration_response,
 )
 from webauthn.helpers.structs import (
-    AuthenticatorAttachment,
     AuthenticatorSelectionCriteria,
     PublicKeyCredentialDescriptor,
     ResidentKeyRequirement,
@@ -51,7 +50,8 @@ def build_registration_options_json(user_id: str, challenge: bytes) -> str:
         user_name=user_id,
         challenge=challenge,
         authenticator_selection=AuthenticatorSelectionCriteria(
-            authenticator_attachment=AuthenticatorAttachment.PLATFORM,
+            # Kein authenticator_attachment → Browser akzeptiert Platform (TouchID/Hello)
+            # UND Roaming Authenticators (YubiKey, Nitrokey, HSM)
             resident_key=ResidentKeyRequirement.PREFERRED,
             user_verification=UserVerificationRequirement.REQUIRED,
         ),
@@ -90,11 +90,20 @@ def verify_registration(challenge: bytes, credential_json: str) -> dict:
         else False
     )
 
+    # Authenticator-Typ aus der Attestation ableiten
+    aaguid = getattr(verification, "aaguid", None)
+    authenticator_type = "platform" if (
+        hasattr(verification, "authenticator_data")
+        and getattr(verification.authenticator_data.flags, "up", False)
+        and not aaguid
+    ) else "roaming"
+
     return {
         "credential_id": verification.credential_id,
         "public_key": verification.credential_public_key,
         "sign_count": verification.sign_count,
         "is_passkey": is_passkey,
+        "authenticator_type": authenticator_type,
     }
 
 
