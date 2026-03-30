@@ -30,10 +30,12 @@ def init_services():
 
     from crypto import init_crypto
     from webauthn_helpers import init_webauthn
+    from audit import init_audit
     from models import init_db
 
     init_crypto(TEST_SECRET)
     init_webauthn(TEST_DOMAIN)
+    init_audit(TEST_SECRET)
     init_db()
 
 

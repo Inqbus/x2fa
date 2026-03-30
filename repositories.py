@@ -18,18 +18,21 @@ class CredentialRepo:
         public_key: bytes,
         sign_count: int,
         authenticator_type: str,
+        device_type: str = "single_device",
+        transport: str | None = None,
         is_passkey: bool = False,
     ) -> None:
         with SessionLocal() as db:
-            cred = Credential(
+            db.add(Credential(
                 credential_id=credential_id,
                 user_id=user_id,
                 public_key=public_key,
                 sign_count=sign_count,
                 authenticator_type=authenticator_type,
+                device_type=device_type,
+                transport=transport,
                 is_passkey=is_passkey,
-            )
-            db.add(cred)
+            ))
             db.commit()
 
     @staticmethod
@@ -100,7 +103,6 @@ class ChallengeRepo:
 
     @staticmethod
     def purge_expired() -> None:
-        """Aufräumen abgelaufener Challenges (kann periodisch aufgerufen werden)."""
         with SessionLocal() as db:
             db.query(Challenge).filter(
                 Challenge.expires_at < datetime.now(tz=timezone.utc)
@@ -184,7 +186,6 @@ class BackupRepo:
 
     @staticmethod
     def consume(code_hash: str, user_id: str) -> bool:
-        """Markiert den Code als verbraucht. Gibt True zurück bei Erfolg."""
         with SessionLocal() as db:
             code = (
                 db.query(BackupCode)
@@ -222,20 +223,13 @@ class BackupRepo:
 class AuditRepo:
 
     @staticmethod
-    def log(
-        event: str,
-        user_id: str,
-        ip_hash: str,
-        success: bool,
-        detail: str | None = None,
-    ) -> None:
+    def log(action: str, method: str, user_id: str, ip_hash: str) -> None:
         with SessionLocal() as db:
             db.add(AuditLog(
-                event=event,
+                action=action,
+                method=method,
                 user_id=user_id,
                 ip_hash=ip_hash,
-                success=success,
-                detail=detail,
             ))
             db.commit()
 
@@ -245,7 +239,7 @@ class AuditRepo:
             return (
                 db.query(AuditLog)
                 .filter_by(user_id=user_id)
-                .order_by(AuditLog.created_at.desc())
+                .order_by(AuditLog.timestamp.desc())
                 .limit(limit)
                 .all()
             )
@@ -255,12 +249,8 @@ class AuditRepo:
         with SessionLocal() as db:
             from sqlalchemy import func
             rows = (
-                db.query(AuditLog.event, AuditLog.success, func.count())
-                .group_by(AuditLog.event, AuditLog.success)
+                db.query(AuditLog.action, AuditLog.method, func.count())
+                .group_by(AuditLog.action, AuditLog.method)
                 .all()
             )
-            result = {}
-            for event, success, count in rows:
-                key = f"{event}.{'ok' if success else 'fail'}"
-                result[key] = count
-            return result
+            return {f"{action}.{method}": count for action, method, count in rows}

@@ -86,7 +86,7 @@ def test_backup_verify_rate_limit(client, verify_token):
 
 
 def test_backup_verify_rate_limit_does_not_block_correct_after_reset(client, verify_token):
-    """Rate-Limiter gilt pro User — nach Reset (neuer Test) wieder offen."""
+    """Rate-Limiter gilt pro IP — nach Reset (neuer Test) wieder offen."""
     codes = _create_backup_codes()
     # Frischer State durch clean_db + _backup_attempts.clear() in Fixture
     status, headers, _ = client.post_form("/backup/verify", {"token": verify_token, "code": codes[0]})

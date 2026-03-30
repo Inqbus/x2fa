@@ -122,13 +122,11 @@ def cmd_audit(args) -> None:
     if not entries:
         print(f"Keine Audit-Einträge für '{args.user_id}'.")
         return
-    print(f"{'Zeitpunkt':<20} {'Event':<25} {'OK':<5} {'Detail'}")
+    print(f"{'Zeitpunkt':<20} {'Action':<10} {'Method':<22} {'ip_hash[:12]'}")
     print("-" * 80)
     for e in entries:
-        ts = e.created_at.strftime("%Y-%m-%d %H:%M:%S")
-        detail = e.detail or ""
-        ok = "✓" if e.success else "✗"
-        print(f"{ts:<20} {e.event:<25} {ok:<5} {detail}")
+        ts = e.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        print(f"{ts:<20} {e.action:<10} {e.method:<22} {e.ip_hash[:12]}…")
 
 
 # ---------------------------------------------------------------------------

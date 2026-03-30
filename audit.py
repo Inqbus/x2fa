@@ -4,29 +4,34 @@ import hashlib
 
 from repositories import AuditRepo
 
-# Event-Konstanten
-FIDO2_SETUP_OK       = "fido2_setup_ok"
-FIDO2_SETUP_FAIL     = "fido2_setup_fail"
-FIDO2_VERIFY_OK      = "fido2_verify_ok"
-FIDO2_VERIFY_FAIL    = "fido2_verify_fail"
-TOTP_SETUP_OK        = "totp_setup_ok"
-TOTP_VERIFY_OK       = "totp_verify_ok"
-TOTP_VERIFY_FAIL     = "totp_verify_fail"
-BACKUP_VERIFY_OK     = "backup_verify_ok"
-BACKUP_VERIFY_FAIL   = "backup_verify_fail"
-BACKUP_RATE_LIMITED  = "backup_rate_limited"
+# Action-Konstanten
+ACTION_SETUP  = "setup"
+ACTION_VERIFY = "verify"
+ACTION_FAIL   = "fail"
+
+# Method-Konstanten
+METHOD_WEBAUTHN_PLATFORM = "webauthn_platform"
+METHOD_WEBAUTHN_ROAMING  = "webauthn_roaming"
+METHOD_TOTP              = "totp"
+METHOD_BACKUP            = "backup"
+
+_SECRET_SALT: str = ""
+
+
+def init_audit(secret: str) -> None:
+    global _SECRET_SALT
+    _SECRET_SALT = secret
 
 
 def hash_ip(ip: str) -> str:
-    """SHA256-Hash der IP-Adresse — kein Klartext in der DB."""
-    return hashlib.sha256(ip.encode()).hexdigest()
+    """SHA256(ip + SECRET_SALT) — kein Klartext in der DB (DSGVO-konform)."""
+    return hashlib.sha256((ip + _SECRET_SALT).encode()).hexdigest()
 
 
-def log(event: str, user_id: str, ip: str, success: bool, detail: str | None = None) -> None:
+def log(action: str, method: str, user_id: str, ip: str) -> None:
     AuditRepo.log(
-        event=event,
+        action=action,
+        method=method,
         user_id=user_id,
         ip_hash=hash_ip(ip),
-        success=success,
-        detail=detail,
     )

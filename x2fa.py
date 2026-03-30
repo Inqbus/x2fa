@@ -99,18 +99,20 @@ table{{border-collapse:collapse;width:100%}}td{{padding:.5rem;border-bottom:1px 
 </body></html>"""
 
 
-# In-Memory Rate-Limiter: user_id → [timestamp, ...]
+# In-Memory Rate-Limiter: ip_hash → [timestamp, ...]
+# IP-basiert (nicht user_id-basiert) um User-Enumeration zu verhindern
 _backup_attempts: dict[str, list[float]] = {}
 
 
-def _backup_rate_limit_ok(user_id: str, max_attempts: int = 5, window: int = 60) -> bool:
+def _backup_rate_limit_ok(ip: str, max_attempts: int = 5, window: int = 60) -> bool:
+    key = audit.hash_ip(ip)
     now = time.monotonic()
-    attempts = [t for t in _backup_attempts.get(user_id, []) if now - t < window]
+    attempts = [t for t in _backup_attempts.get(key, []) if now - t < window]
     if len(attempts) >= max_attempts:
-        _backup_attempts[user_id] = attempts
+        _backup_attempts[key] = attempts
         return False
     attempts.append(now)
-    _backup_attempts[user_id] = attempts
+    _backup_attempts[key] = attempts
     return True
 
 # ---------------------------------------------------------------------------
@@ -148,7 +150,7 @@ def _set_csp(nonce: str, allow_data_images: bool = False) -> None:
     response.set_header(
         "Content-Security-Policy",
         f"default-src 'none'; script-src 'nonce-{nonce}'; style-src 'unsafe-inline'; "
-        f"{img_src}form-action https: http:; base-uri 'none'; frame-ancestors 'none';",
+        f"{img_src}connect-src 'self'; form-action https: http:; base-uri 'none'; frame-ancestors 'none';",
     )
     response.set_header("X-Frame-Options", "DENY")
     response.set_header("X-Content-Type-Options", "nosniff")
@@ -178,6 +180,14 @@ def _error_json(message: str, status: int = 400) -> str:
     return _json_response({"error": message}, status)
 
 
+def _result_jwt(payload: dict, extra: dict) -> str:
+    """Erstellt Result-JWT und übernimmt 'state' aus dem Request-JWT (MITM-Schutz)."""
+    claims = {"sub": payload["sub"], **extra}
+    if "state" in payload:
+        claims["state"] = payload["state"]
+    return crypto.create_jwt(claims, expiry_minutes=1)
+
+
 def _client_ip() -> str:
     """Gibt die Client-IP zurück (X-Forwarded-For hat Vorrang hinter Reverse-Proxy)."""
     return (
@@ -187,11 +197,24 @@ def _client_ip() -> str:
 
 
 # ---------------------------------------------------------------------------
-# GET /setup
+# GET /setup  →  Methodenauswahl
 # ---------------------------------------------------------------------------
 
 @app.route("/setup")
 def setup_get():
+    payload = _validate_request_jwt("setup")
+    nonce = _csp_nonce()
+    _set_csp(nonce)
+    response.content_type = "text/html; charset=utf-8"
+    return _render("setup_choose.html", token=request.query.get("token"), nonce=nonce)
+
+
+# ---------------------------------------------------------------------------
+# GET /setup/webauthn
+# ---------------------------------------------------------------------------
+
+@app.route("/setup/webauthn")
+def setup_webauthn_get():
     payload = _validate_request_jwt("setup")
     user_id = payload["sub"]
 
@@ -245,21 +268,28 @@ def setup_complete():
         "id": data.get("id"),
         "rawId": data.get("rawId"),
         "type": data.get("type"),
+        "transports": data.get("transports", []),
         "response": data.get("response", {}),
     })
 
+    ip = _client_ip()
     try:
         reg = webauthn_helpers.verify_registration(challenge, credential_json)
     except ValueError as exc:
-        audit.log(audit.FIDO2_SETUP_FAIL, user_id, _client_ip(), False, str(exc))
+        audit.log(audit.ACTION_FAIL, audit.METHOD_WEBAUTHN_ROAMING, user_id, ip)
         return _error_json(str(exc), 400)
+
+    auth_type = reg.get("authenticator_type", "roaming")
+    method = audit.METHOD_WEBAUTHN_PLATFORM if auth_type == "platform" else audit.METHOD_WEBAUTHN_ROAMING
 
     CredentialRepo.save(
         credential_id=reg["credential_id"],
         user_id=user_id,
         public_key=reg["public_key"],
         sign_count=reg["sign_count"],
-        authenticator_type=reg.get("authenticator_type", "roaming"),
+        authenticator_type=auth_type,
+        device_type=reg.get("device_type", "single_device"),
+        transport=reg.get("transport"),
         is_passkey=reg["is_passkey"],
     )
 
@@ -268,13 +298,9 @@ def setup_complete():
     code_hashes = [crypto.hash_backup_code(c) for c in codes]
     BackupRepo.save_many(user_id, code_hashes)
 
-    audit.log(audit.FIDO2_SETUP_OK, user_id, _client_ip(), True)
+    audit.log(audit.ACTION_SETUP, method, user_id, ip)
 
-    # Return-JWT für die Hauptanwendung (1 Minute gültig)
-    return_token = crypto.create_jwt(
-        {"sub": user_id, "result": "success", "amr": ["fido2"]},
-        expiry_minutes=1,
-    )
+    return_token = _result_jwt(payload, {"result": "success", "amr": [method]})
     return_url = payload.get("return_url", "/")
     redirect_url = f"{return_url}?token={return_token}"
 
@@ -303,10 +329,17 @@ def verify_get():
         return ""
 
     credential_ids = [bytes(cred.credential_id) for cred in credentials]
+    # Transports pro Credential (z.B. ["hybrid"] für Handy, ["usb"] für YubiKey)
+    transports_list = [
+        cred.transport.split(",") if cred.transport else []
+        for cred in credentials
+    ]
     challenge = secrets.token_bytes(32)
     challenge_id = ChallengeRepo.create(user_id, challenge)
 
-    options_json = webauthn_helpers.build_authentication_options_json(challenge, credential_ids)
+    options_json = webauthn_helpers.build_authentication_options_json(
+        challenge, credential_ids, transports=transports_list
+    )
     nonce = _csp_nonce()
     _set_csp(nonce)
     response.content_type = "text/html; charset=utf-8"
@@ -365,6 +398,7 @@ def verify_complete():
         "response": data.get("response", {}),
     })
 
+    ip = _client_ip()
     try:
         new_sign_count = webauthn_helpers.verify_authentication(
             challenge=challenge,
@@ -373,16 +407,14 @@ def verify_complete():
             stored_sign_count=cred.sign_count,
         )
     except ValueError as exc:
-        audit.log(audit.FIDO2_VERIFY_FAIL, user_id, _client_ip(), False, str(exc))
+        audit.log(audit.ACTION_FAIL, audit.METHOD_WEBAUTHN_ROAMING, user_id, ip)
         return _error_json(str(exc), 400)
 
     CredentialRepo.update_sign_count(raw_id, new_sign_count)
-    audit.log(audit.FIDO2_VERIFY_OK, user_id, _client_ip(), True)
+    method = audit.METHOD_WEBAUTHN_PLATFORM if cred.authenticator_type == "platform" else audit.METHOD_WEBAUTHN_ROAMING
+    audit.log(audit.ACTION_VERIFY, method, user_id, ip)
 
-    return_token = crypto.create_jwt(
-        {"sub": user_id, "result": "verified", "amr": ["fido2"]},
-        expiry_minutes=1,
-    )
+    return_token = _result_jwt(payload, {"result": "verified", "amr": [method]})
     return_url = payload.get("return_url", "/")
     redirect_url = f"{return_url}?token={return_token}"
 
@@ -445,18 +477,15 @@ def totp_setup_verify():
     secret = crypto.decrypt_totp_secret(bytes(totp_record.secret_encrypted))
 
     if not totp_helpers.verify_code(secret, code):
-        audit.log(audit.TOTP_VERIFY_FAIL, user_id, _client_ip(), False, "setup_verify")
+        audit.log(audit.ACTION_FAIL, audit.METHOD_TOTP, user_id, _client_ip())
         response.status = 302
         response.set_header("Location", f"/totp/setup?token={token}&error=Falscher+Code.+Bitte+erneut+versuchen.")
         return ""
 
     TOTPRepo.set_verified(user_id)
-    audit.log(audit.TOTP_SETUP_OK, user_id, _client_ip(), True)
+    audit.log(audit.ACTION_SETUP, audit.METHOD_TOTP, user_id, _client_ip())
 
-    return_token = crypto.create_jwt(
-        {"sub": user_id, "result": "success", "amr": ["totp"]},
-        expiry_minutes=1,
-    )
+    return_token = _result_jwt(payload, {"result": "success", "amr": ["totp"]})
     return_url = payload.get("return_url", "/")
     response.status = 302
     response.set_header("Location", f"{return_url}?token={return_token}")
@@ -515,18 +544,15 @@ def totp_verify_post():
     last_used = totp_record.last_used_at
 
     if not totp_helpers.verify_code(secret, code, last_used_at=last_used):
-        audit.log(audit.TOTP_VERIFY_FAIL, user_id, _client_ip(), False)
+        audit.log(audit.ACTION_FAIL, audit.METHOD_TOTP, user_id, _client_ip())
         response.status = 302
         response.set_header("Location", f"/totp/verify?token={token}&error=Falscher+oder+bereits+verwendeter+Code.")
         return ""
 
     TOTPRepo.update_last_used(user_id)
-    audit.log(audit.TOTP_VERIFY_OK, user_id, _client_ip(), True)
+    audit.log(audit.ACTION_VERIFY, audit.METHOD_TOTP, user_id, _client_ip())
 
-    return_token = crypto.create_jwt(
-        {"sub": user_id, "result": "verified", "amr": ["totp"]},
-        expiry_minutes=1,
-    )
+    return_token = _result_jwt(payload, {"result": "verified", "amr": ["totp"]})
     return_url = payload.get("return_url", "/")
     response.status = 302
     response.set_header("Location", f"{return_url}?token={return_token}")
@@ -572,9 +598,10 @@ def backup_verify_post():
 
     user_id = payload["sub"]
 
-    # Rate-Limit: max 5 Versuche pro Minute
-    if not _backup_rate_limit_ok(user_id):
-        audit.log(audit.BACKUP_RATE_LIMITED, user_id, _client_ip(), False)
+    ip = _client_ip()
+    # Rate-Limit: max 5 Versuche pro Minute, IP-basiert
+    if not _backup_rate_limit_ok(ip):
+        audit.log(audit.ACTION_FAIL, audit.METHOD_BACKUP, user_id, ip)
         response.status = 302
         response.set_header("Location", f"/backup/verify?token={token}&error=Zu+viele+Versuche.+Bitte+1+Minute+warten.")
         return ""
@@ -588,19 +615,16 @@ def backup_verify_post():
             break
 
     if matched_hash is None:
-        audit.log(audit.BACKUP_VERIFY_FAIL, user_id, _client_ip(), False)
+        audit.log(audit.ACTION_FAIL, audit.METHOD_BACKUP, user_id, ip)
         response.status = 302
         response.set_header("Location", f"/backup/verify?token={token}&error=Ungültiger+Backup-Code.")
         return ""
 
     BackupRepo.consume(matched_hash, user_id)
     remaining = BackupRepo.count_valid(user_id)
-    audit.log(audit.BACKUP_VERIFY_OK, user_id, _client_ip(), True, f"remaining={remaining}")
+    audit.log(audit.ACTION_VERIFY, audit.METHOD_BACKUP, user_id, ip)
 
-    return_token = crypto.create_jwt(
-        {"sub": user_id, "result": "verified", "amr": ["backup"], "remaining_codes": remaining},
-        expiry_minutes=1,
-    )
+    return_token = _result_jwt(payload, {"result": "verified", "amr": ["backup"], "remaining_codes": remaining})
     return_url = payload.get("return_url", "/")
     response.status = 302
     response.set_header("Location", f"{return_url}?token={return_token}")

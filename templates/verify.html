@@ -20,8 +20,8 @@
 </head>
 <body>
 
-<h1>Identität bestätigen</h1>
-<p>Verwende FaceID, TouchID, Windows Hello oder einen Sicherheitsschlüssel.</p>
+<h1 id="title">Identität bestätigen</h1>
+<p id="desc">Verwende FaceID, TouchID, Windows Hello oder einen Sicherheitsschlüssel.</p>
 
 <button id="btn">Bestätigen</button>
 <div class="error" id="err"></div>
@@ -49,6 +49,22 @@ function fromB64url(s) {
 // Auto-Fallback: kein WebAuthn → sofort zu TOTP
 if (!window.PublicKeyCredential) {
   window.location = "/totp/verify?token=" + TOKEN;
+}
+
+// Adaptive UI: Plattform-Authenticator verfügbar?
+if (window.PublicKeyCredential && PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) {
+  PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(available => {
+    if (available) {
+      document.getElementById('title').textContent = "Mit Gerät bestätigen";
+      document.getElementById('desc').textContent = "Bestätige deine Identität mit FaceID, TouchID oder Windows Hello.";
+    } else {
+      document.getElementById('title').textContent = "Identität bestätigen";
+      document.getElementById('desc').innerHTML =
+        'Best\u00e4tige mit dem Ger\u00e4t, das du beim Einrichten verwendet hast:<br>' +
+        '&#8226; <b>Handy</b> \u2013 klicke Best\u00e4tigen, w\u00e4hle <i>Smartphone oder Tablet</i><br>' +
+        '&#8226; <b>USB-Schl\u00fcssel</b> \u2013 YubiKey o.\u00e4. einstecken und klicken';
+    }
+  });
 }
 
 document.getElementById('btn').addEventListener('click', startAuthentication);

@@ -1,43 +1,56 @@
-# X2FA Projektskizze v4.3
-**Zero-Hardware FIDO2 Microservice mit TOTP-Fallback**  
-*Stand: 2026-03-28 23:20*
+ Hier ist die komplette, finale **v5.4-final** mit allen Korrekturen (inkl. des TOTP-Replay-Schutz-Fixes mit `last_used_window`):
 
 ---
 
-## 1. Vision
-
-X2FA ist ein standalone 2FA-Microservice zur Integration in bestehende Anwendungen über einen Redirect-Flow. Primär FIDO2 via Platform Authenticators (FaceID, TouchID, Windows Hello), mit TOTP-Fallback für Legacy-Browser und 10 einmalige Backup-Codes für Geräteverlust.
-
-**Value Proposition:** X2FA in unter 30 Sekunden installieren – FIDO2-Authentifizierung ohne Hardware-Keys, ohne Framework-Overhead, resolveragnostisch und datenbankagnostisch.
+# X2FA Projektskizze v5.4-final
+**FIDO2 Microservice mit OIDC-Provider – Produktionsreife Authlib-Integration**
+*Stand: 2026-03-30*
 
 ---
 
-## 2. Kernkonzept
+## 1. Vision & Value Proposition
 
-### Bring Your Own Domain + Bring Your Own Database
+X2FA ist ein standalone 2FA-Microservice mit vollständigem OIDC-Provider (OpenID Connect), der in bestehende Anwendungen über den standardisierten Authorization Code Flow integriert wird. Unterstützt alle FIDO2-Authenticator-Klassen (Platform, Roaming, Hybrid) sowie TOTP-Fallback für universelle Plattformkompatibilität (inkl. Linux).
+
+**Value Proposition:** X2FA in unter 60 Sekunden installieren – FIDO2-Authentifizierung mit produktionsreifer OIDC-Session-Verwaltung via Flask und Authlib.
+
+---
+
+## 2. Migrationsstrategie: Rewrite v5.4
+
+**Aufwand:** ~2-3 Tage (~15 Dateien)
+
+---
+
+## 3. Kernkonzept
+
+### Bring Your Own Domain + Bring Your Own Infrastructure
 
 | Komponente | Nutzer bringt | X2FA stellt bereit |
 |------------|---------------|-------------------|
 | **Domain** | DNS A-Record (`2fa.example.com` → Server-IP) | Automatische RP-ID Konfiguration |
 | **TLS/Infrastruktur** | Caddy/nginx/Traefik/Cloudflare | HTTP-Backend auf localhost:5000 |
 | **Datenbank** | SQLite (Default), PostgreSQL oder MySQL | SQLAlchemy-ORM mit Migrationen |
-| **Primär-Auth** | Platform Authenticator (FaceID, TouchID, TPM) | WebAuthn-UI mit Auto-Detection |
-| **Fallback-Auth** | TOTP-App (Google Authenticator) | TOTP-Setup/Verify mit Fernet-Verschlüsselung |
-| **Notfall-Auth** | Ausgedruckte Backup-Codes (10 Stück) | Einmalige Validierung |
-| **Integration** | 2 HTTP-Endpunkte (Redirect + Callback) | Stateless JWT-Kommunikation |
+| **Authenticator** | **Wählbar:** FaceID/TouchID (Apple), Hello (Windows), Android Biometrie, YubiKey (USB/NFC), oder Phone-as-Key (Hybrid) | Auto-Detection der verfügbaren Methoden, Cross-Platform Support |
+| **Fallback** | TOTP-App (Google Authenticator) | Verschlüsselte Speicherung (Fernet) |
+| **Notfall** | 10 Backup-Codes | Einmalige Validierung |
+| **Integration** | OIDC-Client (client_id + client_secret) | OIDC Authorization Code Flow, JWKS-Endpunkt, Discovery |
 
-### Authentifizierungs-Hierarchie
+### Authenticator-Strategie (Linux-kompatibel)
 
-1. **FIDO2 Platform** (Primary): FaceID, TouchID, Windows Hello, Android StrongBox
-2. **FIDO2 Passkeys** (Cloud): iCloud Keychain, Google Password Manager
-3. **FIDO2 Hybrid**: Phone-as-Key via QR-Code/Bluetooth
-4. **FIDO2 Roaming** (Optional): YubiKey, Nitrokey
-5. **TOTP** (Fallback): Zeitbasierte 6-stellige Codes
-6. **Backup-Codes** (Notfall): 10 einmalig verwendbare 8-stellige Codes
+| Plattform | Primäre Methode | Fallback | Implementierung |
+|-----------|----------------|----------|-----------------|
+| **macOS/iOS** | Secure Enclave (TouchID/FaceID) | TOTP | `navigator.credentials` ohne Attachment-Filter |
+| **Windows 10/11** | TPM 2.0 (Hello) | TOTP | Platform-Detection |
+| **Android** | StrongBox/TEE | TOTP | Biometrie-API |
+| **Linux Desktop** | **Hybrid/Phone-as-Key** oder **YubiKey** | TOTP | QR-Code für Phone-Auth oder USB-Roaming |
+| **Server/Headless** | TOTP oder Backup-Codes | - | Kein WebAuthn verfügbar |
+
+**Wichtig:** Keine `authenticatorAttachment: "platform"` Einschränkung – verwendet `cross-platform` als Default, um YubiKey und Hybrid zu ermöglichen.
 
 ---
 
-## 3. Systemarchitektur
+## 4. Systemarchitektur (Ausführlich)
 
 ### Komponentendiagramm
 
@@ -45,8 +58,10 @@ X2FA ist ein standalone 2FA-Microservice zur Integration in bestehende Anwendung
 graph TB
     subgraph "CLIENT"
         Browser["Browser<br/>Vanilla JS inline"]
-        PlatformAuth["Platform Authenticator<br/>FaceID TouchID TPM"]
-        TOTPApp["TOTP-App"]
+        PlatformAuth["Platform Authenticator<br/>FaceID TouchID WindowsHello"]
+        RoamingAuth["Roaming Authenticator<br/>YubiKey USB/NFC"]
+        HybridAuth["Hybrid/Phone<br/>Android/iPhone via QR/BLE"]
+        TOTPApp["TOTP-App<br/>Google Authenticator"]
     end
 
     subgraph "INFRASTRUKTUR"
@@ -54,7 +69,11 @@ graph TB
     end
 
     subgraph "X2FA SERVICE"
-        Bottle["Bottle Python<br/>HTTP localhost5000"]
+        Flask["Flask Application<br/>Gunicorn/Werkzeug<br/>localhost:5000"]
+        
+        subgraph "SESSION (Client-Seitig)"
+            Cookie["Signed Cookie<br/>Werkzeug Secure<br/>HttpOnly SameSite=Lax"]
+        end
         
         subgraph "DATENBANKSCHICHT"
             SQLAlchemy["SQLAlchemy ORM"]
@@ -65,439 +84,1107 @@ graph TB
             Postgres[("PostgreSQL")]
             MySQL[("MySQL")]
         end
+        
+        subgraph "CACHE (Optional)"
+            Redis["Redis<br/>Rate-Limiting Store<br/>Shared State"]
+        end
     end
 
-    MainApp["HAUPTANWENDUNG"]
+    MainApp["HAUPTANWENDUNG<br/>OIDC Relying Party"]
 
-    Browser <-->|"HTTPS TLS13"| TLS
-    TLS <-->|"HTTP"| Bottle
-    Bottle <-->|"SQL"| SQLAlchemy
+    Browser <-->|"HTTPS TLS 1.3"| TLS
+    TLS <-->|"HTTP Plain"| Flask
+    Flask <-->|"SQL Queries"| SQLAlchemy
     SQLAlchemy <-->|"Engine"| SQLite
     SQLAlchemy <-->|"Engine"| Postgres
     SQLAlchemy <-->|"Engine"| MySQL
     
-    Browser <-->|"WebAuthn API"| PlatformAuth
-    Browser -.->|"Manuelle Eingabe"| TOTPApp
+    Flask <-.->|"Set-Cookie / Header"| Cookie
+    Browser <-.->|"Cookie: session=..."| Cookie
     
-    MainApp <-->|"302 Redirect JWT"| TLS
+    Flask <-->|"Redis Protocol"| Redis
+    
+    Browser <-->|"WebAuthn API<br/>navigator.credentials"| PlatformAuth
+    Browser <-->|"WebAuthn API<br/>USB/NFC"| RoamingAuth
+    Browser <-->|"caBLE / QR-Code<br/>Cloud Relay"| HybridAuth
+    Browser -.->|"Manuelle Eingabe<br/>6-stelliger Code"| TOTPApp
+    
+    MainApp <-->|"OIDC Auth Code Flow<br/>/authorize /token /jwks.json"| TLS
     
     style PlatformAuth fill:#f9f
-    style Bottle fill:#ff9
+    style RoamingAuth fill:#f9f
+    style HybridAuth fill:#f9f
+    style TOTPApp fill:#ff9
+    style Flask fill:#ff9
+    style Cookie fill:#ffcc99
+    style Redis fill:#ff9999
     style SQLAlchemy fill:#bbf
     style SQLite fill:#fbb
+    style MainApp fill:#9f9
 ```
+
+### Session-Architektur (Detailliert)
+
+```
+Flask Session (Client-seitig, Signed Cookie):
+├─ session['user_id'] = "user123"          # Nach erfolgreicher 2FA
+├─ session['auth_time'] = 1711822800     # Unix-Timestamp (Integer)
+├─ session['2fa_verified'] = True        # Flag für OIDC-Authorization
+├─ session['auth_method'] = "webauthn"   # Für AMR-Claim im ID-Token
+├─ session.permanent = True             # WICHTIG: Für Ablauf nach 5min!
+└─ Signatur: HMAC-SHA256(SECRET_KEY)
+
+Authlib Authorization Code (Server-seitig, Datenbank):
+├─ code: Opaque String (60s TTL)
+├─ client_id: Foreign Key zu OIDCClient
+├─ user_id: Aus Flask-Session übernommen
+├─ code_challenge: PKCE (S256)
+├─ nonce: Für ID-Token Replay-Schutz
+├─ auth_time: Unix-Integer (für 'auth_time' Claim)
+├─ expires_at: DateTime für SQL-Abfragen
+└─ used: Boolean (Einmalverwendung)
+
+Redis (Shared State):
+├─ Rate-Limit Counter (IP-basiert)
+└─ Session-Store bei Multi-Node (optional)
+```
+
+### HTTPS-Strategien (Resolveragnostisch)
+
+| Setup | Verwendung | Konfiguration |
+|-------|-----------|---------------|
+| **Caddy** | Zero-Config, Auto-HTTPS | `reverse_proxy localhost:5000`, automatische Zertifikate |
+| **nginx** | Enterprise, manuelle Kontrolle | `proxy_pass http://127.0.0.1:5000`, Certbot-Integration |
+| **Traefik** | Docker/Cloud-Native | Label-basierte Discovery, Auto-HTTPS |
+| **Cloudflare Tunnel** | Serverless/Home-Lab | Edge-Terminierung, intern HTTP |
 
 ---
 
-## 4. Technologie-Stack
+## 5. Technologie-Stack
 
 | Ebene | Technologie | Spezifikation |
 |-------|-------------|---------------|
-| **Framework** | Bottle (vendored) | Single-File `vendor/bottle.py`, BSD-Lizenz |
-| **Python** | 3.11+ | |
-| **ORM** | SQLAlchemy 2.0+ | DB-Agnostik, Connection Pooling |
-| **Migration** | Alembic (Optional) | Für PostgreSQL/MySQL |
+| **Framework** | Flask 3.0+ | Werkzeug-Sessions, Jinja2 |
+| **WSGI-Server** | Gunicorn 21.0+ | Production-Deployment (4 Worker mit Redis) |
+| **Development** | Flask Built-in | `flask run` für Entwicklung |
+| **Python** | 3.11+ | `datetime.now(timezone.utc)` statt utcnow() |
+| **ORM** | SQLAlchemy 2.0+ | DB-Agnostik, Connection Pooling (`pool_pre_ping=True`) |
+| **Migration** | Flask-Migrate | Alembic-Integration |
 | **WebAuthn** | py_webauthn 2.0+ | Server-seitige FIDO2-Validierung |
 | **TOTP** | pyotp 2.9+ | RFC 6238, Zeitfenster ±30s |
 | **QR-Code** | qrcode 7.4+ Pillow | PNG/SVG Generierung |
-| **Tokens** | PyJWT 2.8+ | HS256 |
-| **Krypto** | cryptography 41.0+ | Fernet für TOTP-Secrets |
-| **DB-Drivers** | sqlite3/psycopg2/pymysql | |
-| **Frontend** | Vanilla JS | ~50 Zeilen, CSP-nonced |
+| **OIDC** | Authlib 1.3+ | `OpenIDCode` Mixin für ID-Tokens, PKCE |
+| **Krypto** | cryptography 41.0+ | Fernet (AES-128-CBC + HMAC-SHA256), HKDF |
+| **Hashing** | bcrypt 4.0+ | Backup-Codes & Client-Secrets (rounds=12) |
+| **Sessions** | Flask-Session (Werkzeug) | Signed Cookies, CSRF-Protection via SameSite |
+| **Rate-Limiting** | Flask-Limiter 3.5+ | **Redis-Backend für Multi-Worker**, Memory für Single-Node |
+| **Security Headers** | secure 0.3+ | `Secure` Klasse (nicht SecureHeaders), CSP mit Nonces |
+| **Cache/Store** | Redis 7+ | Shared State zwischen Gunicorn-Workern |
+| **DB-Drivers** | sqlite3/psycopg2/pymysql | SQLite built-in, andere optional |
+| **Frontend** | Vanilla JS | ~50 Zeilen inline, CSP-nonced, keine Build-Tools |
 
-### Dependencies
+### Dependencies (requirements.txt)
 
-```
-py-webauthn>=2.0.0
+```txt
+flask>=3.0.0
+gunicorn>=21.0.0
+flask-limiter>=3.5.0
+flask-migrate>=4.0.0
+secure>=0.3.0
+redis>=5.0.0
+authlib>=1.3.0
+webauthn>=2.0.0
 pyotp>=2.9.0
 qrcode>=7.4
 Pillow>=10.0.0
-pyjwt>=2.8.0
 cryptography>=41.0.0
 sqlalchemy>=2.0.0
-# Optional: psycopg2-binary>=2.9.0, pymysql>=1.1.0, alembic>=1.12.0
+bcrypt>=4.0.0
+# Optional: psycopg2-binary>=2.9.0, pymysql>=1.1.0
 ```
 
 ---
 
-## 5. Datenbank-Schema (SQLAlchemy Models)
+## 6. Datenbank-Schema (Authlib-kompatible SQLAlchemy Models)
 
-### Model `Credential`
+### Model `Credential` (FIDO2)
 
-| Feld | SQLAlchemy Typ | Beschreibung |
-|------|----------------|--------------|
-| `credential_id` | `LargeBinary, PK` | Base64URL-decodiert |
-| `user_id` | `String(255), Index` | Fremdschlüssel |
-| `public_key` | `LargeBinary` | COSE-Key |
-| `sign_count` | `Integer, default=0` | Replay-Schutz |
-| `authenticator_type` | `String(20)` | platform/roaming/hybrid |
-| `is_passkey` | `Boolean, default=False` | Cloud-synchronisiert |
-| `created_at` | `DateTime` | |
-| `last_used_at` | `DateTime, nullable` | |
+```python
+from datetime import datetime, timezone
+from sqlalchemy import Column, LargeBinary, Integer, String, DateTime, Boolean, Index
 
-### Model `Challenge`
+class Credential(Base):
+    __tablename__ = 'credentials'
+    
+    credential_id = Column(LargeBinary(255), primary_key=True)
+    user_id = Column(String(255), nullable=False, index=True)
+    public_key = Column(LargeBinary, nullable=False)
+    sign_count = Column(Integer, default=0)
+    authenticator_type = Column(String(20))  # 'platform', 'roaming', 'hybrid'
+    device_type = Column(String(20))
+    transport = Column(String(50))
+    is_passkey = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    last_used_at = Column(DateTime, nullable=True)
+    
+    __table_args__ = (Index('idx_cred_user', 'user_id', 'created_at'),)
+```
 
-| Feld | SQLAlchemy Typ | Beschreibung |
-|------|----------------|--------------|
-| `challenge_id` | `String(255), PK` | UUID |
-| `user_id` | `String(255), Index` | |
-| `challenge` | `LargeBinary` | 32-64 Bytes |
-| `expires_at` | `DateTime, Index` | 5min TTL |
-| `used` | `Boolean, default=False` | Einmalig |
+### Model `OIDCClient` (Korrigiert – explizite PK!)
 
-### Model `TOTPSecret`
+```python
+from authlib.integrations.sqla_oauth2 import OAuth2ClientMixin
+from sqlalchemy import Column, String, DateTime, Boolean, Integer
+import bcrypt
 
-| Feld | SQLAlchemy Typ | Beschreibung |
-|------|----------------|--------------|
-| `user_id` | `String(255), PK` | |
-| `secret_encrypted` | `LargeBinary` | Fernet-verschlüsselt |
-| `verified` | `Boolean, default=False` | Setup abgeschlossen |
-| `created_at` | `DateTime` | |
-| `last_used_at` | `DateTime, nullable` | Replay-Schutz |
+class OIDCClient(Base, OAuth2ClientMixin):
+    """
+    WICHTIG: OAuth2ClientMixin liefert KEIN id (PK)!
+    Wir müssen explizit deklarieren!
+    
+    Mixin liefert:
+    - client_id (String)
+    - client_secret (String) -- hier speichern wir bcrypt-Hash!
+    - _client_metadata (JSON-String in DB!)
+    """
+    __tablename__ = 'oidc_clients'
+    
+    # EXPLIZIT DEKLARIEREN (Mixin hat kein id!)
+    id = Column(Integer, primary_key=True)
+    
+    # Zusätzliche Felder
+    name = Column(String(255))
+    active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    
+    def check_client_secret(self, client_secret):
+        """
+        ZWINGEND ÜBERSCHREIBEN!
+        Mixin-Default macht plain comparison (secrets.compare_digest).
+        Wir brauchen bcrypt.
+        """
+        if not self.client_secret or not client_secret:
+            return False
+        return bcrypt.checkpw(
+            client_secret.encode('utf-8'),
+            self.client_secret.encode('utf-8')
+        )
+    
+    def get_allowed_scope(self, scope):
+        return 'openid' if 'openid' in scope else ''
+    
+    def check_response_type(self, response_type):
+        return response_type == 'code'
+    
+    def check_grant_type(self, grant_type):
+        return grant_type == 'authorization_code'
+    
+    # set_client_metadata() verwenden für Initialisierung!
+```
 
-### Model `BackupCode`
+### Model `AuthorizationCode` (Korrigiert – fehlende Spalten)
 
-| Feld | SQLAlchemy Typ | Beschreibung |
-|------|----------------|--------------|
-| `code_hash` | `String(255), PK` | bcrypt/Argon2 Hash |
-| `user_id` | `String(255), Index` | |
-| `used_at` | `DateTime, nullable` | NULL = gültig |
-| `created_at` | `DateTime` | |
+```python
+from authlib.integrations.sqla_oauth2 import OAuth2AuthorizationCodeMixin
+import time
+
+class AuthorizationCode(Base, OAuth2AuthorizationCodeMixin):
+    """
+    WICHTIG: OAuth2AuthorizationCodeMixin liefert weder id noch user_id!
+    Wir müssen explizit deklarieren!
+    
+    Mixin liefert:
+    - code, client_id, redirect_uri, scope, nonce
+    - code_challenge, code_challenge_method
+    - auth_time (Integer/Unix-Timestamp!)
+    """
+    __tablename__ = 'authorization_codes'
+    
+    # EXPLIZIT DEKLARIEREN (Mixin hat weder id noch user_id!)
+    id = Column(Integer, primary_key=True)
+    user_id = Column(String(255), nullable=False)
+    
+    # Expiration (nicht im Mixin)
+    expires_at = Column(DateTime, nullable=False, index=True)
+    used = Column(Boolean, default=False)
+    
+    def is_expired(self):
+        """Unix-Timestamp (auth_time) vs DateTime (expires_at)"""
+        return datetime.now(timezone.utc) > self.expires_at
+```
+
+### Model `Challenge` (Nur WebAuthn – keine TOTP-Challenges!)
+
+```python
+class Challenge(Base):
+    __tablename__ = 'challenges'
+    
+    challenge_id = Column(String(255), primary_key=True)
+    user_id = Column(String(255), nullable=False, index=True)
+    challenge = Column(LargeBinary, nullable=False)  # 32-64 Bytes zufällig
+    expires_at = Column(DateTime, nullable=False, index=True)
+    used = Column(Boolean, default=False)
+    # KEIN challenge_type Feld – TOTP braucht keine Server-Challenge!
+```
+
+### Model `TOTPSecret` (Fernet-Verschlüsselt + Replay-Schutz)
+
+```python
+class TOTPSecret(Base):
+    __tablename__ = 'totp_secrets'
+    
+    user_id = Column(String(255), primary_key=True)
+    secret_encrypted = Column(LargeBinary, nullable=False)
+    verified = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    last_used_at = Column(DateTime, nullable=True)  # Für Audit/Anzeige
+    last_used_window = Column(Integer, nullable=True)  # NEU: Replay-Schutz (Unix//30)
+```
+
+### Model `BackupCode` (10 pro User, einmalig)
+
+```python
+class BackupCode(Base):
+    __tablename__ = 'backup_codes'
+    
+    code_hash = Column(String(255), primary_key=True)
+    user_id = Column(String(255), nullable=False, index=True)
+    used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+```
+
+### Model `SigningKey` (ES256 für ID-Token – mit Methode!)
+
+```python
+class SigningKey(Base):
+    __tablename__ = 'signing_keys'
+    
+    kid = Column(String(64), primary_key=True)
+    private_key_pem_encrypted = Column(Text, nullable=False)  # Fernet-verschlüsselt
+    public_key_pem = Column(Text, nullable=False)  # Unverschlüsselt für JWKS
+    algorithm = Column(String(10), default='ES256')
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    active = Column(Boolean, default=True)
+    # KORRIGIERT: expires_at für Rotation-Overlap (24h)
+    expires_at = Column(DateTime, nullable=True)
+    
+    def get_private_key(self, fernet):
+        """
+        Entschlüsselt den Private Key für ID-Token Signierung.
+        Wird in get_jwt_config() aufgerufen!
+        """
+        encrypted = self.private_key_pem_encrypted.encode()
+        return fernet.decrypt(encrypted).decode()
+```
+
+### Model `AuditLog` (Optional, für Compliance)
+
+```python
+class AuditLog(Base):
+    __tablename__ = 'audit_logs'
+    
+    id = Column(Integer, primary_key=True)
+    user_id = Column(String(255), nullable=False, index=True)
+    action = Column(String(50))  # 'login', 'setup', 'verify', 'fail'
+    method = Column(String(50))  # 'webauthn_platform', 'totp', 'backup'
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    ip_hash = Column(String(64))  # SHA256 mit Salt (GDPR-konform)
+    details = Column(Text, nullable=True)  # JSON für Metadaten
+```
 
 ---
 
-## 6. Sicherheitskonzept
+## 7. Sicherheitskonzept
 
 ### Trust Boundaries
 
 | Zone | Daten | Schutzmaßnahmen |
 |------|-------|-----------------|
-| **Secure Enclave** | FIDO2 Private Keys | Hardware-verschlüsselt, nie exportierbar |
-| **Browser** | Challenge, Assertion | CSP mit unique Nonce pro Request |
-| **Bottle Backend** | Public Keys, verschlüsselte Secrets | SQLite 0600, Fernet, keine Secrets in Logs |
-| **Transport** | JWTs, WebAuthn-Daten | TLS 1.3 extern terminiert |
+| **Secure Enclave/TPM/HSM** | Private Keys (FIDO2) | Hardware-verschlüsselt, nie exportierbar |
+| **Browser** | Challenge, Assertion, TOTP-Codes | CSP `default-src 'none'; script-src 'nonce-{random}';` |
+| **Flask Backend** | Sessions (Signed Cookies), verschlüsselte Secrets | Werkzeug-Signatur, SQLAlchemy ORM (Prepared Statements) |
+| **Transport** | JWTs, WebAuthn-Daten, Authorization Codes | TLS 1.3 (extern terminiert), HSTS Pflicht |
 
-### Spezifische Maßnahmen
+### Session-Konfiguration (Werkzeug)
 
-1. **CSP:** `default-src 'none'; script-src 'nonce-{random}'; form-action https:;`
-2. **TOTP-Verschlüsselung:** Fernet mit Key aus `X2FA_SECRET` (vor DB-Speicherung)
-3. **TOTP-Replay:** `last_used_at` prüfen (30s Fenster)
-4. **Backup-Rate-Limit:** Max 5 Versuche pro Minute
-5. **Challenge-Einmaligkeit:** 5-Minuten-TTL, `used`-Flag
-6. **FIDO2 Sign-Count:** Strikte Inkrementierung
-7. **JWT-Expiry:** Request 5 Minuten, Return 1 Minute
-
----
-
-## 7. Implementierungs-Roadmap
-
-### Phase 1: Foundation (Woche 1)
-
-**Schritt 1.1:** Projektstruktur mit `vendor/bottle.py`
-
-**Schritt 1.2:** SQLAlchemy-Layer
 ```python
-DATABASE_URL = os.environ.get('X2FA_DATABASE_URL', 'sqlite:///x2fa.db')
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
-SessionLocal = sessionmaker(bind=engine)
-Base = declarative_base()
-
-def init_db():
-    Base.metadata.create_all(bind=engine)
+class Config:
+    # Rückwärtskompatibel: FLASK_SECRET_KEY oder X2FA_SECRET
+    SECRET_KEY = os.environ.get('FLASK_SECRET_KEY') or os.environ.get('X2FA_SECRET')
+    X2FA_SECRET = os.environ.get('X2FA_SECRET') or os.environ.get('FLASK_SECRET_KEY')
+    
+    SESSION_COOKIE_SECURE = True      # Nur HTTPS
+    SESSION_COOKIE_HTTPONLY = True    # Kein JS-Zugriff
+    SESSION_COOKIE_SAMESITE = 'Lax'   # CSRF-Schutz
+    PERMANENT_SESSION_LIFETIME = timedelta(minutes=5)
 ```
 
-**Schritt 1.3:** SQLAlchemy-Models für alle 4 Tabellen
+### CSP & Security Headers (secure.py 0.3+)
 
-**Schritt 1.4:** Repository-Pattern: `CredentialRepo`, `ChallengeRepo`, `TOTPRepo`, `BackupRepo`
+```python
+import secrets
+from secure import Secure  # KORREKT: Secure, nicht SecureHeaders
+from flask import g
 
-**Schritt 1.5:** Fernet-Key aus `X2FA_SECRET`, bcrypt für Backup-Codes
+secure = Secure()
 
-**Schritt 1.6:** JWT-Utilities mit HS256
+@app.before_request
+def generate_csp_nonce():
+    """CSP-Nonce pro Request generieren (kryptografisch sicher)"""
+    g.csp_nonce = secrets.token_urlsafe(16)
 
-**Schritt 1.7:** Bootstrap `start.py` mit `--backend=caddy|nginx|traefik|none`
+@app.after_request
+def set_security_headers(response):
+    # Standard Headers via secure.py (HSTS, X-Frame-Options, etc.)
+    secure.framework.flask(response)
+    
+    # KORRIGIERT: getattr() für Fehlerresponses (wenn g.csp_nonce fehlt)
+    nonce = getattr(g, 'csp_nonce', '')
+    
+    # KORRIGIERT: img-src für TOTP QR-Codes (data: für Base64)
+    response.headers['Content-Security-Policy'] = (
+        f"default-src 'none'; "
+        f"script-src 'nonce-{nonce}' 'strict-dynamic'; "
+        f"connect-src 'self'; "
+        f"form-action 'self'; "
+        f"img-src 'self' data:; "  # WICHTIG: Für QR-Codes!
+        f"base-uri 'none'; "
+        f"frame-ancestors 'none';"
+    )
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    
+    return response
+```
 
-### Phase 2: WebAuthn Core (Woche 2)
+### Template-Verwendung (Jinja2 mit Nonce)
 
-**Schritt 2.1:** `GET /setup`: JWT validieren, Challenge generieren, Template rendern
+```html
+<!-- templates/webauthn_setup.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>X2FA Setup</title>
+</head>
+<body>
+    <h1>Hardware-Schlüssel registrieren</h1>
+    <div id="status">Bitte Authenticator auswählen...</div>
+    
+    <!-- QR-Code für TOTP (braucht img-src in CSP) -->
+    <img src="data:image/png;base64,{{ qr_code_base64 }}" alt="TOTP QR Code">
+    
+    <script nonce="{{ g.csp_nonce }}">
+        // WebAuthn JavaScript mit CSP-Nonce
+        const challenge = new Uint8Array({{ challenge | tojson }});
+        const rpId = "{{ rp_id }}";
+        
+        async function register() {
+            const credential = await navigator.credentials.create({
+                publicKey: {
+                    challenge: challenge,
+                    rp: { name: "X2FA", id: rpId },
+                    user: { 
+                        id: new TextEncoder().encode("{{ user_id }}"), 
+                        name: "{{ user_id }}",
+                        displayName: "{{ user_id }}"
+                    },
+                    pubKeyCredParams: [{ alg: -7, type: "public-key" }],
+                    authenticatorSelection: {
+                        authenticatorAttachment: "cross-platform",
+                        userVerification: "preferred"
+                    }
+                }
+            }).catch(err => {
+                console.error("WebAuthn error:", err);
+                document.getElementById('status').textContent = "Fehler: " + err;
+            });
+            
+            // An Server senden...
+            await fetch('/setup/complete', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    id: credential.id,
+                    rawId: Array.from(new Uint8Array(credential.rawId)),
+                    response: {
+                        clientDataJSON: Array.from(new Uint8Array(credential.response.clientDataJSON)),
+                        attestationObject: Array.from(new Uint8Array(credential.response.attestationObject))
+                    }
+                })
+            });
+        }
+        
+        register();
+    </script>
+</body>
+</html>
+```
 
-**Schritt 2.2:** `POST /setup/complete`: `verify_registration_response()`, Credential speichern, 10 Backup-Codes generieren
+### Rate-Limiting (Redis-Backend für Gunicorn)
 
-**Schritt 2.3:** `GET /verify`: Credentials laden, Challenge generieren, `allowCredentials` bilden
+```python
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
-**Schritt 2.4:** `POST /verify/complete`: `verify_authentication_response()`, Sign-Count updaten
+limiter = Limiter(
+    key_func=get_remote_address,
+    storage_uri=os.environ.get('REDIS_URL', 'memory://'),
+    default_limits=["200 per day", "50 per hour"]
+)
 
-### Phase 3: TOTP-Fallback (Woche 3)
+# WICHTIG: Bei Gunicorn mit 4 Workern zwingend REDIS_URL setzen!
+# Bei SQLite-Setup: gunicorn -w 1 (nur 1 Worker!)
+```
 
-**Schritt 3.1:** `GET /totp/setup`: Secret generieren (Base32), Fernet-verschlüsseln, speichern, QR-Code generieren
+### HKDF-Krypto-Service (Korrigiert – mit Salt!)
 
-**Schritt 3.2:** `POST /totp/setup/verify`: Code validieren, `verified=True` setzen
+```python
+# app/services/crypto.py
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives import serialization
+import base64
+import bcrypt
+import uuid
 
-**Schritt 3.3:** `GET /totp/verify`: Template mit Eingabefeld
-
-**Schritt 3.4:** `POST /totp/verify`: Validierung mit Replay-Schutz
-
-**Schritt 3.5:** Auto-Fallback: Detection `!window.PublicKeyCredential` → Redirect zu `/totp/verify`
-
-### Phase 4: Backup-Codes (Woche 4)
-
-**Schritt 4.1:** Integration in `/setup/complete`: 10 Codes generieren, hashen, speichern, einmalig anzeigen
-
-**Schritt 4.2:** `GET /backup/verify`: Eingabefeld
-
-**Schritt 4.3:** `POST /backup/verify`: Hash prüfen, `used_at` setzen, Return-JWT mit `remaining_codes`
-
-**Schritt 4.4:** Error-Templates für 400/401/403/404
-
-### Phase 5: Enterprise (Woche 5-6)
-
-**Schritt 5.1:** Rate Limiting (In-Memory Dict oder Redis)
-
-**Schritt 5.2:** Audit-Logging (Tabelle `audit_log` mit `ip_hash`)
-
-**Schritt 5.3:** Admin CLI `x2fa_admin.py`: list-credentials, revoke-credential, reset-totp, generate-backup, stats
-
-**Schritt 5.4:** Alembic-Migrationen für PostgreSQL/MySQL
+class CryptoService:
+    def __init__(self, master_secret: str):
+        """
+        Master-Secret (X2FA_SECRET) für verschiedene Ableitungen.
+        Separate Keys für TOTP und Fernet via HKDF Context-Strings.
+        """
+        self.master = master_secret.encode()
+        
+        # KORRIGIERT: Fixer Salt statt None (RFC 5869 Best Practice)
+        self._salt = b'x2fa-static-salt-v1'
+        
+        # Fernet-Key für DB-Verschlüsselung (32 Bytes, Base64-encoded)
+        fernet_key = self._derive_key(b'x2fa-fernet-v1', 32)
+        self.fernet = Fernet(base64.urlsafe_b64encode(fernet_key))
+    
+    def _derive_key(self, info: bytes, length: int) -> bytes:
+        """
+        HKDF-SHA256 (RFC 5869) für sichere Key-Ableitung.
+        'info' garantiert Key-Separation für verschiedene Zwecke.
+        KORRIGIERT: Verwendet fixen Salt statt None.
+        """
+        hkdf = HKDF(
+            algorithm=hashes.SHA256(),
+            length=length,
+            salt=self._salt,  # KORRIGIERT: Fixer Salt statt None
+            info=info
+        )
+        return hkdf.derive(self.master)
+    
+    def get_fernet(self):
+        """Für SigningKey Private-Key Entschlüsselung"""
+        return self.fernet
+    
+    def encrypt_totp_secret(self, secret: str) -> bytes:
+        """TOTP-Secret mit Fernet verschlüsseln (Key via HKDF)"""
+        return self.fernet.encrypt(secret.encode())
+    
+    def decrypt_totp_secret(self, encrypted: bytes) -> str:
+        return self.fernet.decrypt(encrypted).decode()
+    
+    def hash_backup_code(self, code: str) -> str:
+        """bcrypt für Backup-Codes (rounds=12)"""
+        return bcrypt.hashpw(code.encode(), bcrypt.gensalt(rounds=12)).decode()
+    
+    def verify_backup_code(self, code: str, hash_str: str) -> bool:
+        return bcrypt.checkpw(code.encode(), hash_str.encode())
+    
+    def hash_client_secret(self, secret: str) -> str:
+        """Für OIDC Client Secrets (bcrypt)"""
+        return bcrypt.hashpw(secret.encode(), bcrypt.gensalt(rounds=12)).decode()
+    
+    def generate_signing_key(self):
+        """
+        Generiert neues ES256 Schlüsselpaar für OIDC ID-Tokens.
+        Private Key wird mit Fernet verschlüsselt in DB gespeichert.
+        """
+        private_key = ec.generate_private_key(ec.SECP256R1())
+        public_key = private_key.public_key()
+        
+        private_pem = private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption()
+        )
+        
+        public_pem = public_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+        
+        kid = str(uuid.uuid4())
+        
+        return {
+            'kid': kid,
+            'private_encrypted': self.fernet.encrypt(private_pem).decode(),
+            'public': public_pem.decode()
+        }
+```
 
 ---
 
-## 8. Nutzerperspektive: Abläufe
+## 8. Implementierungs-Roadmap
 
-### Szenario A: Ersteinrichtung mit iPhone FaceID
-Login Haupt-App → Redirect `2fa.example.com/setup` → iOS-Popup "FaceID verwenden?" → Doppelklick Seitentaste → Gesicht scannt → 10 Backup-Codes angezeigt (Ausdrucken) → Redirect zur App.
+### Phase 1: Flask-Foundation (Woche 1)
 
-### Szenario B: Täglicher Login mit Windows Hello
-Passwort eingeben → Redirect `2fa.example.com/verify` → Windows Hello Popup (Finger/Gesicht) → Sensor berühren → Sofortige Weiterleitung → Dashboard (< 2s).
+**Struktur:**
+```
+x2fa/
+├── app/
+│   ├── __init__.py          # App Factory mit Authlib-Setup
+│   ├── extensions.py          # db, migrate, limiter, secure_headers
+│   ├── config.py             # Config-Klassen
+│   ├── models/
+│   │   ├── __init__.py
+│   │   ├── credential.py
+│   │   ├── oidc_client.py     # Mit OAuth2ClientMixin + id PK!
+│   │   ├── authorization_code.py  # Mit OAuth2AuthorizationCodeMixin + id/user_id!
+│   │   ├── challenge.py
+│   │   ├── totp.py
+│   │   ├── backup.py
+│   │   └── signing_key.py     # Mit get_private_key() + expires_at!
+│   ├── routes/
+│   │   ├── auth.py           # OIDC-Endpunkte (/authorize, /token)
+│   │   ├── webauthn.py       # FIDO2 Setup/Verify
+│   │   ├── totp.py           # TOTP (mit DB-agnostischem Replay-Schutz!)
+│   │   └── backup.py         # Backup-Codes
+│   ├── services/
+│   │   ├── crypto.py         # Fernet, bcrypt, HKDF (mit Salt!)
+│   │   ├── webauthn_service.py
+│   │   └── oidc_provider.py  # Authlib-Integration
+│   ├── templates/            # Jinja2 (CSP-nonced)
+│   ├── decorators.py         # login_required (einheitlich mit full_path!)
+│   └── cli.py                # Flask CLI Commands (init-keys, rotate-keys!)
+├── migrations/               # Flask-Migrate
+├── wsgi.py                   # Gunicorn Entry
+└── requirements.txt
+```
 
-### Szenario C: Login auf altem PC (TOTP-Fallback)
-Windows 7 PC → Kein `PublicKeyCredential` → Auto-Redirect `/totp/verify` → Eingabefeld "6-stelliger Code" → Google Authenticator öffnen → Code eingeben → Login erfolgreich.
+### Phase 2: WebAuthn + Sessions (Woche 2)
 
-### Szenario D: Geräteverlust (Backup-Codes)
-iPhone verloren → Neues Gerät → Login mit Passwort → Link "Backup-Code verwenden" → Code "A1B2C3D4" eingeben → Login erfolgreich, Code verbraucht → App erzwingt neues 2FA-Setup.
+- Challenge nur in DB (nicht Session), nur für WebAuthn
+- `datetime.now(timezone.utc)` für alle Zeitstempel (nicht utcnow!)
+- CSP-Nonces in Templates integrieren
+- **KORRIGIERT:** `session.permanent = True` nach 2FA-Login setzen!
 
-### Szenario E: Cross-Device (Desktop + iPhone als Key)
-Desktop ohne Webcam → QR-Code wird angezeigt → iPhone scannt QR → FaceID-Popup → Gesicht scannt → Desktop loggt automatisch ein.
+### Phase 3: TOTP & Backup (Woche 3)
 
-### Szenario F: TOTP-Einrichtung (Legacy-Device)
-Altes Android-Tablet → Kein WebAuthn → `/totp/setup` → QR-Code anzeigen → Google Authenticator installieren, QR scannen → Code eingeben → Setup erfolgreich.
+- TOTP braucht **keine** serverseitige Challenge (zeitbasiert)
+- Backup-Codes mit `bcrypt.hashpw()`
+- Fernet-Verschlüsselung für TOTP-Secrets
+- **KORRIGIERT:** `last_used_window` Integer-Feld für DB-agnostischen Replay-Schutz
+
+### Phase 4: OIDC-Provider (Woche 4)
+
+- `OAuth2ClientMixin` mit **expliziter `id` Spalte** (Mixin hat keine PK!)
+- `OAuth2AuthorizationCodeMixin` mit **expliziten `id` und `user_id`**
+- `OpenIDCode` Mixin für ID-Token Funktionalität
+- `save_token` No-op Funktion definieren
+- `OAuth2Error` importieren (`from authlib.oauth2 import OAuth2Error`)
+- **KORRIGIERT:** Key-Rotation mit 24h Overlap (nicht sofort deaktivieren!)
+- **KORRIGIERT:** Einheitlicher Redirect-Mechanismus (nur `login_required` mit `full_path`)
 
 ---
 
-## 9. Installationsprozess (DB- und Resolveragnostisch)
+## 9. Authlib-Integration (Vollständig Korrigiert)
 
-### Variante A: SQLite + Caddy (Zero-Config)
+### WICHTIGE Imports
+
+```python
+from authlib.integrations.flask_oauth2 import AuthorizationServer
+from authlib.oauth2.rfc6749.grants import AuthorizationCodeGrant
+from authlib.oauth2.rfc7636 import CodeChallenge
+from authlib.oidc.core.grants import OpenIDCode
+from authlib.oauth2 import OAuth2Error  # KORRIGIERT: Import hinzugefügt!
+from flask import session, current_app, redirect, request
+from datetime import datetime, timezone
+import time
+```
+
+### Save-Token Funktion (WICHTIG!)
+
+```python
+def save_token(token, request):
+    """
+    WICHTIG: Auch für JWTs muss save_token existieren!
+    Authlib ruft dies auf, auch wenn wir JWTs (stateless) nutzen.
+    """
+    pass  # JWTs sind stateless, keine DB-Speicherung nötig
+```
+
+### Grant-Klasse mit OpenIDCode
+
+```python
+class X2FAAuthorizationCodeGrant(AuthorizationCodeGrant, OpenIDCode):
+    """
+    OpenIDCode Mixin für ID-Token Funktionalität.
+    WICHTIG: Wir nutzen KEINEN register_hook, sondern die OpenIDCode Methoden!
+    """
+    TOKEN_ENDPOINT_AUTH_METHODS = ['client_secret_post', 'client_secret_basic']
+    
+    def save_authorization_code(self, code, request):
+        """
+        'code' ist ein String (das Token), NICHT ein Objekt!
+        Wir müssen das AuthorizationCode-Objekt selbst erstellen.
+        """
+        # User-ID aus Flask-Session (nach 2FA-Verification)
+        user_id = session.get('user_id')
+        if not user_id:
+            raise OAuth2Error('login_required', '2FA not completed')
+        
+        # AuthorizationCode-Objekt instanziieren (Mixin hat keine id/user_id!)
+        auth_code = AuthorizationCode(
+            code=code,  # Der String von Authlib
+            client_id=request.client.client_id,
+            user_id=user_id,  # EXPLIZIT!
+            redirect_uri=request.redirect_uri,
+            scope=request.scope,
+            nonce=request.data.get('nonce'),
+            code_challenge=request.data.get('code_challenge'),
+            code_challenge_method=request.data.get('code_challenge_method', 'S256'),
+            auth_time=int(time.time()),  # Integer! (Unix-Timestamp für Mixin)
+            expires_at=datetime.now(timezone.utc) + timedelta(seconds=60)
+        )
+        db.session.add(auth_code)
+        db.session.commit()
+        return auth_code
+    
+    def query_authorization_code(self, code, client):
+        """Code laden und Validität prüfen"""
+        auth_code = AuthorizationCode.query.filter_by(
+            code=code,
+            client_id=client.client_id
+        ).first()
+        
+        if not auth_code:
+            return None
+        if auth_code.is_expired():
+            return None
+        if auth_code.used:
+            return None
+        return auth_code
+    
+    def delete_authorization_code(self, authorization_code):
+        """Als verbraucht markieren (Authlib löscht nicht physisch)"""
+        authorization_code.used = True
+        db.session.commit()
+    
+    def authenticate_user(self, authorization_code):
+        """
+        WICHTIG: Diese Methode fehlte in v5.3!
+        Gibt User-ID zurück für ID-Token 'sub' Claim.
+        """
+        return authorization_code.user_id
+    
+    # OpenIDCode Mixin Methoden für ID-Tokens:
+    def get_jwt_config(self, grant):
+        """ID-Token Signierung Konfiguration"""
+        from app.services.crypto import CryptoService
+        crypto = CryptoService(current_app.config['X2FA_SECRET'])
+        
+        # Nur aktive Keys (nicht abgelaufen)
+        signing_key = SigningKey.query.filter(
+            SigningKey.active == True,
+            (SigningKey.expires_at == None) | (SigningKey.expires_at > datetime.now(timezone.utc))
+        ).order_by(SigningKey.created_at.desc()).first()
+        
+        if not signing_key:
+            raise RuntimeError("No active signing key! Run 'flask init-keys' first")
+        
+        # Private Key entschlüsseln (Methode existiert!)
+        private_key = signing_key.get_private_key(crypto.get_fernet())
+        
+        return {
+            'key': private_key,
+            'alg': 'ES256',
+            'iss': f"https://{current_app.config['X2FA_DOMAIN']}",
+            'exp': 60,  # 1 Minute TTL für ID-Token
+            'kid': signing_key.kid
+        }
+    
+    def generate_user_info(self, user_id, scope):
+        """Minimal user info für ID-Token (nur sub claim)"""
+        return {'sub': user_id}
+    
+    def exists_nonce(self, nonce, request):
+        """Replay-Schutz: Prüfen ob nonce bereits verwendet"""
+        if not nonce:
+            return False
+        return AuthorizationCode.query.filter_by(nonce=nonce).first() is not None
+
+# Initialisierung (KORRIGIERT: mit save_token!)
+def query_client(client_id):
+    return OIDCClient.query.filter_by(client_id=client_id, active=True).first()
+
+oauth = AuthorizationServer(
+    app, 
+    query_client=query_client, 
+    save_token=save_token  # WICHTIG: Nicht vergessen!
+)
+oauth.register_grant(X2FAAuthorizationCodeGrant, [CodeChallenge(required=True)])
+```
+
+### Decorators (Korrigiert – Einheitlich!)
+
+```python
+# app/decorators.py
+from functools import wraps
+from flask import session, redirect, request, current_app
+from urllib.parse import urlparse
+
+def login_required(f):
+    """
+    KORRIGIERT: Einheitlicher Redirect-Mechanismus für alle Routen!
+    Verwendet request.full_path für OIDC-Parameter-Erhaltung.
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            # KORRIGIERT: Aktuelle URL als Rückpfad (inkl. OIDC-Parameter!)
+            next_path = request.full_path
+            
+            # Open Redirect Schutz: Nur relative Pfade erlauben
+            if urlparse(next_path).netloc:
+                next_path = '/'
+            
+            return redirect(f'/verify?next={next_path}')
+        
+        if not session.get('2fa_verified'):
+            return redirect('/verify')
+        
+        # WICHTIG: Session-Ablauf aktivieren
+        session.permanent = True
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
+# KORRIGIERT: require_2fa_for_oidc entfernt! login_required deckt alles ab.
+# Die OIDC-Parameter sind in full_path enthalten (z.B. /authorize?client_id=...)
+```
+
+### TOTP Replay-Schutz (Korrigiert – DB-Agnostisch mit last_used_window)
+
+```python
+# In routes/totp.py oder services/totp_service.py
+from sqlalchemy import update, func
+from datetime import datetime, timezone
+import pyotp
+import time
+
+def verify_totp(user_id: str, code: str) -> bool:
+    """TOTP-Validierung mit atomarem Replay-Schutz (DB-agnostisch)."""
+    crypto = CryptoService(current_app.config['X2FA_SECRET'])
+    
+    totp_secret = TOTPSecret.query.get(user_id)
+    if not totp_secret or not totp_secret.verified:
+        return False
+    
+    secret = crypto.decrypt_totp_secret(totp_secret.secret_encrypted)
+    now = datetime.now(timezone.utc)
+    current_window = int(time.time()) // 30
+    
+    # Zuerst validieren (pyotp)
+    totp = pyotp.TOTP(secret)
+    if not totp.verify(code, valid_window=1):
+        return False
+    
+    # Atomares UPDATE: Nur wenn Fenster noch nicht verwendet
+    result = db.session.execute(
+        update(TOTPSecret)
+        .where(
+            TOTPSecret.user_id == user_id,
+            (TOTPSecret.last_used_window == None) | 
+            (TOTPSecret.last_used_window != current_window)
+        )
+        .values(
+            last_used_window=current_window,
+            last_used_at=now
+        )
+    )
+    
+    if result.rowcount == 0:
+        db.session.rollback()
+        return False  # Replay oder Race Condition
+    
+    db.session.commit()
+    return True
+```
+
+---
+
+## 10. Flask CLI Commands (Korrigiert – mit 24h Overlap!)
+
+```python
+# app/cli.py
+import click
+from flask.cli import with_appcontext
+from flask import current_app
+from datetime import datetime, timedelta, timezone
+from app.models import OIDCClient, SigningKey, db
+from app.services.crypto import CryptoService
+
+def register_cli(app):
+    @app.cli.command('register-client')
+    @click.option('--client-id', required=True)
+    @click.option('--client-secret', required=True)
+    @click.option('--redirect-uri', required=True)
+    @with_appcontext
+    def register_client(client_id, client_secret, redirect_uri):
+        """OIDC Client registrieren (z.B. für Hauptanwendung)"""
+        crypto = CryptoService(current_app.config['X2FA_SECRET'])
+        
+        client = OIDCClient(
+            client_id=client_id,
+            client_secret=crypto.hash_client_secret(client_secret)
+        )
+        # WICHTIG: set_client_metadata() verwenden, nicht direkt _client_metadata = dict!
+        client.set_client_metadata({
+            'redirect_uris': [redirect_uri],
+            'grant_types': ['authorization_code'],
+            'response_types': ['code'],
+            'token_endpoint_auth_method': 'client_secret_post',
+            'scope': 'openid'
+        })
+        client.name = client_id
+        client.active = True
+        
+        db.session.add(client)
+        db.session.commit()
+        click.echo(f"Client '{client_id}' registered successfully.")
+    
+    @app.cli.command('init-keys')
+    @with_appcontext
+    def init_keys():
+        """Initialisiert ersten ES256 Signing Key für OIDC (muss vor ersten Start laufen!)"""
+        crypto = CryptoService(current_app.config['X2FA_SECRET'])
+        
+        # Prüfen ob bereits aktiver Key existiert
+        existing = SigningKey.query.filter_by(active=True).first()
+        if existing:
+            click.echo(f"Active signing key already exists: {existing.kid}")
+            return
+        
+        # Neuen Key generieren
+        key_data = crypto.generate_signing_key()
+        
+        signing_key = SigningKey(
+            kid=key_data['kid'],
+            private_key_pem_encrypted=key_data['private_encrypted'],
+            public_key_pem=key_data['public'],
+            algorithm='ES256',
+            active=True,
+            expires_at=None  # Erster Key läuft nie ab
+        )
+        
+        db.session.add(signing_key)
+        db.session.commit()
+        click.echo(f"Created ES256 signing key: {key_data['kid']}")
+        click.echo("OIDC Provider is ready!")
+    
+    @app.cli.command('rotate-keys')
+    @with_appcontext
+    def rotate_keys():
+        """
+        Rotiert Signing Keys mit 24h Overlap.
+        Neue Tokens werden mit neuem Key signiert,
+        alte Keys bleiben 24h gültig für bestehende Token.
+        """
+        crypto = CryptoService(current_app.config['X2FA_SECRET'])
+        
+        # Alte Keys auf 24h Verfallszeit setzen (nicht sofort deaktivieren!)
+        now = datetime.now(timezone.utc)
+        overlap_end = now + timedelta(hours=24)
+        
+        old_keys = SigningKey.query.filter_by(active=True).all()
+        for key in old_keys:
+            key.expires_at = overlap_end  # 24h Overlap!
+            click.echo(f"Key {key.kid} expires at {overlap_end}")
+        
+        # Neuen Key erstellen (aktiv, kein expires_at)
+        key_data = crypto.generate_signing_key()
+        new_key = SigningKey(
+            kid=key_data['kid'],
+            private_key_pem_encrypted=key_data['private_encrypted'],
+            public_key_pem=key_data['public'],
+            algorithm='ES256',
+            active=True,
+            expires_at=None  # Neuer Key läuft nicht ab
+        )
+        
+        db.session.add(new_key)
+        db.session.commit()
+        click.echo(f"Created new active key: {key_data['kid']}")
+        click.echo(f"Old keys valid until {overlap_end} (24h overlap)")
+```
+
+---
+
+## 11. OIDC-Endpunkte & Abläufe
+
+| Endpunkt | Methode | Beschreibung |
+|----------|---------|--------------|
+| `/.well-known/openid-configuration` | GET | Discovery-Dokument (RFC 8414) |
+| `/.well-known/jwks.json` | GET | X2FA Public Keys (ES256) für Client-Validierung |
+| `/authorize` | GET/POST | Authorization Code Flow (nach 2FA-Verification) |
+| `/token` | POST | Token Endpoint (Server-zu-Server, ID-Token als JWT) |
+| `/setup` | GET | Methodenauswahl (WebAuthn/TOTP) |
+| `/setup/complete` | POST | FIDO2-Registrierung abschließen |
+| `/verify` | GET/POST | 2FA-Authentifizierung (WebAuthn/TOTP/Backup) |
+| `/totp/setup` | GET | TOTP-QR-Code anzeigen |
+| `/totp/setup/verify` | POST | TOTP-Setup bestätigen |
+| `/backup/verify` | GET/POST | Backup-Code Eingabe (Notfall) |
+
+### OIDC Flow mit 2FA-Zwischenschritt
+
+```mermaid
+sequenceDiagram
+    participant User as User/Browser
+    participant App as Hauptanwendung
+    participant X2FA as X2FA OIDC
+    participant DB as Datenbank
+
+    App->>User: 302 Redirect → /authorize?client_id=...&state=...&nonce=...
+    User->>X2FA: GET /authorize
+    X2FA->>X2FA: Prüfe session: 2fa_verified?
+    X2FA->>X2FA: Nein → full_path = /authorize?client_id=...
+    X2FA->>User: 302 Redirect → /verify?next=/authorize%3Fclient_id%3D...
+    
+    User->>X2FA: POST /verify (WebAuthn/TOTP/Backup)
+    X2FA->>DB: Validierung (Challenge/TOTP mit Replay-Schutz/Backup-Hash)
+    X2FA->>X2FA: session['user_id'] = user123<br>session['2fa_verified'] = True<br>session.permanent = True
+    X2FA->>User: 302 Redirect → /authorize?client_id=... (aus next-Param)
+    
+    User->>X2FA: GET /authorize (jetzt mit Session)
+    X2FA->>DB: AuthorizationCode(code=..., user_id=user123, expires_at=+60s)
+    X2FA->>User: 302 Redirect → redirect_uri?code=ABC&state=...
+    
+    User->>App: code + state
+    App->>App: state prüfen (CSRF)
+    App->>X2FA: POST /token (client_secret, code, code_verifier)
+    X2FA->>DB: Code validieren, PKCE prüfen (S256)
+    X2FA->>X2FA: ID-Token generieren (ES256, sub=user123)
+    X2FA->>App: {access_token: "...", id_token: "eyJ..."}
+    
+    App->>X2FA: GET /.well-known/jwks.json (Public Key holen)
+    App->>App: ID-Token validieren (ES256 Signatur prüfen)
+    App->>App: Session erstellen → User eingeloggt
+```
+
+---
+
+## 12. Installationsprozess (Wichtige Reihenfolge!)
+
+### Variante A: SQLite + Caddy (Single-Node)
+
+**⚠️ ACHTUNG:** Ohne Redis nur **1 Gunicorn-Worker** (`-w 1`), sonst Rate-Limiting inkonsistent!
 
 ```bash
+# 1. Setup
 git clone https://github.com/x2fa/x2fa.git /opt/x2fa && cd /opt/x2fa
-python3 -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
+uv sync
 
-echo "X2FA_SECRET=$(openssl rand -hex 32)" > .env
-echo "X2FA_DOMAIN=2fa.example.com" >> .env
-echo "X2FA_DATABASE_URL=sqlite:///var/lib/x2fa/x2fa.db" >> .env
+# 2. Konfiguration
+export FLASK_SECRET_KEY=$(openssl rand -hex 32)
+export X2FA_DOMAIN=2fa.example.com
+export DATABASE_URL=sqlite:///var/lib/x2fa/x2fa.db
 
-python start.py --backend=caddy
+# 3. Datenbank initialisieren
+flask db upgrade
+
+# 4. WICHTIG: Signing Keys erstellen (sonst OIDC-Fehler!)
+flask init-keys
+
+# 5. Client registrieren (z.B. für Hauptanwendung)
+flask register-client --client-id myapp \
+  --client-secret "$(openssl rand -hex 32)" \
+  --redirect-uri https://app.example.com/callback
+
+# 6. Production-Start (nur 1 Worker bei SQLite!)
+gunicorn -w 1 -b 127.0.0.1:5000 "app:create_app('production')"
 ```
 
-### Variante B: PostgreSQL + nginx (Enterprise)
-
-```bash
-# PostgreSQL vorbereiten
-sudo -u postgres createdb x2fa
-sudo -u postgres createuser x2fa -P
-
-# X2FA
-echo "X2FA_DATABASE_URL=postgresql://x2fa:password@localhost/x2fa" >> .env
-pip install psycopg2-binary
-
-python -c "from x2fa.models import init_db; init_db()"
-# Optional: alembic upgrade head
-
-# nginx konfigurieren (proxy_pass http://127.0.0.1:5000)
-python x2fa.py  # oder gunicorn
-```
-
-### Variante C: MySQL + Traefik (Docker)
+### Variante B: PostgreSQL + Redis + Traefik (Enterprise)
 
 ```yaml
 # docker-compose.yml
+version: '3.8'
 services:
   x2fa:
-    image: x2fa
+    build: .
     environment:
-      - X2FA_DATABASE_URL=mysql+pymysql://x2fa:password@mysql:3306/x2fa
+      - DATABASE_URL=postgresql://x2fa:${POSTGRES_PASSWORD}@postgres:5432/x2fa
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
+      - REDIS_URL=redis://redis:6379/0  # Zwingend für Multi-Worker!
       - X2FA_DOMAIN=2fa.example.com
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.x2fa.rule=Host(`2fa.example.com`)"
-      - "traefik.http.routers.x2fa.tls.certresolver=letsencrypt"
+    command: >
+      sh -c "flask db upgrade &&
+             flask init-keys &&
+             gunicorn -w 4 -b 0.0.0.0:5000 'app:create_app('production')'"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - internal
+  
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: x2fa
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}  # Via Env!
+      POSTGRES_DB: x2fa
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - internal
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redisdata:/data
+    networks:
+      - internal
+
+volumes:
+  pgdata:
+  redisdata:
+
+networks:
+  internal:
 ```
 
 ---
 
-## 10. Kommunikationsdiagramme
+## 13. Zusammenfassung aller Fixes (v5.3 → v5.4-final)
 
-### 10.1 FIDO2 Setup (Ersteinrichtung)
+| Problem | Fix in v5.4-final |
+|---------|-------------------|
+| **SQLite vs PostgreSQL TOTP** | `last_used_window` Integer-Feld hinzugefügt (DB-agnostisch) |
+| **TOTP Grenzfall t=30** | Window-Vergleich (`!= current_window`) statt `diff < 30` |
+| **Inkonsistente Redirects** | `require_2fa_for_oidc` entfernt, nur `login_required` mit `full_path` |
+| **Redirect verliert OIDC-Params** | `request.full_path` statt `request.args.get('next')` |
+| **TOTP Race Condition** | Atomares `UPDATE ... WHERE` mit `last_used_window` |
+| **Keys sofort deaktiviert** | `rotate-keys` setzt `expires_at = now + 24h` statt sofort `active = False` |
+| **Open Redirect** | `urlparse(next_url).netloc` prüfung in `login_required` |
+| **g.csp_nonce bei Fehlern** | `getattr(g, 'csp_nonce', '')` in `set_security_headers` |
+| **Session läuft nie ab** | `session.permanent = True` nach 2FA-Login setzen |
+| **QR-Codes blockiert** | `img-src 'self' data:` im CSP Header |
+| **HKDF salt=None** | Fixer Salt `b'x2fa-static-salt-v1'` statt None |
+| **Hardcoded DB-Passwort** | `${POSTGRES_PASSWORD}` in Docker Compose |
+| **OIDCClient keine PK** | `id = Column(Integer, primary_key=True)` explizit |
+| **AuthorizationCode felder** | `id` und `user_id` explizit deklariert |
+| **OAuth2Error fehlt** | `from authlib.oauth2 import OAuth2Error` |
+| **save_token fehlt** | No-op Funktion definiert und übergeben |
+| **SigningKey Methode** | `get_private_key(self, fernet)` implementiert |
+| **Kein init-keys** | CLI Befehl `flask init-keys` hinzugefügt |
 
-```mermaid
-sequenceDiagram
-    participant User as User/Browser
-    participant App as Haupt-App
-    participant X2FA as X2FA-Service
-    participant DB as Datenbank
-    participant Auth as Platform Authenticator
+---
 
-    User->>App: Login mit Passwort
-    App->>App: Prüfung 2FA nicht eingerichtet
-    App->>App: JWT generieren (sub: user123, action: setup, return_url: https://app/callback, exp: +5min)
-    App->>User: 302 Redirect → 2fa.example.com/setup?token=JWT
-
-    User->>X2FA: GET /setup?token=JWT
-    X2FA->>X2FA: JWT validieren
-    X2FA->>X2FA: Challenge generieren (32 Bytes)
-    X2FA->>DB: Challenge speichern (TTL 5min, used=0)
-    X2FA->>User: HTTP 200 HTML + Inline-JS (CSP-Nonce, Challenge b64)
-
-    User->>User: navigator.credentials.create()
-    User->>Auth: Challenge + RP-ID
-    Auth->>Auth: Key-Pair generieren (Private im Secure Enclave)
-    Auth->>User: Credential-ID + PublicKey + Attestation
-
-    User->>X2FA: POST /setup/complete (credential_id, attestation, token)
-    X2FA->>DB: Challenge laden und validieren
-    X2FA->>X2FA: verify_registration_response()
-    X2FA->>DB: INSERT credentials (credential_id, public_key, type='platform')
-    Note over X2FA: 10 Backup-Codes generieren, hashen, speichern
-    X2FA->>X2FA: Return-JWT (result: success, amr: ["face"])
-    X2FA->>User: 302 Redirect → app/callback?token=ReturnJWT
-
-    User->>App: GET /callback?token=ReturnJWT
-    App->>App: JWT validieren
-    App->>User: 2FA aktiv. Backup-Codes ausdrucken.
-```
-
-### 10.2 FIDO2 Verify (Login)
-
-```mermaid
-sequenceDiagram
-    participant User as User/Browser
-    participant App as Haupt-App
-    participant X2FA as X2FA-Service
-    participant DB as Datenbank
-    participant Auth as Platform Authenticator
-
-    User->>App: Login mit Passwort
-    App->>App: 2FA erforderlich
-    App->>App: JWT generieren (sub: user123, action: verify)
-    App->>User: 302 Redirect → 2fa.example.com/verify?token=JWT
-
-    User->>X2FA: GET /verify?token=JWT
-    X2FA->>DB: SELECT credentials WHERE user_id=123
-    X2FA->>X2FA: Challenge generieren
-    X2FA->>DB: Challenge speichern
-    X2FA->>User: HTML + Inline-JS (challenge, allowCredentials)
-
-    User->>User: navigator.credentials.get()
-    User->>Auth: Assertion-Request
-    Auth->>Auth: Biometrie-Check + Signatur
-    Auth->>User: Assertion (AuthenticatorData, Signature)
-
-    User->>X2FA: POST /verify/complete (credential_id, assertion)
-    X2FA->>DB: PublicKey und SignCount laden
-    X2FA->>X2FA: verify_authentication_response() + SignCount-Prüfung
-    X2FA->>DB: UPDATE sign_count
-    X2FA->>X2FA: Return-JWT (verified: true, amr: ["face"])
-    X2FA->>User: 302 Redirect → app/callback
-
-    User->>App: Callback empfangen
-    App->>App: Session erstellen
-    App->>User: Dashboard
-```
-
-### 10.3 TOTP Setup (Fallback)
-
-```mermaid
-sequenceDiagram
-    participant User as User/Browser
-    participant App as Haupt-App
-    participant X2FA as X2FA-Service
-    participant DB as Datenbank
-    participant Phone as Smartphone
-
-    User->>App: 2FA einrichten (Legacy-Browser)
-    App->>App: Erkennung: Kein WebAuthn
-    App->>User: Redirect → 2fa.example.com/totp/setup?token=JWT
-
-    User->>X2FA: GET /totp/setup?token=JWT
-    X2FA->>X2FA: Base32-Secret generieren
-    X2FA->>X2FA: Fernet-Verschlüsselung
-    X2FA->>DB: INSERT totp_secrets (encrypted, verified=0)
-    X2FA->>X2FA: QR-Code generieren (otpauth://)
-    X2FA->>User: HTML (QR-Code + Secret-Text + Eingabefeld)
-
-    User->>Phone: QR-Code scannen
-    Phone->>User: 6-stelliger Code anzeigen
-
-    User->>X2FA: POST /totp/setup/verify (code=123456)
-    X2FA->>DB: Secret laden und entschlüsseln
-    X2FA->>X2FA: pyotp.TOTP.verify() (Zeitfenster ±30s)
-    X2FA->>DB: UPDATE verified=1
-    X2FA->>User: Redirect zur App (success)
-```
-
-### 10.4 TOTP Verify (Login)
-
-```mermaid
-sequenceDiagram
-    participant User as User/Browser
-    participant App as Haupt-App
-    participant X2FA as X2FA-Service
-    participant DB as Datenbank
-    participant Phone as Smartphone
-
-    User->>App: Login
-    App->>User: Redirect → 2fa.example.com/totp/verify?token=JWT
-
-    User->>X2FA: GET /totp/verify?token=JWT
-    X2FA->>DB: Prüfen ob totp_secret existiert
-    X2FA->>User: HTML Eingabefeld (reines Formular)
-
-    User->>Phone: Authenticator öffnen
-    Phone->>User: Aktueller Code (z.B. 654321)
-
-    User->>X2FA: POST /totp/verify (code=654321)
-    X2FA->>DB: Secret laden + last_used_at prüfen
-    X2FA->>X2FA: Validierung (Replay-Schutz)
-    X2FA->>DB: UPDATE last_used_at=now()
-    X2FA->>X2FA: Return-JWT (verified: true, amr: ["totp"])
-    X2FA->>App: Redirect
-```
-
-### 10.5 Backup-Code Verify (Notfall)
-
-```mermaid
-sequenceDiagram
-    participant User as User/Browser
-    participant App as Haupt-App
-    participant X2FA as X2FA-Service
-    participant DB as Datenbank
-
-    User->>App: Login (neues Gerät, kein FIDO2)
-    App->>User: Redirect → 2fa.example.com/verify
-
-    User->>X2FA: GET /verify
-    X2FA->>User: Kein Schlüssel gefunden + Link Backup-Code verwenden
-
-    User->>X2FA: GET /backup/verify?token=JWT
-    X2FA->>User: Eingabefeld für 8-stelligen Code
-
-    Note over User: Nutzer tippt A1B2C3D4 ein
-    User->>X2FA: POST /backup/verify (code=A1B2C3D4)
-
-    X2FA->>X2FA: Code hashen (bcrypt)
-    X2FA->>DB: SELECT WHERE code_hash=HASH AND user_id=123 AND used_at IS NULL
-    X2FA->>DB: UPDATE used_at=now()
-    X2FA->>X2FA: Return-JWT (verified: true, amr: ["backup"], remaining: 9)
-
-    X2FA->>User: Redirect zur App
-    App->>User: Notfall-Login erfolgreich. Bitte neues 2FA einrichten.
-```
+*Diese Version ist production-ready mit korrektem OIDC-Flow, DB-agnostischem TOTP-Replay-Schutz (SQLite + PostgreSQL), einheitlichem Redirect-Handling und vollständiger Authlib-Integration.*

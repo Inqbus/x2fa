@@ -74,10 +74,12 @@ def generate_backup_codes(count: int = 10) -> list[str]:
 # JWT
 # ---------------------------------------------------------------------------
 
-def create_jwt(payload: dict, expiry_minutes: int) -> str:
+def create_jwt(payload: dict, expiry_minutes: int, add_jti: bool = False) -> str:
     _require_init()
     data = payload.copy()
     data["exp"] = datetime.now(tz=timezone.utc) + timedelta(minutes=expiry_minutes)
+    if add_jti and "jti" not in data:
+        data["jti"] = secrets.token_urlsafe(16)
     return jwt.encode(data, _JWT_SECRET, algorithm=_JWT_ALGORITHM)
 
 

@@ -139,6 +139,11 @@ def main() -> None:
     init_crypto(config["secret"])
     print("  Kryptographie: OK")
 
+    # Audit-Salt initialisieren
+    from audit import init_audit
+    init_audit(config["secret"])
+    print("  Audit-Logging: OK")
+
     # Datenbank initialisieren
     from models import init_db
     init_db()

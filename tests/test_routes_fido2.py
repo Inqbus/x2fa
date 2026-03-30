@@ -29,14 +29,19 @@ def test_setup_get_valid(client, setup_token):
     status, headers, body = client.get("/setup", query=f"token={setup_token}")
     assert status.startswith("200")
     assert "Content-Security-Policy" in headers
-    assert b"nonce=" in body
+    assert b"setup/webauthn" in body
+    assert b"totp/setup" in body
+
+
+def test_setup_webauthn_get_valid(client, setup_token):
+    status, headers, body = client.get("/setup/webauthn", query=f"token={setup_token}")
+    assert status.startswith("200")
+    assert "Content-Security-Policy" in headers
     assert b"navigator.credentials.create" in body
 
 
 def test_setup_get_creates_challenge(client, setup_token):
-    from repositories import ChallengeRepo
-    client.get("/setup", query=f"token={setup_token}")
-    # Challenge wurde für den User angelegt
+    client.get("/setup/webauthn", query=f"token={setup_token}")
     from models import SessionLocal, Challenge
     with SessionLocal() as db:
         count = db.query(Challenge).filter_by(user_id="user_test").count()
@@ -53,6 +58,9 @@ def _fake_reg_result():
         "public_key": b"fake_public_key_bytes",
         "sign_count": 0,
         "is_passkey": False,
+        "authenticator_type": "roaming",
+        "device_type": "single_device",
+        "transport": None,
     }
 
 
@@ -79,7 +87,7 @@ def test_setup_complete_invalid_challenge(client, setup_token):
 
 def test_setup_complete_success(client, setup_token):
     # Erst GET um Challenge zu erzeugen
-    _, _, body = client.get("/setup", query=f"token={setup_token}")
+    _, _, body = client.get("/setup/webauthn", query=f"token={setup_token}")
     challenge_id = _extract_challenge_id(body)
 
     with patch("webauthn_helpers.verify_registration", return_value=_fake_reg_result()):
@@ -98,7 +106,7 @@ def test_setup_complete_success(client, setup_token):
 
 
 def test_setup_complete_webauthn_failure(client, setup_token):
-    _, _, body = client.get("/setup", query=f"token={setup_token}")
+    _, _, body = client.get("/setup/webauthn", query=f"token={setup_token}")
     challenge_id = _extract_challenge_id(body)
 
     with patch("webauthn_helpers.verify_registration", side_effect=ValueError("Attestation invalid")):
@@ -115,7 +123,7 @@ def test_setup_complete_webauthn_failure(client, setup_token):
 
 def test_setup_complete_challenge_reuse(client, setup_token):
     """Challenge darf nur einmal verwendet werden."""
-    _, _, body = client.get("/setup", query=f"token={setup_token}")
+    _, _, body = client.get("/setup/webauthn", query=f"token={setup_token}")
     challenge_id = _extract_challenge_id(body)
 
     payload = {

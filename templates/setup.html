@@ -19,12 +19,12 @@
 </head>
 <body>
 
-<h1>Sicherheitsschlüssel einrichten</h1>
-<p>Verwende FaceID, TouchID, Windows Hello oder einen Sicherheitsschlüssel.</p>
+<h1 id="title">Sicherheitsschlüssel einrichten</h1>
+<p id="desc">Verwende FaceID, TouchID, Windows Hello oder einen Sicherheitsschlüssel.</p>
 
 <button id="btn">Jetzt einrichten</button>
 <div class="error" id="err"></div>
-<p class="hint">Kein kompatibler Authenticator? <a href="/totp/setup?token={{token}}">TOTP-Fallback einrichten</a></p>
+<p class="hint">Andere Methode wählen? <a href="/setup?token={{token}}">Zurück zur Auswahl</a></p>
 
 <script nonce="{{nonce}}">
 const TOKEN    = "{{token}}";
@@ -38,6 +38,22 @@ function b64url(buf) {
 function fromB64url(s) {
   const b = atob(s.replace(/-/g, '+').replace(/_/g, '/'));
   return Uint8Array.from(b, c => c.charCodeAt(0)).buffer;
+}
+
+// Adaptive UI: Plattform-Authenticator (FaceID/TouchID/Hello) verfügbar?
+if (window.PublicKeyCredential && PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) {
+  PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(available => {
+    if (available) {
+      document.getElementById('title').textContent = "Gerät als Sicherheitsschlüssel einrichten";
+      document.getElementById('desc').textContent = "Verwende FaceID, TouchID oder Windows Hello, um dieses Gerät zu registrieren.";
+    } else {
+      document.getElementById('title').textContent = "Sicherheitsschlüssel einrichten";
+      document.getElementById('desc').innerHTML =
+        'Du kannst verwenden:<br>' +
+        '&#8226; <b>Handy</b> \u2013 klicke Einrichten, w\u00e4hle im Browser-Dialog <i>Smartphone oder Tablet</i><br>' +
+        '&#8226; <b>USB-Schl\u00fcssel</b> \u2013 YubiKey o.\u00e4. einstecken und klicken';
+    }
+  });
 }
 
 document.getElementById('btn').addEventListener('click', startRegistration);
@@ -67,6 +83,7 @@ async function startRegistration() {
       id: cred.id,
       rawId: b64url(cred.rawId),
       type: cred.type,
+      transports: cred.response.getTransports ? cred.response.getTransports() : [],
       response: {
         clientDataJSON:    b64url(cred.response.clientDataJSON),
         attestationObject: b64url(cred.response.attestationObject),

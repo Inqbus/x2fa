@@ -90,13 +90,33 @@ def verify_registration(challenge: bytes, credential_json: str) -> dict:
         else False
     )
 
-    # Authenticator-Typ aus der Attestation ableiten
-    aaguid = getattr(verification, "aaguid", None)
-    authenticator_type = "platform" if (
-        hasattr(verification, "authenticator_data")
-        and getattr(verification.authenticator_data.flags, "up", False)
-        and not aaguid
-    ) else "roaming"
+    # device_type: single_device / multi_device (aus py_webauthn 2.x)
+    device_type = "single_device"
+    if hasattr(verification, "credential_device_type"):
+        try:
+            from webauthn.helpers.structs import CredentialDeviceType
+            if verification.credential_device_type == CredentialDeviceType.MULTI_DEVICE:
+                device_type = "multi_device"
+        except Exception:
+            pass
+
+    # Authenticator-Typ: platform (biometrics/TPM) vs. roaming (USB/NFC/BLE)
+    # Passkeys und multi-device credentials sind typischerweise platform-Authenticatoren.
+    authenticator_type = "roaming"
+    if is_passkey or device_type == "multi_device":
+        authenticator_type = "platform"
+    elif hasattr(verification, "authenticator_data"):
+        # Fallback: AAGUID leer → meist plattformintern
+        aaguid = getattr(verification, "aaguid", None)
+        if aaguid and str(aaguid) == "00000000-0000-0000-0000-000000000000":
+            authenticator_type = "platform"
+
+    # Transport aus dem Credential-Objekt (vom Browser via getTransports() geliefert)
+    transport: str | None = None
+    transports = getattr(credential, "transports", None) \
+        or getattr(getattr(credential, "response", None), "transports", None)
+    if transports:
+        transport = ",".join(transports) if isinstance(transports, list) else str(transports)
 
     return {
         "credential_id": verification.credential_id,
@@ -104,6 +124,8 @@ def verify_registration(challenge: bytes, credential_json: str) -> dict:
         "sign_count": verification.sign_count,
         "is_passkey": is_passkey,
         "authenticator_type": authenticator_type,
+        "device_type": device_type,
+        "transport": transport,
     }
 
 
@@ -112,12 +134,15 @@ def verify_registration(challenge: bytes, credential_json: str) -> dict:
 # ---------------------------------------------------------------------------
 
 def build_authentication_options_json(
-    challenge: bytes, credential_ids: list[bytes]
+    challenge: bytes, credential_ids: list[bytes], transports: list[list[str]] | None = None
 ) -> str:
     domain = _require_domain()
     allow_credentials = [
-        PublicKeyCredentialDescriptor(id=cred_id)
-        for cred_id in credential_ids
+        PublicKeyCredentialDescriptor(
+            id=cred_id,
+            transports=transports[i] if transports and i < len(transports) else None,
+        )
+        for i, cred_id in enumerate(credential_ids)
     ]
     options = generate_authentication_options(
         rp_id=domain,
