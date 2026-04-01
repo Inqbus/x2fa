@@ -15,7 +15,7 @@
   button { width: 100%; padding: 0.8rem; font-size: 1rem; border: none;
            border-radius: 6px; background: #1a56db; color: white;
            cursor: pointer; margin-top: 0.75rem; }
-  .error { color: #c00; margin-top: 0.75rem; display: none; }
+  .error { color: #c00; margin-top: 0.75rem; {% if not error %}display: none;{% endif %} }
   .warn  { background: #fff8e1; border-left: 4px solid #f59e0b;
            padding: 0.75rem 1rem; border-radius: 4px; font-size: 0.9rem;
            margin-bottom: 1.5rem; }
@@ -30,20 +30,15 @@
 </div>
 
 <form method="POST" action="/backup/verify">
-  <input type="hidden" name="token" value="{{token}}">
   <label for="code">8-stelliger Backup-Code</label>
   <input type="text" id="code" name="code" inputmode="text"
          pattern="[A-Fa-f0-9]{8}" maxlength="8" autocomplete="off"
          placeholder="A1B2C3D4" required>
   <button type="submit">Anmelden</button>
-  <div class="error" id="err">{{error}}</div>
+  <div class="error" id="err">{{ error }}</div>
 </form>
 
-<script nonce="{{nonce}}">
-  const err = document.getElementById('err');
-  if ("{{error}}" !== "") {
-    err.style.display = "block";
-  }
+<script nonce="{{ nonce }}">
   document.getElementById('code').focus();
 </script>
 </body>

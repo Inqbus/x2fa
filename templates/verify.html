@@ -27,15 +27,14 @@
 <div class="error" id="err"></div>
 <p class="hint">Probleme?
   <span class="links">
-    <a href="/totp/verify?token={{token}}">TOTP-Code eingeben</a>
-    <a href="/backup/verify?token={{token}}">Backup-Code verwenden</a>
+    <a href="/totp/verify">TOTP-Code eingeben</a>
+    <a href="/backup/verify">Backup-Code verwenden</a>
   </span>
 </p>
 
-<script nonce="{{nonce}}">
-const TOKEN       = "{{token}}";
-const OPTIONS     = {{!options_json}};
-const CHALLENGE_ID = "{{challenge_id}}";
+<script nonce="{{ nonce }}">
+const OPTIONS      = {{ options_json | safe }};
+const CHALLENGE_ID = "{{ challenge_id }}";
 
 function b64url(buf) {
   return btoa(String.fromCharCode(...new Uint8Array(buf)))
@@ -46,12 +45,10 @@ function fromB64url(s) {
   return Uint8Array.from(b, c => c.charCodeAt(0)).buffer;
 }
 
-// Auto-Fallback: kein WebAuthn → sofort zu TOTP
 if (!window.PublicKeyCredential) {
-  window.location = "/totp/verify?token=" + TOKEN;
+  window.location = "/totp/verify";
 }
 
-// Adaptive UI: Plattform-Authenticator verfügbar?
 if (window.PublicKeyCredential && PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) {
   PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(available => {
     if (available) {
@@ -72,7 +69,7 @@ document.getElementById('btn').addEventListener('click', startAuthentication);
 async function startAuthentication() {
   const btn = document.getElementById("btn");
   btn.disabled = true;
-  btn.textContent = "Warte auf Authenticator…";
+  btn.textContent = "Warte auf Authenticator\u2026";
 
   try {
     const opts = structuredClone(OPTIONS);
@@ -84,11 +81,10 @@ async function startAuthentication() {
     const cred = await navigator.credentials.get({ publicKey: opts });
 
     const payload = {
-      token: TOKEN,
       challenge_id: CHALLENGE_ID,
-      id: cred.id,
-      rawId: b64url(cred.rawId),
-      type: cred.type,
+      id:     cred.id,
+      rawId:  b64url(cred.rawId),
+      type:   cred.type,
       response: {
         clientDataJSON:    b64url(cred.response.clientDataJSON),
         authenticatorData: b64url(cred.response.authenticatorData),

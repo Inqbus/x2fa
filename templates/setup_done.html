@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2FA eingerichtet – X2FA</title>
+<style>
+  body   { font-family: system-ui, sans-serif; max-width: 480px; margin: 60px auto; padding: 0 1rem; color: #111; }
+  h1     { font-size: 1.4rem; margin-bottom: 0.25rem; }
+  p      { color: #555; }
+  .ok    { color: #16a34a; font-size: 1.2rem; font-weight: bold; margin-bottom: 0.5rem; }
+  .warn  { background: #fff8e1; border-left: 4px solid #f59e0b;
+           padding: 0.75rem 1rem; border-radius: 4px; font-size: 0.9rem;
+           margin: 1rem 0; }
+  .codes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin: 1rem 0; }
+  .code  { font-family: monospace; font-size: 1.1rem; background: #f4f4f4;
+           padding: 0.5rem 0.75rem; border-radius: 4px; text-align: center;
+           letter-spacing: 0.15rem; }
+  .btn   { display: block; width: 100%; padding: 0.8rem; font-size: 1rem;
+           border: none; border-radius: 6px; background: #1a56db; color: white;
+           cursor: pointer; text-align: center; text-decoration: none;
+           margin-top: 1.5rem; box-sizing: border-box; }
+  .btn:hover { background: #1446b0; }
+</style>
+</head>
+<body>
+
+<p class="ok">&#10003; 2FA erfolgreich eingerichtet</p>
+<h1>Backup-Codes sichern</h1>
+<div class="warn">
+  <strong>Wichtig:</strong> Notiere diese 10 Backup-Codes jetzt.
+  Sie werden nur einmal angezeigt und können bei verlorenem Gerät verwendet werden.
+  Jeder Code ist nur einmal gültig.
+</div>
+
+<div class="codes">
+  {% for code in backup_codes %}
+  <div class="code">{{ code }}</div>
+  {% endfor %}
+</div>
+
+<p>Hast du alle Codes gesichert? Dann klicke auf Weiter.</p>
+
+<a href="{{ continue_url }}" class="btn">Weiter</a>
+
+</body>
+</html>

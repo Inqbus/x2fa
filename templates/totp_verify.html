@@ -15,7 +15,7 @@
   button { width: 100%; padding: 0.8rem; font-size: 1rem; border: none;
            border-radius: 6px; background: #1a56db; color: white;
            cursor: pointer; margin-top: 0.75rem; }
-  .error { color: #c00; margin-top: 0.75rem; display: none; }
+  .error { color: #c00; margin-top: 0.75rem; {% if not error %}display: none;{% endif %} }
   .hint  { font-size: 0.85rem; color: #888; margin-top: 1.5rem; }
 </style>
 </head>
@@ -25,22 +25,17 @@
 <p>Öffne deine Authenticator-App und gib den aktuellen 6-stelligen Code ein.</p>
 
 <form method="POST" action="/totp/verify">
-  <input type="hidden" name="token" value="{{token}}">
   <label for="code">Einmalcode</label>
   <input type="text" id="code" name="code" inputmode="numeric"
          pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code"
          placeholder="000000" required>
   <button type="submit">Bestätigen</button>
-  <div class="error" id="err">{{error}}</div>
+  <div class="error" id="err">{{ error }}</div>
 </form>
 
-<p class="hint">Kein Zugriff auf die App? <a href="/backup/verify?token={{token}}">Backup-Code verwenden</a></p>
+<p class="hint">Kein Zugriff auf die App? <a href="/backup/verify">Backup-Code verwenden</a></p>
 
-<script nonce="{{nonce}}">
-  const err = document.getElementById('err');
-  if ("{{error}}" !== "") {
-    err.style.display = "block";
-  }
+<script nonce="{{ nonce }}">
   document.getElementById('code').focus();
 </script>
 </body>

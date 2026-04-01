@@ -21,7 +21,7 @@
             border-radius: 6px; background: #1a56db; color: white;
             cursor: pointer; margin-top: 0.75rem; }
   button:disabled { background: #9ab; cursor: not-allowed; }
-  .error  { color: #c00; margin-top: 0.75rem; display: none; }
+  .error  { color: #c00; margin-top: 0.75rem; {% if not error %}display: none;{% endif %} }
   .step   { font-size: 0.85rem; color: #666; margin-bottom: 0.25rem; }
 </style>
 </head>
@@ -32,30 +32,23 @@
 
 <p class="step"><strong>Schritt 1:</strong> QR-Code scannen</p>
 <div class="qr">
-  <img src="{{qr_data_uri}}" alt="TOTP QR-Code" width="200" height="200">
+  <img src="{{ qr_data_uri }}" alt="TOTP QR-Code" width="200" height="200">
 </div>
 
 <p class="step"><strong>Schritt 2:</strong> Oder Secret manuell eingeben</p>
-<div class="secret">{{secret}}</div>
+<div class="secret">{{ secret }}</div>
 
 <p class="step"><strong>Schritt 3:</strong> 6-stelligen Code aus der App eingeben</p>
 <form method="POST" action="/totp/setup/verify">
-  <input type="hidden" name="token" value="{{token}}">
   <label for="code">Bestätigungscode</label>
   <input type="text" id="code" name="code" inputmode="numeric"
          pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code"
          placeholder="000000" required>
   <button type="submit">Einrichtung abschließen</button>
-  <div class="error" id="err">{{error}}</div>
+  <div class="error" id="err">{{ error }}</div>
 </form>
 
-<script nonce="{{nonce}}">
-  // Fehler aus Query-String anzeigen
-  const err = document.getElementById('err');
-  if ("{{error}}" !== "") {
-    err.style.display = "block";
-  }
-  // Code-Feld automatisch fokussieren
+<script nonce="{{ nonce }}">
   document.getElementById('code').focus();
 </script>
 </body>
