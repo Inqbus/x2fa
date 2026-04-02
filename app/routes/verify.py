@@ -1,4 +1,4 @@
-"""WebAuthn-Verifikations-Routes."""
+"""WebAuthn assertion (verification) routes."""
 
 import json
 import secrets
@@ -22,8 +22,9 @@ verify_bp = Blueprint("verify", __name__)
 
 
 def _require_session():
+    """Aborts with 400 if no active OIDC session is present."""
     if not session.get("oidc_request") or not session.get("user_id"):
-        abort(400, "Keine aktive Sitzung. Bitte starte den Login-Prozess neu.")
+        abort(400, "No active session. Please restart the login process.")
 
 
 # ---------------------------------------------------------------------------
@@ -37,12 +38,12 @@ def verify_get():
 
     credentials = Credential.query.filter_by(user_id=user_id).all()
     if not credentials:
-        # Kein WebAuthn-Key → TOTP-Fallback
+        # No WebAuthn credential registered — fall back to TOTP
         return redirect(url_for("totp.totp_verify_get"))
 
     challenge_bytes = secrets.token_bytes(32)
-    challenge_id = str(uuid.uuid4())
-    expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
+    challenge_id    = str(uuid.uuid4())
+    expires_at      = datetime.now(timezone.utc) + timedelta(minutes=5)
 
     db.session.add(Challenge(
         challenge_id=challenge_id,
@@ -52,8 +53,8 @@ def verify_get():
     ))
     db.session.commit()
 
-    credential_ids = [bytes(c.credential_id) for c in credentials]
-    transports_list = [
+    credential_ids   = [bytes(c.credential_id) for c in credentials]
+    transports_list  = [
         c.transport.split(",") if c.transport else []
         for c in credentials
     ]
@@ -79,45 +80,45 @@ def verify_get():
 @limiter.limit("10 per minute; 30 per hour")
 def verify_complete():
     if not session.get("oidc_request") or not session.get("user_id"):
-        return jsonify({"error": "Keine aktive Sitzung."}), 401
+        return jsonify({"error": "No active session."}), 401
 
     data = request.get_json()
     if not data:
-        return jsonify({"error": "Kein JSON-Body."}), 400
+        return jsonify({"error": "Missing JSON body."}), 400
 
     user_id      = session["user_id"]
     challenge_id = data.get("challenge_id", "")
 
-    # Challenge konsumieren
+    # Consume the challenge (single-use, TTL check)
     ch = Challenge.query.get(challenge_id)
     if not ch or ch.user_id != user_id or ch.used:
-        return jsonify({"error": "Challenge ungültig."}), 400
+        return jsonify({"error": "Invalid challenge."}), 400
 
     exp = ch.expires_at
     if exp.tzinfo is None:
         exp = exp.replace(tzinfo=timezone.utc)
     if datetime.now(timezone.utc) > exp:
-        return jsonify({"error": "Challenge abgelaufen."}), 400
+        return jsonify({"error": "Challenge expired."}), 400
 
     ch.used = True
     db.session.commit()
     challenge_bytes = bytes(ch.challenge)
 
-    # Credential aus DB laden
+    # Decode rawId to look up the stored credential
     from webauthn import base64url_to_bytes
     try:
         raw_id = base64url_to_bytes(data.get("rawId", ""))
     except Exception:
-        return jsonify({"error": "Ungültige Credential-ID."}), 400
+        return jsonify({"error": "Invalid credential ID."}), 400
 
     cred = Credential.query.get(raw_id)
     if cred is None or cred.user_id != user_id:
-        return jsonify({"error": "Credential nicht gefunden."}), 404
+        return jsonify({"error": "Credential not found."}), 404
 
     credential_json = json.dumps({
-        "id":     data.get("id"),
-        "rawId":  data.get("rawId"),
-        "type":   data.get("type"),
+        "id":       data.get("id"),
+        "rawId":    data.get("rawId"),
+        "type":     data.get("type"),
         "response": data.get("response", {}),
     })
 
@@ -133,7 +134,7 @@ def verify_complete():
         audit_log(ACTION_FAIL, METHOD_WEBAUTHN_ROAMING, user_id)
         return jsonify({"error": str(exc)}), 400
 
-    # Sign-Count aktualisieren
+    # Update sign count — regression would indicate a cloned authenticator
     cred.sign_count = new_sign_count
     cred.last_used_at = datetime.now(timezone.utc)
     db.session.commit()
@@ -144,7 +145,7 @@ def verify_complete():
     )
     audit_log(ACTION_VERIFY, method, user_id)
 
-    # 2FA erfolgreich → zurück zu /authorize
+    # Mark 2FA as complete and redirect back to the authorization endpoint
     session["2fa_verified"] = True
     from app.routes.auth import _authorize_continue_url
     return jsonify({"redirect_url": _authorize_continue_url()})

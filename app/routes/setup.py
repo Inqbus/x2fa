@@ -1,4 +1,4 @@
-"""2FA-Setup-Routes: Methodenauswahl, WebAuthn-Registrierung, Backup-Codes."""
+"""2FA setup routes: method selection, WebAuthn registration, backup code display."""
 
 import json
 import secrets
@@ -20,13 +20,13 @@ setup_bp = Blueprint("setup", __name__)
 
 
 def _require_session():
-    """Prüft ob eine aktive OIDC-Session vorhanden ist."""
+    """Aborts with 400 if no active OIDC session is present."""
     if not session.get("oidc_request") or not session.get("user_id"):
-        abort(400, "Keine aktive Sitzung. Bitte starte den Login-Prozess neu.")
+        abort(400, "No active session. Please restart the login process.")
 
 
 # ---------------------------------------------------------------------------
-# GET /setup  →  Methodenauswahl
+# GET /setup  —  method selection screen
 # ---------------------------------------------------------------------------
 
 @setup_bp.route("/setup")
@@ -36,7 +36,7 @@ def setup_choose():
 
 
 # ---------------------------------------------------------------------------
-# GET /setup/webauthn
+# GET /setup/webauthn  —  WebAuthn registration UI
 # ---------------------------------------------------------------------------
 
 @setup_bp.route("/setup/webauthn")
@@ -45,8 +45,8 @@ def setup_webauthn_get():
     user_id = session["user_id"]
 
     challenge_bytes = secrets.token_bytes(32)
-    challenge_id = str(uuid.uuid4())
-    expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
+    challenge_id    = str(uuid.uuid4())
+    expires_at      = datetime.now(timezone.utc) + timedelta(minutes=5)
 
     db.session.add(Challenge(
         challenge_id=challenge_id,
@@ -68,38 +68,38 @@ def setup_webauthn_get():
 
 
 # ---------------------------------------------------------------------------
-# POST /setup/complete  →  WebAuthn-Registrierung abschließen
+# POST /setup/complete  —  process WebAuthn registration response
 # ---------------------------------------------------------------------------
 
 @setup_bp.route("/setup/complete", methods=["POST"])
 @limiter.limit("5 per minute")
 def setup_complete():
     if not session.get("oidc_request") or not session.get("user_id"):
-        return jsonify({"error": "Keine aktive Sitzung."}), 401
+        return jsonify({"error": "No active session."}), 401
 
     data = request.get_json()
     if not data:
-        return jsonify({"error": "Kein JSON-Body."}), 400
+        return jsonify({"error": "Missing JSON body."}), 400
 
     user_id      = session["user_id"]
     challenge_id = data.get("challenge_id", "")
 
-    # Challenge laden und konsumieren
+    # Consume the challenge (single-use, TTL check)
     ch = Challenge.query.get(challenge_id)
     if not ch or ch.user_id != user_id or ch.used:
-        return jsonify({"error": "Challenge ungültig."}), 400
+        return jsonify({"error": "Invalid challenge."}), 400
 
     exp = ch.expires_at
     if exp.tzinfo is None:
         exp = exp.replace(tzinfo=timezone.utc)
     if datetime.now(timezone.utc) > exp:
-        return jsonify({"error": "Challenge abgelaufen."}), 400
+        return jsonify({"error": "Challenge expired."}), 400
 
     ch.used = True
     db.session.commit()
     challenge_bytes = bytes(ch.challenge)
 
-    # Credential-JSON zusammensetzen
+    # Build the credential JSON structure expected by py_webauthn
     credential_json = json.dumps({
         "id":         data.get("id"),
         "rawId":      data.get("rawId"),
@@ -116,12 +116,11 @@ def setup_complete():
         return jsonify({"error": str(exc)}), 400
 
     auth_type = reg.get("authenticator_type", "roaming")
-    method = (
+    method    = (
         METHOD_WEBAUTHN_PLATFORM if auth_type == "platform"
         else METHOD_WEBAUTHN_ROAMING
     )
 
-    # Credential speichern
     db.session.add(Credential(
         credential_id=reg["credential_id"],
         user_id=user_id,
@@ -133,7 +132,7 @@ def setup_complete():
         is_passkey=reg["is_passkey"],
     ))
 
-    # Backup-Codes generieren (einmalig)
+    # Generate 10 single-use backup codes and store their bcrypt hashes
     from app.services.crypto import CryptoService
     codes = CryptoService.generate_backup_codes(10)
     for code_hash in [CryptoService.hash_backup_code(c) for c in codes]:
@@ -142,7 +141,7 @@ def setup_complete():
     db.session.commit()
     audit_log(ACTION_SETUP, method, user_id)
 
-    # Backup-Codes temporär in Session, 2FA als verifiziert markieren
+    # Store backup codes in session for one-time display, mark 2FA as verified
     session["backup_codes"] = codes
     session["2fa_verified"] = True
 
@@ -150,7 +149,7 @@ def setup_complete():
 
 
 # ---------------------------------------------------------------------------
-# GET /setup/done  →  Backup-Codes anzeigen (einmalig)
+# GET /setup/done  —  one-time backup code display
 # ---------------------------------------------------------------------------
 
 @setup_bp.route("/setup/done")
@@ -159,7 +158,7 @@ def setup_done():
     if not backup_codes and not session.get("2fa_verified"):
         return redirect(url_for("auth.authorize"))
 
-    # Continue-URL mit OIDC-Params rekonstruieren
+    # Reconstruct the /authorize URL to continue the OIDC flow
     from app.routes.auth import _authorize_continue_url
     continue_url = _authorize_continue_url()
 

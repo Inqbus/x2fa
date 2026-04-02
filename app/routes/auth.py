@@ -1,4 +1,4 @@
-"""OIDC-Endpunkte: /authorize, /token, /.well-known/*, /jwks, /done."""
+"""OIDC endpoints: /authorize, /token, /.well-known/*, /jwks, /done demo callback."""
 
 import json
 from urllib.parse import urlencode
@@ -21,29 +21,33 @@ auth_bp = Blueprint("auth", __name__)
 
 @auth_bp.route("/.well-known/openid-configuration")
 def openid_configuration():
+    """Standard OIDC discovery document (RFC 8414)."""
     domain = current_app.config["X2FA_DOMAIN"]
     base = f"https://{domain}"
     return jsonify({
-        "issuer": base,
-        "authorization_endpoint": f"{base}/authorize",
-        "token_endpoint": f"{base}/token",
-        "jwks_uri": f"{base}/.well-known/jwks.json",
-        "response_types_supported": ["code"],
-        "subject_types_supported": ["public"],
+        "issuer":                                base,
+        "authorization_endpoint":                f"{base}/authorize",
+        "token_endpoint":                        f"{base}/token",
+        "jwks_uri":                              f"{base}/.well-known/jwks.json",
+        "response_types_supported":              ["code"],
+        "subject_types_supported":               ["public"],
         "id_token_signing_alg_values_supported": ["ES256"],
-        "scopes_supported": ["openid", "x2fa:setup"],
+        "scopes_supported":                      ["openid", "x2fa:setup"],
         "token_endpoint_auth_methods_supported": [
             "client_secret_post",
             "client_secret_basic",
         ],
-        "code_challenge_methods_supported": ["S256"],
-        "grant_types_supported": ["authorization_code"],
-        "claims_supported": ["sub", "iss", "aud", "exp", "iat", "auth_time", "nonce"],
+        "code_challenge_methods_supported":      ["S256"],
+        "grant_types_supported":                 ["authorization_code"],
+        "claims_supported": [
+            "sub", "iss", "aud", "exp", "iat", "auth_time", "nonce",
+        ],
     })
 
 
 @auth_bp.route("/.well-known/jwks.json")
 def jwks():
+    """JSON Web Key Set — public EC keys for ID token signature verification."""
     from authlib.jose import JsonWebKey
     from datetime import datetime, timezone
 
@@ -60,7 +64,7 @@ def jwks():
     )
     jwk_list = []
     for sk in keys:
-        # PEM-Bytes direkt an authlib übergeben (nicht vorher laden)
+        # Pass PEM bytes directly to authlib (not a pre-loaded key object)
         jwk = JsonWebKey.import_key(
             sk.public_key_pem.encode(),
             {"kid": sk.kid, "use": "sig", "alg": sk.algorithm},
@@ -78,16 +82,18 @@ def jwks():
 @limiter.limit("10 per minute; 100 per hour")
 def authorize():
     """
-    OIDC Authorization Code Flow – zwei Phasen:
+    OIDC Authorization Endpoint — two-phase flow:
 
-    Phase 1 (erster Aufruf): Parameter validieren, in Session speichern,
-                             zu 2FA-Route weiterleiten.
-    Phase 2 (nach 2FA):      2fa_verified=True → Auth-Code ausstellen.
+    Phase 1 (first call): Validates OIDC parameters, stores them in the Flask
+        session, then redirects the browser to the 2FA UI (/verify or /setup).
+
+    Phase 2 (after 2FA): session['2fa_verified'] is True; Authlib issues the
+        authorization code and redirects to the client's redirect_uri.
     """
     client_id = request.args.get("client_id", "")
     oidc_req  = session.get("oidc_request", {})
 
-    # Phase 2: 2FA abgeschlossen, Code ausstellen
+    # Phase 2: 2FA complete — issue authorization code
     if (
         session.get("2fa_verified")
         and client_id
@@ -95,12 +101,12 @@ def authorize():
     ):
         user_id = session["user_id"]
         response = oauth.create_authorization_response(grant_user=user_id)
-        # Session nach Code-Ausstellung aufräumen
+        # Clean up OIDC state from session after code issuance
         session.pop("2fa_verified", None)
         session.pop("oidc_request", None)
         return response
 
-    # Phase 1: Parameter validieren
+    # Phase 1: validate parameters and start 2FA
     redirect_uri          = request.args.get("redirect_uri", "")
     scope                 = request.args.get("scope", "")
     state                 = request.args.get("state")
@@ -109,24 +115,22 @@ def authorize():
     code_challenge_method = request.args.get("code_challenge_method", "")
     login_hint            = request.args.get("login_hint", "").strip()
 
-    # Pflichtfelder
     if not all([client_id, redirect_uri, code_challenge, login_hint]):
-        abort(400, "client_id, redirect_uri, code_challenge und login_hint sind erforderlich.")
+        abort(400, "client_id, redirect_uri, code_challenge, and login_hint are required.")
 
-    # PKCE S256 erzwingen
+    # Enforce PKCE S256 — plain is never accepted
     if code_challenge_method != "S256":
-        abort(400, "Nur code_challenge_method=S256 wird unterstützt.")
+        abort(400, "Only code_challenge_method=S256 is supported.")
 
-    # Client prüfen
     client = OIDCClient.query.filter_by(client_id=client_id, active=True).first()
     if not client:
-        abort(400, "Unbekannter client_id.")
+        abort(400, "Unknown client_id.")
     if not client.check_redirect_uri(redirect_uri):
-        abort(400, "Ungültige redirect_uri.")
+        abort(400, "Invalid redirect_uri.")
     if "openid" not in scope:
-        abort(400, "scope muss 'openid' enthalten.")
+        abort(400, "scope must include 'openid'.")
 
-    # OIDC-Request in Session speichern
+    # Store OIDC request parameters in the server-side session
     session["oidc_request"] = {
         "client_id":             client_id,
         "redirect_uri":          redirect_uri,
@@ -138,18 +142,22 @@ def authorize():
         "response_type":         "code",
         "login_hint":            login_hint,
     }
-    session["user_id"]    = login_hint
+    session["user_id"]      = login_hint
     session["2fa_verified"] = False
-    setup_mode = "x2fa:setup" in scope
-    session["setup_mode"] = setup_mode
+    session["setup_mode"]   = "x2fa:setup" in scope
 
-    if setup_mode:
+    if session["setup_mode"]:
         return redirect(url_for("setup.setup_choose"))
     return redirect(url_for("verify.verify_get"))
 
 
 def _authorize_continue_url() -> str:
-    """Rekonstruiert die /authorize-URL mit den gespeicherten OIDC-Params."""
+    """
+    Reconstructs the /authorize URL from the stored OIDC session parameters.
+
+    Called by 2FA routes after successful verification to redirect the browser
+    back to the authorization endpoint (Phase 2).
+    """
     oidc_req = session.get("oidc_request", {})
     return "/authorize?" + urlencode({k: v for k, v in oidc_req.items() if v is not None})
 
@@ -161,15 +169,21 @@ def _authorize_continue_url() -> str:
 @auth_bp.route("/token", methods=["POST"])
 @limiter.limit("20 per minute")
 def token():
+    """OIDC Token Endpoint — exchanges an authorization code for tokens."""
     return oauth.create_token_response()
 
 
 # ---------------------------------------------------------------------------
-# Demo-Callback (nur für Tests)
+# Demo Callback (local testing only)
 # ---------------------------------------------------------------------------
 
 @auth_bp.route("/done")
 def demo_done():
+    """
+    Demo callback that displays the received authorization code.
+    Do NOT use in production — this endpoint accepts any redirect without
+    authentication.
+    """
     code  = request.args.get("code", "")
     state = request.args.get("state", "")
     error = request.args.get("error", "")
@@ -177,12 +191,12 @@ def demo_done():
     if error:
         return render_template("error.html",
                                status_code="400",
-                               title="Fehler vom OIDC-Server",
+                               title="Error from OIDC server",
                                message=error), 400
 
     return f"""<!DOCTYPE html>
-<html lang="de"><head><meta charset="UTF-8">
-<title>Demo-Callback</title>
+<html lang="en"><head><meta charset="UTF-8">
+<title>Demo Callback</title>
 <style>
   body{{font-family:system-ui;max-width:500px;margin:60px auto;padding:0 1rem}}
   .ok{{color:#16a34a;font-size:1.3rem;font-weight:bold}}
@@ -191,12 +205,13 @@ def demo_done():
   code{{background:#f4f4f4;padding:.1rem .3rem;border-radius:3px;font-size:.9rem;word-break:break-all}}
 </style></head>
 <body>
-<p class="ok">&#10003; Authorization Code erhalten</p>
+<p class="ok">&#10003; Authorization code received</p>
 <table>
-  <tr><td><b>code</b></td><td><code>{code[:20]}…</code></td></tr>
+  <tr><td><b>code</b></td><td><code>{code[:20]}&hellip;</code></td></tr>
   <tr><td><b>state</b></td><td><code>{state}</code></td></tr>
 </table>
 <p style="color:#888;font-size:.85rem;margin-top:2rem">
-  Dies ist ein Test-Endpunkt. Der echte RP tauscht den Code jetzt an /token gegen Tokens ein.
+  This is a test endpoint. In a real application, the RP now exchanges the code
+  at /token to obtain the ID token.
 </p>
 </body></html>"""

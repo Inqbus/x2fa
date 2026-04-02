@@ -5,23 +5,23 @@ from app.extensions import db
 
 
 # ---------------------------------------------------------------------------
-# Bestehende 2FA-Modelle (auf Flask-SQLAlchemy portiert)
+# Legacy 2FA models (ported from raw SQLAlchemy to Flask-SQLAlchemy)
 # ---------------------------------------------------------------------------
 
 class Credential(db.Model):
     __tablename__ = "credentials"
 
-    credential_id    = db.Column(db.LargeBinary, primary_key=True)
-    user_id          = db.Column(db.String(255), nullable=False, index=True)
-    public_key       = db.Column(db.LargeBinary, nullable=False)
-    sign_count       = db.Column(db.Integer, nullable=False, default=0)
-    authenticator_type = db.Column(db.String(20), nullable=False)
-    device_type      = db.Column(db.String(20), nullable=False, default="single_device")
-    transport        = db.Column(db.String(50), nullable=True)
-    is_passkey       = db.Column(db.Boolean, nullable=False, default=False)
-    created_at       = db.Column(db.DateTime, nullable=False,
-                                 default=lambda: datetime.now(timezone.utc))
-    last_used_at     = db.Column(db.DateTime, nullable=True)
+    credential_id      = db.Column(db.LargeBinary, primary_key=True)
+    user_id            = db.Column(db.String(255), nullable=False, index=True)
+    public_key         = db.Column(db.LargeBinary, nullable=False)
+    sign_count         = db.Column(db.Integer, nullable=False, default=0)
+    authenticator_type = db.Column(db.String(20), nullable=False)   # platform / roaming
+    device_type        = db.Column(db.String(20), nullable=False, default="single_device")  # single_device / multi_device
+    transport          = db.Column(db.String(50), nullable=True)    # usb / nfc / ble / hybrid / internal
+    is_passkey         = db.Column(db.Boolean, nullable=False, default=False)
+    created_at         = db.Column(db.DateTime, nullable=False,
+                                   default=lambda: datetime.now(timezone.utc))
+    last_used_at       = db.Column(db.DateTime, nullable=True)
 
     __table_args__ = (
         db.Index("idx_cred_user_created", "user_id", "created_at"),
@@ -29,6 +29,7 @@ class Credential(db.Model):
 
 
 class Challenge(db.Model):
+    """Short-lived WebAuthn challenge (TTL 5 minutes, single-use)."""
     __tablename__ = "challenges"
 
     challenge_id = db.Column(db.String(255), primary_key=True)
@@ -64,33 +65,31 @@ class AuditLog(db.Model):
 
     id        = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id   = db.Column(db.String(255), nullable=False, index=True)
-    action    = db.Column(db.String(50), nullable=False, index=True)
-    method    = db.Column(db.String(50), nullable=False)
-    ip_hash   = db.Column(db.String(64), nullable=False)
+    action    = db.Column(db.String(50), nullable=False, index=True)  # setup / verify / fail
+    method    = db.Column(db.String(50), nullable=False)              # webauthn_platform / webauthn_roaming / totp / backup
+    ip_hash   = db.Column(db.String(64), nullable=False)              # SHA256(ip + secret) — no plaintext stored
     timestamp = db.Column(db.DateTime, nullable=False,
                           default=lambda: datetime.now(timezone.utc), index=True)
 
 
 # ---------------------------------------------------------------------------
-# Neue OIDC-Modelle
+# New OIDC models
 # ---------------------------------------------------------------------------
 
 class OIDCClient(db.Model):
-    """Registrierter OIDC-Client (Relying Party)."""
+    """Registered OIDC client (relying party)."""
     __tablename__ = "oidc_clients"
 
     client_id      = db.Column(db.String(255), primary_key=True)
     client_secret  = db.Column(db.String(255), nullable=False)
-    # Redirect-URIs: zeilengetrennt
-    redirect_uris  = db.Column(db.Text, nullable=False)
-    # Erlaubte Scopes: leerzeichen-getrennt, z.B. "openid x2fa:setup"
+    redirect_uris  = db.Column(db.Text, nullable=False)          # newline-separated
     allowed_scopes = db.Column(db.String(255), nullable=False,
-                               default="openid x2fa:setup")
+                               default="openid x2fa:setup")      # space-separated
     active         = db.Column(db.Boolean, nullable=False, default=True)
     created_at     = db.Column(db.DateTime, nullable=False,
                                default=lambda: datetime.now(timezone.utc))
 
-    # --- Authlib-Interface ---
+    # --- Authlib interface ---
 
     def get_client_id(self):
         return self.client_id
@@ -116,7 +115,7 @@ class OIDCClient(db.Model):
         return response_type == "code"
 
     def get_allowed_scope(self, scope: str) -> str:
-        """Gibt den erlaubten Teil des angeforderten Scopes zurück."""
+        """Returns the allowed subset of the requested scope."""
         allowed = set(self.allowed_scopes.split())
         requested = set(scope.split())
         return " ".join(allowed & requested)
@@ -131,21 +130,21 @@ class OIDCClient(db.Model):
 
 
 class AuthorizationCode(db.Model):
-    """OIDC Authorization Code (PKCE S256, einmalig verwendbar)."""
+    """OIDC authorization code — PKCE S256, single-use, 60-second TTL."""
     __tablename__ = "authorization_codes"
 
-    id                   = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    code                 = db.Column(db.String(255), nullable=False, unique=True, index=True)
-    client_id            = db.Column(db.String(255), nullable=False)
-    user_id              = db.Column(db.String(255), nullable=False)
-    redirect_uri         = db.Column(db.Text, nullable=False)
-    scope                = db.Column(db.String(255), nullable=False)
-    nonce                = db.Column(db.String(255), nullable=True)
-    code_challenge       = db.Column(db.String(255), nullable=True)
+    id                    = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    code                  = db.Column(db.String(255), nullable=False, unique=True, index=True)
+    client_id             = db.Column(db.String(255), nullable=False)
+    user_id               = db.Column(db.String(255), nullable=False)
+    redirect_uri          = db.Column(db.Text, nullable=False)
+    scope                 = db.Column(db.String(255), nullable=False)
+    nonce                 = db.Column(db.String(255), nullable=True)
+    code_challenge        = db.Column(db.String(255), nullable=True)
     code_challenge_method = db.Column(db.String(10), nullable=True)
-    auth_time            = db.Column(db.Integer, nullable=False)  # Unix-Timestamp
-    expires_at           = db.Column(db.DateTime, nullable=False, index=True)
-    used                 = db.Column(db.Boolean, nullable=False, default=False)
+    auth_time             = db.Column(db.Integer, nullable=False)  # Unix timestamp
+    expires_at            = db.Column(db.DateTime, nullable=False, index=True)
+    used                  = db.Column(db.Boolean, nullable=False, default=False)
 
     def is_expired(self) -> bool:
         exp = self.expires_at
@@ -153,7 +152,7 @@ class AuthorizationCode(db.Model):
             exp = exp.replace(tzinfo=timezone.utc)
         return datetime.now(timezone.utc) > exp
 
-    # --- Authlib-Interface ---
+    # --- Authlib interface ---
 
     def get_redirect_uri(self) -> str:
         return self.redirect_uri
@@ -175,7 +174,7 @@ class AuthorizationCode(db.Model):
 
 
 class SigningKey(db.Model):
-    """EC-Schlüsselpaar für ID-Token-Signierung (ES256)."""
+    """EC key pair for ID token signing (ES256). Private key is Fernet-encrypted."""
     __tablename__ = "signing_keys"
 
     id                    = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -189,7 +188,7 @@ class SigningKey(db.Model):
     expires_at            = db.Column(db.DateTime, nullable=True)
 
     def get_private_key(self, fernet):
-        """Entschlüsselt und gibt den privaten EC-Schlüssel zurück."""
+        """Decrypts and returns the EC private key object."""
         from cryptography.hazmat.primitives.serialization import load_pem_private_key
         pem = fernet.decrypt(self.private_key_encrypted)
         return load_pem_private_key(pem, password=None)

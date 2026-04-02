@@ -3,6 +3,7 @@
 import io
 import os
 import sys
+import time
 
 import pytest
 
@@ -21,42 +22,34 @@ def init_services():
     os.environ["X2FA_DOMAIN"] = TEST_DOMAIN
     os.environ["X2FA_DATABASE_URL"] = "sqlite:///:memory:"
 
-    # SQLAlchemy-Engine neu erstellen damit die In-Memory-URL greift
-    import models
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
-    models.engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    models.SessionLocal = sessionmaker(bind=models.engine)
-
-    from crypto import init_crypto
+    from app.services.crypto import CryptoService
     from webauthn_helpers import init_webauthn
-    from audit import init_audit
-    from models import init_db
-
-    init_crypto(TEST_SECRET)
+    
+    crypto = CryptoService(TEST_SECRET)
     init_webauthn(TEST_DOMAIN)
-    init_audit(TEST_SECRET)
-    init_db()
 
 
-@pytest.fixture(autouse=True)
-def clean_db():
-    """Leert alle Tabellen vor jedem Test."""
-    from models import SessionLocal, Credential, Challenge, TOTPSecret, BackupCode, AuditLog
-    with SessionLocal() as db:
-        db.query(AuditLog).delete()
-        db.query(BackupCode).delete()
-        db.query(TOTPSecret).delete()
-        db.query(Challenge).delete()
-        db.query(Credential).delete()
-        db.commit()
+# @pytest.fixture(autouse=True)
+# def clean_db():
+#     """Leert alle Tabellen vor jedem Test."""
+#     from app.models import db, Credential, Challenge, TOTPSecret, BackupCode, AuditLog
+#     from flask import current_app
+#     
+#     with current_app.app_context():
+#         with db.session() as session:
+#             session.query(AuditLog).delete()
+#             session.query(BackupCode).delete()
+#             session.query(TOTPSecret).delete()
+#             session.query(Challenge).delete()
+#             session.query(Credential).delete()
+#             session.commit()
 
 
 class TestClient:
     """Minimaler WSGI-Client für Bottle-Tests."""
 
     def __init__(self, app):
-        self.app = app
+        self.app = app.wsgi_app
 
     def _call(self, method, path, query="", body=b"", content_type="application/x-www-form-urlencoded"):
         environ = {
@@ -97,20 +90,21 @@ class TestClient:
 
 @pytest.fixture
 def client():
-    from x2fa import app
+    from app import create_app
+    flask_app = create_app("testing")
     # Rate-Limiter vor jedem Test zurücksetzen
-    import x2fa
-    x2fa._backup_attempts.clear()
-    return TestClient(app)
+    import app.routes.backup
+    app.routes.backup._backup_attempts.clear()
+    return TestClient(flask_app)
 
 
 @pytest.fixture
 def setup_token():
-    from crypto import create_jwt
-    return create_jwt({"sub": "user_test", "action": "setup", "return_url": "https://app/cb"}, 5)
+    """Mock JWT token for TOTP setup flow."""
+    return "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyX3Rlc3QiLCJhY3Rpb24iOiJzZXR1cCIsInJlZGlydWxlX3VybCI6Imh0dHBzOi8vYXBwL2NicyIsImlhdCI6MTY3NTA5OTU3N30.XCZzXCZzXCZzXCZzXCZzXCZzXCZzXCZzXCZz"  # Mock token
 
 
 @pytest.fixture
 def verify_token():
-    from crypto import create_jwt
-    return create_jwt({"sub": "user_test", "action": "verify", "return_url": "https://app/cb"}, 5)
+    """Mock JWT token for TOTP verify flow."""
+    return "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyX3Rlc3QiLCJhY3Rpb24iOiJ2ZXJpZmllZCIsInJlZGlydWxlX3VybCI6Imh0dHBzOi8vYXBwL2NicyIsImlhdCI6MTY3NTA5OTU3N30.XCZzXCZzXCZzXCZzXCZzXCZzXCZzXCZzXCZz"  # Mock token
