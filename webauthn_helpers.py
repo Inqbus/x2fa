@@ -1,4 +1,4 @@
-"""Dünner Wrapper um py_webauthn 2.x für X2FA."""
+"""Thin wrapper around py_webauthn 2.x for X2FA."""
 
 import os
 
@@ -25,23 +25,23 @@ _ORIGIN: str | None = None
 def init_webauthn(domain: str) -> None:
     global _DOMAIN, _ORIGIN
     _DOMAIN = domain
-    # X2FA_ORIGIN überschreibt den Standard (https://<domain>).
-    # Für lokale Tests: X2FA_ORIGIN=http://localhost:5000
+    # X2FA_ORIGIN overrides the default (https://<domain>).
+    # For local testing: X2FA_ORIGIN=http://localhost:5000
     _ORIGIN = os.environ.get("X2FA_ORIGIN") or f"https://{domain}"
 
 
 def _require_domain() -> str:
     if not _DOMAIN:
-        raise RuntimeError("webauthn_helpers.init_webauthn() wurde nicht aufgerufen.")
+        raise RuntimeError("webauthn_helpers.init_webauthn() has not been called.")
     return _DOMAIN
 
 
 # ---------------------------------------------------------------------------
-# Registrierung
+# Registration
 # ---------------------------------------------------------------------------
 
 def build_registration_options_json(user_id: str, challenge: bytes) -> str:
-    """Gibt JSON-String zurück, der direkt an das Frontend gesendet werden kann."""
+    """Returns a JSON string that can be sent directly to the frontend."""
     domain = _require_domain()
     options = generate_registration_options(
         rp_id=domain,
@@ -50,8 +50,8 @@ def build_registration_options_json(user_id: str, challenge: bytes) -> str:
         user_name=user_id,
         challenge=challenge,
         authenticator_selection=AuthenticatorSelectionCriteria(
-            # Kein authenticator_attachment → Browser akzeptiert Platform (TouchID/Hello)
-            # UND Roaming Authenticators (YubiKey, Nitrokey, HSM)
+            # No authenticator_attachment → browser accepts platform (TouchID/Hello)
+            # AND roaming authenticators (YubiKey, Nitrokey, HSM)
             resident_key=ResidentKeyRequirement.PREFERRED,
             user_verification=UserVerificationRequirement.REQUIRED,
         ),
@@ -60,16 +60,16 @@ def build_registration_options_json(user_id: str, challenge: bytes) -> str:
 
 
 def verify_registration(challenge: bytes, credential_json: str) -> dict:
-    """Verifiziert die Registrierungsantwort des Browsers.
+    """Verifies the browser's registration response.
 
-    Gibt zurück:
+    Returns:
         {
             credential_id: bytes,
             public_key: bytes,
             sign_count: int,
             is_passkey: bool,
         }
-    Wirft ValueError bei Fehler.
+    Raises ValueError on failure.
     """
     domain = _require_domain()
     try:
@@ -82,7 +82,7 @@ def verify_registration(challenge: bytes, credential_json: str) -> dict:
             require_user_verification=True,
         )
     except Exception as exc:
-        raise ValueError(f"Registrierung fehlgeschlagen: {exc}") from exc
+        raise ValueError(f"Registration failed: {exc}") from exc
 
     is_passkey = (
         verification.credential_backed_up is True
@@ -90,7 +90,7 @@ def verify_registration(challenge: bytes, credential_json: str) -> dict:
         else False
     )
 
-    # device_type: single_device / multi_device (aus py_webauthn 2.x)
+    # device_type: single_device / multi_device (from py_webauthn 2.x)
     device_type = "single_device"
     if hasattr(verification, "credential_device_type"):
         try:
@@ -100,18 +100,18 @@ def verify_registration(challenge: bytes, credential_json: str) -> dict:
         except Exception:
             pass
 
-    # Authenticator-Typ: platform (biometrics/TPM) vs. roaming (USB/NFC/BLE)
-    # Passkeys und multi-device credentials sind typischerweise platform-Authenticatoren.
+    # Authenticator type: platform (biometrics/TPM) vs. roaming (USB/NFC/BLE)
+    # Passkeys and multi-device credentials are typically platform authenticators.
     authenticator_type = "roaming"
     if is_passkey or device_type == "multi_device":
         authenticator_type = "platform"
     elif hasattr(verification, "authenticator_data"):
-        # Fallback: AAGUID leer → meist plattformintern
+        # Fallback: empty AAGUID → usually platform-internal
         aaguid = getattr(verification, "aaguid", None)
         if aaguid and str(aaguid) == "00000000-0000-0000-0000-000000000000":
             authenticator_type = "platform"
 
-    # Transport aus dem Credential-Objekt (vom Browser via getTransports() geliefert)
+    # Transport from the credential object (provided by the browser via getTransports())
     transport: str | None = None
     transports = getattr(credential, "transports", None) \
         or getattr(getattr(credential, "response", None), "transports", None)
@@ -130,7 +130,7 @@ def verify_registration(challenge: bytes, credential_json: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Authentifizierung
+# Authentication
 # ---------------------------------------------------------------------------
 
 def build_authentication_options_json(
@@ -159,10 +159,10 @@ def verify_authentication(
     stored_public_key: bytes,
     stored_sign_count: int,
 ) -> int:
-    """Verifiziert die Authentifizierungsantwort.
+    """Verifies the authentication response.
 
-    Gibt den neuen sign_count zurück.
-    Wirft ValueError bei Fehler oder Clone-Verdacht (sign count regression).
+    Returns the new sign_count.
+    Raises ValueError on failure or suspected cloning (sign count regression).
     """
     domain = _require_domain()
     try:
@@ -177,14 +177,14 @@ def verify_authentication(
             require_user_verification=True,
         )
     except Exception as exc:
-        raise ValueError(f"Authentifizierung fehlgeschlagen: {exc}") from exc
+        raise ValueError(f"Authentication failed: {exc}") from exc
 
     new_count = verification.new_sign_count
-    # Strikte Prüfung: Replay / Clone-Schutz
+    # Strict check: replay / clone protection
     if stored_sign_count > 0 and new_count <= stored_sign_count:
         raise ValueError(
-            f"Sign-Count-Regression: gespeichert={stored_sign_count}, "
-            f"neu={new_count}. Möglicher Authenticator-Klon."
+            f"Sign count regression: stored={stored_sign_count}, "
+            f"new={new_count}. Possible authenticator clone."
         )
 
     return new_count

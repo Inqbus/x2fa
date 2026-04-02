@@ -1,4 +1,4 @@
-"""Backup-Code-Verifikation."""
+"""Backup code verification."""
 
 import time
 from collections import defaultdict
@@ -14,7 +14,7 @@ from app.routes import ACTION_FAIL, ACTION_VERIFY, METHOD_BACKUP, audit_log, cli
 
 backup_bp = Blueprint("backup", __name__)
 
-# In-Memory Rate-Limit (IP-Hash → [timestamps])
+# In-memory rate limit (IP hash → [timestamps])
 _backup_attempts: dict[str, list[float]] = defaultdict(list)
 
 
@@ -91,7 +91,7 @@ def backup_verify_post():
         audit_log(ACTION_FAIL, METHOD_BACKUP, user_id)
         return redirect(url_for("backup.backup_verify_get", error="Ungültiger Backup-Code."))
 
-    # Code als verbraucht markieren
+    # Mark code as used
     from datetime import datetime, timezone
     record = BackupCode.query.get(matched_hash)
     record.used_at = datetime.now(timezone.utc)

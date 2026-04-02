@@ -20,7 +20,7 @@ def create_app(config_name: str = "production") -> Flask:
         template_folder=os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates"),
     )
 
-    # Konfiguration laden
+    # Load configuration
     _configs = {
         "production": ProductionConfig,
         "testing":    TestingConfig,
@@ -28,12 +28,12 @@ def create_app(config_name: str = "production") -> Flask:
     }
     app.config.from_object(_configs.get(config_name, Config))
 
-    # HTTPS-Pflicht in Authlib für Development/Testing deaktivieren
+    # Disable Authlib HTTPS requirement for development/testing
     if config_name in ("development", "testing"):
         import os as _os
         _os.environ.setdefault("AUTHLIB_INSECURE_TRANSPORT", "1")
 
-    # Startup-Checks
+    # Startup checks
     if not app.config.get("SECRET_KEY"):
         raise RuntimeError(
             "FLASK_SECRET_KEY oder X2FA_SECRET muss gesetzt sein!"
@@ -43,28 +43,28 @@ def create_app(config_name: str = "production") -> Flask:
             "REDIS_URL muss in Production gesetzt sein (Distributed Rate-Limiting)."
         )
 
-    # X2FA_ORIGIN ableiten wenn nicht explizit gesetzt
+    # Derive X2FA_ORIGIN if not explicitly set
     if not app.config.get("X2FA_ORIGIN"):
         domain = app.config["X2FA_DOMAIN"]
         app.config["X2FA_ORIGIN"] = f"https://{domain}"
 
-    # Extensions initialisieren
+    # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
     limiter.init_app(app)
 
-    # OIDC / Authlib
+    # OIDC / Authlib setup
     oauth.init_app(app, query_client=query_client, save_token=save_token)
     oauth.register_grant(
         X2FAAuthorizationCodeGrant,
         [S256OnlyCodeChallenge(required=True), X2FAOpenIDCode(require_nonce=False)],
     )
 
-    # WebAuthn initialisieren
+    # Initialize WebAuthn
     import webauthn_helpers
     webauthn_helpers.init_webauthn(app.config["X2FA_DOMAIN"])
 
-    # Blueprints registrieren
+    # Register blueprints
     from app.routes.auth   import auth_bp
     from app.routes.setup  import setup_bp
     from app.routes.verify import verify_bp
@@ -77,16 +77,16 @@ def create_app(config_name: str = "production") -> Flask:
     app.register_blueprint(totp_bp)
     app.register_blueprint(backup_bp)
 
-    # CLI-Befehle registrieren
+    # Register CLI commands
     from app.cli import register_commands
     register_commands(app)
 
-    # Datenbank-Tabellen anlegen (Development/Testing)
+    # Create database tables (development/testing)
     if config_name in ("development", "testing"):
         with app.app_context():
             db.create_all()
 
-    # Sicherheits-Header + CSP-Nonce
+    # Security headers + CSP nonce
     @app.before_request
     def _set_nonce():
         g.nonce = secrets.token_urlsafe(16)
@@ -94,12 +94,12 @@ def create_app(config_name: str = "production") -> Flask:
     @app.after_request
     def _security_headers(response):
         nonce = getattr(g, "nonce", "")
-        # Content-Security-Policy mit per-Request-Nonce
+        # Content-Security-Policy with per-request nonce
         csp_parts = [
             "default-src 'none'",
             f"script-src 'nonce-{nonce}'",
             "style-src 'unsafe-inline'",
-            "img-src data:",          # für TOTP-QR-Code
+            "img-src data:",          # for TOTP QR code
             "connect-src 'self'",
             "form-action 'self' https:",
             "base-uri 'none'",
@@ -111,7 +111,7 @@ def create_app(config_name: str = "production") -> Flask:
         response.headers["Referrer-Policy"]         = "strict-origin-when-cross-origin"
         return response
 
-    # Fehlerseiten
+    # Error pages
     @app.errorhandler(400)
     def _e400(err):
         return render_template("error.html",

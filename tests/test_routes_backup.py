@@ -1,8 +1,8 @@
-"""Integrationstests für Backup-Code-Routen (/backup/verify)."""
+"""Integration tests for backup code routes (/backup/verify)."""
 
 
 def _create_backup_codes(client, user_id: str = "user_test", count: int = 10) -> list[str]:
-    """Legt Backup-Codes in der DB an und gibt die Klartexte zurück."""
+    """Creates backup codes in the DB and returns the plaintext values."""
     from app.models import BackupCode, db
     from app.services.crypto import CryptoService
 
@@ -52,7 +52,7 @@ def test_backup_verify_correct_code(client):
 
 
 def test_backup_verify_correct_code_lowercase(client):
-    """Codes sollen case-insensitiv akzeptiert werden."""
+    """Codes should be accepted case-insensitively."""
     codes = _create_backup_codes(client)
     client.set_session()
     status, headers, _ = client.post_form("/backup/verify", {"code": codes[0].lower()})
@@ -69,7 +69,7 @@ def test_backup_verify_wrong_code(client):
 
 
 def test_backup_verify_already_used(client):
-    """Einmal eingelöster Code darf nicht ein zweites Mal akzeptiert werden."""
+    """A code that has already been redeemed must not be accepted a second time."""
     codes = _create_backup_codes(client)
     client.set_session()
     client.post_form("/backup/verify", {"code": codes[0]})
@@ -80,7 +80,7 @@ def test_backup_verify_already_used(client):
 
 
 def test_backup_verify_marks_code_as_used(client):
-    """used_at wird nach Einlösung gesetzt."""
+    """used_at is set after redemption."""
     from app.models import BackupCode
     from app.services.crypto import CryptoService
 
@@ -97,12 +97,12 @@ def test_backup_verify_marks_code_as_used(client):
 
 
 def test_backup_verify_rate_limit(client):
-    """Nach 3 fehlgeschlagenen Versuchen wird die IP geblockt."""
+    """After 3 failed attempts the IP is blocked."""
     _create_backup_codes(client)
     for _ in range(3):
         client.set_session()
         client.post_form("/backup/verify", {"code": "00000000"})
-    # 4. Versuch → Rate-Limit
+    # 4th attempt → rate limit
     client.set_session()
     status, headers, _ = client.post_form("/backup/verify", {"code": "00000000"})
     assert status.startswith("302")

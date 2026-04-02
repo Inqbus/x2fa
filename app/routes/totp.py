@@ -1,4 +1,4 @@
-"""TOTP-Routes: Setup und Verifikation."""
+"""TOTP routes: setup and verification."""
 
 from flask import (
     Blueprint, abort, g, redirect, render_template,
@@ -38,7 +38,7 @@ def totp_setup_get():
     provisioning_uri = totp_helpers.build_provisioning_uri(secret, user_id, issuer=domain)
     qr_data_uri = totp_helpers.generate_qr_data_uri(provisioning_uri)
 
-    # Speichern (unverified bis Code bestätigt)
+    # Persist (unverified until the code is confirmed)
     existing = TOTPSecret.query.get(user_id)
     if existing:
         existing.secret_encrypted = secret_encrypted
@@ -92,7 +92,7 @@ def totp_setup_verify():
     db.session.commit()
     audit_log(ACTION_SETUP, METHOD_TOTP, user_id)
 
-    # 2FA erfolgreich → zurück zu /authorize
+    # 2FA successful — redirect back to /authorize
     session["2fa_verified"] = True
     from app.routes.auth import _authorize_continue_url
     return redirect(_authorize_continue_url())

@@ -1,10 +1,10 @@
-"""Integrationstests für TOTP-Routen."""
+"""Integration tests for TOTP routes."""
 
 import pyotp
 
 
 def _setup_totp(client, user_id: str = "user_test") -> str:
-    """Legt ein verifiziertes TOTP-Secret in der DB an und gibt den Klartext zurück."""
+    """Creates a verified TOTP secret in the DB and returns the plaintext value."""
     from flask import current_app
     from totp_helpers import generate_secret
     from app.services.crypto import CryptoService
@@ -38,7 +38,7 @@ def test_totp_setup_get_valid(client):
     status, headers, body = client.get("/totp/setup")
     assert status.startswith("200")
     assert b"data:image/png;base64" in body
-    assert b"otpauth" not in body          # provisioning-URI nicht im Klartext
+    assert b"otpauth" not in body          # provisioning URI must not appear in plaintext
     assert "Content-Security-Policy" in headers
 
 
@@ -76,7 +76,7 @@ def test_totp_setup_verify_correct_code(client):
         secret = crypto.decrypt(bytes(rec.secret_encrypted))
     code = pyotp.TOTP(secret).now()
 
-    # Session bleibt nach GET erhalten — direkt POST ohne erneutes set_session()
+    # Session persists after GET — POST directly without calling set_session() again
     status, headers, _ = client.post_form("/totp/setup/verify", {"code": code})
     assert status.startswith("302")
     assert "/authorize" in headers.get("Location", "")
@@ -168,7 +168,7 @@ def test_totp_verify_wrong_code(client):
 
 
 def test_totp_verify_replay(client):
-    """Gleicher Code innerhalb 30 s muss abgelehnt werden (Replay-Schutz)."""
+    """The same code within 30 s must be rejected (replay protection)."""
     from app.models import TOTPSecret, db
     from datetime import datetime, timezone
 

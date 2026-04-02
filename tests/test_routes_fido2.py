@@ -1,4 +1,4 @@
-"""Integrationstests für WebAuthn-Routen (/setup/*, /verify, /verify/complete)."""
+"""Integration tests for WebAuthn routes (/setup/*, /verify, /verify/complete)."""
 
 import json
 from unittest.mock import patch
@@ -17,7 +17,7 @@ def _fake_reg_result():
 
 
 def _create_credential(client, cred_id: bytes = b"cred1234", user_id: str = "user_test"):
-    """Legt ein WebAuthn-Credential direkt in der DB an."""
+    """Creates a WebAuthn credential directly in the DB."""
     from app.models import Credential, db
     with client.app_context():
         db.session.add(Credential(
@@ -32,13 +32,13 @@ def _create_credential(client, cred_id: bytes = b"cred1234", user_id: str = "use
 
 
 def _extract_challenge_id(html: bytes) -> str:
-    """Extrahiert CHALLENGE_ID aus dem gerenderten Template."""
+    """Extracts CHALLENGE_ID from the rendered template."""
     for line in html.decode().splitlines():
         if "CHALLENGE_ID" in line:
             start = line.index('"') + 1
             end   = line.rindex('"')
             return line[start:end]
-    raise ValueError("CHALLENGE_ID nicht in HTML gefunden")
+    raise ValueError("CHALLENGE_ID not found in HTML")
 
 
 # ---------------------------------------------------------------------------
@@ -140,7 +140,7 @@ def test_setup_complete_webauthn_failure(client):
 
 
 def test_setup_complete_challenge_reuse(client):
-    """Challenge darf nur einmal eingelöst werden."""
+    """A challenge may only be redeemed once."""
     client.set_session(setup_mode=True)
     _, _, body = client.get("/setup/webauthn")
     challenge_id = _extract_challenge_id(body)

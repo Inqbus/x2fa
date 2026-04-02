@@ -1,18 +1,18 @@
-"""Gemeinsame Fixtures für alle X2FA-Tests."""
+"""Shared fixtures for all X2FA tests."""
 
 import os
 import sys
 
 import pytest
 
-# Projektverzeichnis in sys.path damit alle Module gefunden werden
+# Add project directory to sys.path so all modules can be found
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "vendor"))
 
 TEST_SECRET = "a" * 32
 TEST_DOMAIN = "test.example.com"
 
-# Standard-OIDC-Session für Tests (Verifikations-Flow)
+# Default OIDC session for tests (verification flow)
 _OIDC_REQUEST_VERIFY = {
     "client_id":             "test_client",
     "redirect_uri":          "https://app/cb",
@@ -28,7 +28,7 @@ _OIDC_REQUEST_VERIFY = {
 
 @pytest.fixture(scope="session", autouse=True)
 def init_services():
-    """Initialisiert Crypto und WebAuthn einmalig pro Test-Session."""
+    """Initializes Crypto and WebAuthn once per test session."""
     os.environ["X2FA_SECRET"] = TEST_SECRET
     os.environ["X2FA_DOMAIN"] = TEST_DOMAIN
     os.environ["X2FA_DATABASE_URL"] = "sqlite:///:memory:"
@@ -41,18 +41,18 @@ def init_services():
 
 
 class TestClient:
-    """Wrapper um Flask-Testclient mit OIDC-Session-Unterstützung."""
+    """Wrapper around the Flask test client with OIDC session support."""
 
     def __init__(self, flask_app):
         self._app = flask_app
         self._client = flask_app.test_client()
 
     def app_context(self):
-        """App-Context für DB-Operationen außerhalb von Requests."""
+        """App context for DB operations outside of requests."""
         return self._app.app_context()
 
     def set_session(self, user_id: str = "user_test", setup_mode: bool = False):
-        """Setzt eine gültige OIDC-Session vor dem nächsten Request."""
+        """Sets a valid OIDC session before the next request."""
         oidc_req = _OIDC_REQUEST_VERIFY.copy()
         oidc_req["login_hint"] = user_id
         if setup_mode:
@@ -64,7 +64,7 @@ class TestClient:
             sess["setup_mode"] = setup_mode
 
     def _extract(self, response):
-        status  = response.status          # e.g. "200 OK" oder "302 FOUND"
+        status  = response.status          # e.g. "200 OK" or "302 FOUND"
         headers = dict(response.headers)
         body    = response.data
         return status, headers, body

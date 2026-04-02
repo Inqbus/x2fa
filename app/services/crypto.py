@@ -7,10 +7,10 @@ from cryptography.fernet import Fernet
 
 
 class CryptoService:
-    """Kryptographie-Dienst: Fernet-Verschlüsselung + bcrypt-Hashing."""
+    """Cryptography service: Fernet encryption + bcrypt hashing."""
 
     def __init__(self, secret: str):
-        # Fernet-Key aus Secret ableiten (deterministisch, 32 Bytes)
+        # Derive Fernet key from secret (deterministic, 32 bytes)
         key_bytes = hashlib.sha256(secret.encode()).digest()
         self._fernet = Fernet(base64.urlsafe_b64encode(key_bytes))
 
@@ -33,5 +33,5 @@ class CryptoService:
 
     @staticmethod
     def generate_backup_codes(count: int = 10) -> list[str]:
-        """Erzeugt einmalige 8-stellige Hex-Codes (Großbuchstaben)."""
+        """Generates single-use 8-character hex codes (uppercase)."""
         return [secrets.token_hex(4).upper() for _ in range(count)]

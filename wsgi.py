@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""WSGI-Einstiegspunkt für X2FA (gunicorn / flask run)."""
+"""WSGI entry point for X2FA (gunicorn / flask run)."""
 
 import os
 
-# .env einlesen (vor App-Erstellung)
+# Load .env file (before app creation)
 if os.path.exists(".env"):
     with open(".env") as f:
         for line in f:

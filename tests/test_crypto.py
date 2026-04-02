@@ -1,4 +1,4 @@
-"""Unit-Tests für CryptoService (app/services/crypto.py)."""
+"""Unit tests for CryptoService (app/services/crypto.py)."""
 
 import pytest
 
@@ -11,7 +11,7 @@ def test_fernet_roundtrip():
 
 
 def test_fernet_different_ciphertexts():
-    """Jede Verschlüsselung erzeugt einen anderen Ciphertext (IV)."""
+    """Each encryption produces a different ciphertext (IV)."""
     from app.services.crypto import CryptoService
     cs = CryptoService("test-secret")
     secret = "JBSWY3DPEHPK3PXP"
@@ -19,7 +19,7 @@ def test_fernet_different_ciphertexts():
 
 
 def test_fernet_wrong_key_fails():
-    """Entschlüsselung mit falschem Key schlägt fehl."""
+    """Decryption with the wrong key fails."""
     from app.services.crypto import CryptoService
     from cryptography.fernet import InvalidToken
     cs1 = CryptoService("secret-one")
@@ -41,6 +41,6 @@ def test_backup_code_generation():
     from app.services.crypto import CryptoService
     codes = CryptoService.generate_backup_codes(10)
     assert len(codes) == 10
-    assert len(set(codes)) == 10      # alle eindeutig
+    assert len(set(codes)) == 10      # all unique
     assert all(len(c) == 8 for c in codes)
     assert all(c == c.upper() for c in codes)

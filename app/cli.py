@@ -1,4 +1,4 @@
-"""Flask CLI-Befehle für X2FA-Administration."""
+"""Flask CLI commands for X2FA administration."""
 
 import secrets
 import click
@@ -15,7 +15,7 @@ from app.models import (
 @click.command("init-keys")
 @with_appcontext
 def init_keys():
-    """Generiert EC P-256 Signing-Key für ID-Token (ES256)."""
+    """Generates an EC P-256 signing key for ID tokens (ES256)."""
     from cryptography.hazmat.primitives.asymmetric import ec
     from cryptography.hazmat.primitives.serialization import (
         Encoding, NoEncryption, PublicFormat, PrivateFormat,
@@ -40,7 +40,7 @@ def init_keys():
     private_encrypted = crypto.get_fernet().encrypt(private_pem)
     kid = secrets.token_hex(8)
 
-    # Alle bestehenden Keys deaktivieren
+    # Deactivate all existing keys
     SigningKey.query.update({"active": False})
 
     db.session.add(SigningKey(
@@ -57,11 +57,11 @@ def init_keys():
 @click.command("add-client")
 @click.argument("client_id")
 @click.argument("redirect_uri")
-@click.option("--secret", default=None, help="Client-Secret (wird generiert wenn leer)")
+@click.option("--secret", default=None, help="Client secret (generated automatically if empty)")
 @click.option("--scopes", default="openid x2fa:setup", show_default=True)
 @with_appcontext
 def add_client(client_id, redirect_uri, secret, scopes):
-    """Registriert einen neuen OIDC-Client."""
+    """Registers a new OIDC client."""
     if not secret:
         secret = secrets.token_urlsafe(32)
 
@@ -88,7 +88,7 @@ def add_client(client_id, redirect_uri, secret, scopes):
 @click.command("list-clients")
 @with_appcontext
 def list_clients():
-    """Listet alle registrierten OIDC-Clients."""
+    """Lists all registered OIDC clients."""
     clients = OIDCClient.query.all()
     if not clients:
         click.echo("Keine Clients registriert.")
@@ -102,7 +102,7 @@ def list_clients():
 @click.argument("client_id")
 @with_appcontext
 def revoke_client(client_id):
-    """Deaktiviert einen OIDC-Client."""
+    """Deactivates an OIDC client."""
     client = OIDCClient.query.get(client_id)
     if not client:
         click.echo(f"Client '{client_id}' nicht gefunden.", err=True)
@@ -115,7 +115,7 @@ def revoke_client(client_id):
 @click.command("stats")
 @with_appcontext
 def stats():
-    """Zeigt Nutzungsstatistiken."""
+    """Shows usage statistics."""
     from sqlalchemy import func
     rows = (
         db.session.query(AuditLog.action, AuditLog.method, func.count())
@@ -134,7 +134,7 @@ def stats():
 @click.command("cleanup-codes")
 @with_appcontext
 def cleanup_codes():
-    """Bereinigt Authorization Codes älter als 1 Stunde (Nonce-Schutz bleibt erhalten)."""
+    """Removes authorization codes older than 1 hour (nonce protection is preserved)."""
     from datetime import datetime, timezone, timedelta
     from app.models import AuthorizationCode
 

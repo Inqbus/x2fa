@@ -1,4 +1,4 @@
-"""Unit-Tests für totp_helpers.py."""
+"""Unit tests for totp_helpers.py."""
 
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
@@ -10,7 +10,7 @@ def test_generate_secret():
     from totp_helpers import generate_secret
     secret = generate_secret()
     assert len(secret) >= 16
-    # Gültiges Base32
+    # Valid Base32
     import base64
     base64.b32decode(secret)
 
@@ -44,7 +44,7 @@ def test_verify_code_invalid():
 
 
 def test_verify_code_replay_protection():
-    """Gleicher Code innerhalb von 30s wird abgelehnt."""
+    """The same code within 30s is rejected."""
     from totp_helpers import verify_code
     secret = pyotp.random_base32()
     code = pyotp.TOTP(secret).now()
@@ -53,7 +53,7 @@ def test_verify_code_replay_protection():
 
 
 def test_verify_code_replay_after_window():
-    """Code wird akzeptiert wenn last_used_at > 30s zurückliegt."""
+    """Code is accepted when last_used_at is more than 30s in the past."""
     from totp_helpers import verify_code
     secret = pyotp.random_base32()
     code = pyotp.TOTP(secret).now()
