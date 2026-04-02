@@ -1,50 +1,87 @@
-"""Integrationstests für FIDO2-Routen (/setup, /verify)."""
+"""Integrationstests für WebAuthn-Routen (/setup/*, /verify, /verify/complete)."""
 
 import json
 from unittest.mock import patch
 
 
+def _fake_reg_result():
+    return {
+        "credential_id":     b"fake_credential_id_12345",
+        "public_key":        b"fake_public_key_bytes",
+        "sign_count":        0,
+        "is_passkey":        False,
+        "authenticator_type": "roaming",
+        "device_type":       "single_device",
+        "transport":         None,
+    }
+
+
+def _create_credential(client, cred_id: bytes = b"cred1234", user_id: str = "user_test"):
+    """Legt ein WebAuthn-Credential direkt in der DB an."""
+    from app.models import Credential, db
+    with client.app_context():
+        db.session.add(Credential(
+            credential_id=cred_id,
+            user_id=user_id,
+            public_key=b"pubkey",
+            sign_count=0,
+            authenticator_type="platform",
+            device_type="single_device",
+        ))
+        db.session.commit()
+
+
+def _extract_challenge_id(html: bytes) -> str:
+    """Extrahiert CHALLENGE_ID aus dem gerenderten Template."""
+    for line in html.decode().splitlines():
+        if "CHALLENGE_ID" in line:
+            start = line.index('"') + 1
+            end   = line.rindex('"')
+            return line[start:end]
+    raise ValueError("CHALLENGE_ID nicht in HTML gefunden")
+
+
 # ---------------------------------------------------------------------------
-# GET /setup
+# GET /setup  (Methoden-Auswahl)
 # ---------------------------------------------------------------------------
 
-def test_setup_get_no_token(client):
+def test_setup_choose_no_session(client):
     status, _, _ = client.get("/setup")
     assert status.startswith("400")
 
 
-def test_setup_get_invalid_token(client):
-    status, _, _ = client.get("/setup", query="token=INVALID")
-    assert status.startswith("400")
-
-
-def test_setup_get_wrong_action(client):
-    from crypto import create_jwt
-    token = create_jwt({"sub": "u1", "action": "verify", "return_url": "https://app/cb"}, 5)
-    status, _, _ = client.get("/setup", query=f"token={token}")
-    assert status.startswith("400")
-
-
-def test_setup_get_valid(client, setup_token):
-    status, headers, body = client.get("/setup", query=f"token={setup_token}")
+def test_setup_choose_valid(client):
+    client.set_session(setup_mode=True)
+    status, headers, body = client.get("/setup")
     assert status.startswith("200")
     assert "Content-Security-Policy" in headers
-    assert b"setup/webauthn" in body
-    assert b"totp/setup" in body
+    assert b"/setup/webauthn" in body
+    assert b"/totp/setup" in body
 
 
-def test_setup_webauthn_get_valid(client, setup_token):
-    status, headers, body = client.get("/setup/webauthn", query=f"token={setup_token}")
+# ---------------------------------------------------------------------------
+# GET /setup/webauthn
+# ---------------------------------------------------------------------------
+
+def test_setup_webauthn_get_no_session(client):
+    status, _, _ = client.get("/setup/webauthn")
+    assert status.startswith("400")
+
+
+def test_setup_webauthn_get_valid(client):
+    client.set_session(setup_mode=True)
+    status, headers, body = client.get("/setup/webauthn")
     assert status.startswith("200")
     assert "Content-Security-Policy" in headers
     assert b"navigator.credentials.create" in body
 
 
-def test_setup_get_creates_challenge(client, setup_token):
-    client.get("/setup/webauthn", query=f"token={setup_token}")
-    from models import SessionLocal, Challenge
-    with SessionLocal() as db:
-        count = db.query(Challenge).filter_by(user_id="user_test").count()
+def test_setup_webauthn_creates_challenge(client):
+    from app.models import Challenge
+    client.set_session(setup_mode=True)
+    client.get("/setup/webauthn")
+    with client.app_context():
+        count = Challenge.query.filter_by(user_id="user_test").count()
     assert count == 1
 
 
@@ -52,66 +89,47 @@ def test_setup_get_creates_challenge(client, setup_token):
 # POST /setup/complete
 # ---------------------------------------------------------------------------
 
-def _fake_reg_result():
-    return {
-        "credential_id": b"fake_credential_id_12345",
-        "public_key": b"fake_public_key_bytes",
-        "sign_count": 0,
-        "is_passkey": False,
-        "authenticator_type": "roaming",
-        "device_type": "single_device",
-        "transport": None,
-    }
-
-
-def test_setup_complete_missing_body(client):
-    status, _, body = client.post_json("/setup/complete", {})
-    assert status.startswith("400")
-
-
-def test_setup_complete_invalid_token(client):
-    status, _, _ = client.post_json("/setup/complete", {"token": "BAD"})
+def test_setup_complete_no_session(client):
+    status, _, _ = client.post_json("/setup/complete", {"challenge_id": "x"})
     assert status.startswith("401")
 
 
-def test_setup_complete_invalid_challenge(client, setup_token):
-    with patch("webauthn_helpers.verify_registration", return_value=_fake_reg_result()):
-        status, _, body = client.post_json("/setup/complete", {
-            "token": setup_token,
-            "challenge_id": "nonexistent-id",
-            "id": "abc", "rawId": "abc", "type": "public-key",
-            "response": {"clientDataJSON": "x", "attestationObject": "y"},
-        })
+def test_setup_complete_invalid_challenge(client):
+    client.set_session(setup_mode=True)
+    status, _, _ = client.post_json("/setup/complete", {
+        "challenge_id": "nonexistent-id",
+        "id": "abc", "rawId": "abc", "type": "public-key",
+        "response": {"clientDataJSON": "x", "attestationObject": "y"},
+    })
     assert status.startswith("400")
 
 
-def test_setup_complete_success(client, setup_token):
-    # Erst GET um Challenge zu erzeugen
-    _, _, body = client.get("/setup/webauthn", query=f"token={setup_token}")
+def test_setup_complete_success(client):
+    client.set_session(setup_mode=True)
+    _, _, body = client.get("/setup/webauthn")
     challenge_id = _extract_challenge_id(body)
 
     with patch("webauthn_helpers.verify_registration", return_value=_fake_reg_result()):
         status, _, resp_body = client.post_json("/setup/complete", {
-            "token": setup_token,
             "challenge_id": challenge_id,
             "id": "ZmFrZQ", "rawId": "ZmFrZQ", "type": "public-key",
+            "transports": [],
             "response": {"clientDataJSON": "x", "attestationObject": "y"},
         })
 
     assert status.startswith("200")
     data = json.loads(resp_body)
     assert "redirect_url" in data
-    assert "backup_codes" in data
-    assert len(data["backup_codes"]) == 10
+    assert "/setup/done" in data["redirect_url"]
 
 
-def test_setup_complete_webauthn_failure(client, setup_token):
-    _, _, body = client.get("/setup/webauthn", query=f"token={setup_token}")
+def test_setup_complete_webauthn_failure(client):
+    client.set_session(setup_mode=True)
+    _, _, body = client.get("/setup/webauthn")
     challenge_id = _extract_challenge_id(body)
 
     with patch("webauthn_helpers.verify_registration", side_effect=ValueError("Attestation invalid")):
         status, _, resp_body = client.post_json("/setup/complete", {
-            "token": setup_token,
             "challenge_id": challenge_id,
             "id": "x", "rawId": "x", "type": "public-key",
             "response": {},
@@ -121,15 +139,16 @@ def test_setup_complete_webauthn_failure(client, setup_token):
     assert b"Attestation invalid" in resp_body
 
 
-def test_setup_complete_challenge_reuse(client, setup_token):
-    """Challenge darf nur einmal verwendet werden."""
-    _, _, body = client.get("/setup/webauthn", query=f"token={setup_token}")
+def test_setup_complete_challenge_reuse(client):
+    """Challenge darf nur einmal eingelöst werden."""
+    client.set_session(setup_mode=True)
+    _, _, body = client.get("/setup/webauthn")
     challenge_id = _extract_challenge_id(body)
 
     payload = {
-        "token": setup_token,
         "challenge_id": challenge_id,
         "id": "ZmFrZQ", "rawId": "ZmFrZQ", "type": "public-key",
+        "transports": [],
         "response": {"clientDataJSON": "x", "attestationObject": "y"},
     }
 
@@ -144,22 +163,22 @@ def test_setup_complete_challenge_reuse(client, setup_token):
 # GET /verify
 # ---------------------------------------------------------------------------
 
-def test_verify_get_no_credentials_redirects_to_totp(client, verify_token):
-    status, headers, _ = client.get("/verify", query=f"token={verify_token}")
+def test_verify_get_no_session(client):
+    status, _, _ = client.get("/verify")
+    assert status.startswith("400")
+
+
+def test_verify_get_no_credentials_redirects_to_totp(client):
+    client.set_session()
+    status, headers, _ = client.get("/verify")
     assert status.startswith("302")
     assert "/totp/verify" in headers.get("Location", "")
 
 
-def test_verify_get_with_credentials(client, verify_token):
-    from repositories import CredentialRepo
-    CredentialRepo.save(
-        credential_id=b"cred1234",
-        user_id="user_test",
-        public_key=b"pubkey",
-        sign_count=0,
-        authenticator_type="platform",
-    )
-    status, headers, body = client.get("/verify", query=f"token={verify_token}")
+def test_verify_get_with_credentials(client):
+    _create_credential(client)
+    client.set_session()
+    status, headers, body = client.get("/verify")
     assert status.startswith("200")
     assert b"navigator.credentials.get" in body
     assert "Content-Security-Policy" in headers
@@ -169,88 +188,58 @@ def test_verify_get_with_credentials(client, verify_token):
 # POST /verify/complete
 # ---------------------------------------------------------------------------
 
-def test_verify_complete_success(client, verify_token):
-    from repositories import CredentialRepo
-    from webauthn import base64url_to_bytes
-    import base64
+def test_verify_complete_no_session(client):
+    status, _, _ = client.post_json("/verify/complete", {"challenge_id": "x"})
+    assert status.startswith("401")
 
-    cred_id = b"cred_verify_test"
+
+def test_verify_complete_success(client):
+    import base64
+    cred_id     = b"cred_verify_test"
     cred_id_b64 = base64.urlsafe_b64encode(cred_id).rstrip(b"=").decode()
 
-    CredentialRepo.save(
-        credential_id=cred_id,
-        user_id="user_test",
-        public_key=b"pubkey",
-        sign_count=5,
-        authenticator_type="platform",
-    )
-
-    # Challenge erzeugen
-    _, _, body = client.get("/verify", query=f"token={verify_token}")
+    _create_credential(client, cred_id=cred_id)
+    client.set_session()
+    _, _, body = client.get("/verify")
     challenge_id = _extract_challenge_id(body)
 
-    with patch("webauthn_helpers.verify_authentication", return_value=6):
+    with patch("webauthn_helpers.verify_authentication", return_value=1):
         status, _, resp_body = client.post_json("/verify/complete", {
-            "token": verify_token,
             "challenge_id": challenge_id,
-            "id": cred_id_b64,
-            "rawId": cred_id_b64,
-            "type": "public-key",
+            "id":     cred_id_b64,
+            "rawId":  cred_id_b64,
+            "type":   "public-key",
             "response": {
-                "clientDataJSON": "x",
+                "clientDataJSON":    "x",
                 "authenticatorData": "y",
-                "signature": "z",
-                "userHandle": None,
+                "signature":         "z",
+                "userHandle":        None,
             },
         })
 
     assert status.startswith("200")
     data = json.loads(resp_body)
     assert "redirect_url" in data
-    assert "token=" in data["redirect_url"]
+    assert "/authorize" in data["redirect_url"]
 
 
-def test_verify_complete_webauthn_failure(client, verify_token):
-    from repositories import CredentialRepo
+def test_verify_complete_webauthn_failure(client):
     import base64
-
-    cred_id = b"cred_fail_test"
+    cred_id     = b"cred_fail_test"
     cred_id_b64 = base64.urlsafe_b64encode(cred_id).rstrip(b"=").decode()
 
-    CredentialRepo.save(
-        credential_id=cred_id,
-        user_id="user_test",
-        public_key=b"pubkey",
-        sign_count=5,
-        authenticator_type="platform",
-    )
-
-    _, _, body = client.get("/verify", query=f"token={verify_token}")
+    _create_credential(client, cred_id=cred_id)
+    client.set_session()
+    _, _, body = client.get("/verify")
     challenge_id = _extract_challenge_id(body)
 
     with patch("webauthn_helpers.verify_authentication", side_effect=ValueError("bad signature")):
-        status, _, resp_body = client.post_json("/verify/complete", {
-            "token": verify_token,
+        status, _, _ = client.post_json("/verify/complete", {
             "challenge_id": challenge_id,
-            "id": cred_id_b64,
-            "rawId": cred_id_b64,
-            "type": "public-key",
+            "id":     cred_id_b64,
+            "rawId":  cred_id_b64,
+            "type":   "public-key",
             "response": {"clientDataJSON": "x", "authenticatorData": "y", "signature": "z"},
         })
 
     assert status.startswith("400")
-
-
-# ---------------------------------------------------------------------------
-# Hilfsfunktion
-# ---------------------------------------------------------------------------
-
-def _extract_challenge_id(html: bytes) -> str:
-    """Extrahiert CHALLENGE_ID aus dem HTML des Templates."""
-    for line in html.decode().splitlines():
-        if "CHALLENGE_ID" in line:
-            # const CHALLENGE_ID = "uuid-here";
-            start = line.index('"') + 1
-            end = line.rindex('"')
-            return line[start:end]
-    raise ValueError("CHALLENGE_ID nicht in HTML gefunden")
