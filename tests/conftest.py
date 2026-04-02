@@ -1,9 +1,7 @@
 """Gemeinsame Fixtures für alle X2FA-Tests."""
 
-import io
 import os
 import sys
-import time
 
 import pytest
 
@@ -14,97 +12,78 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "vendor"))
 TEST_SECRET = "a" * 32
 TEST_DOMAIN = "test.example.com"
 
+# Standard-OIDC-Session für Tests (Verifikations-Flow)
+_OIDC_REQUEST_VERIFY = {
+    "client_id":             "test_client",
+    "redirect_uri":          "https://app/cb",
+    "scope":                 "openid",
+    "state":                 "teststate",
+    "nonce":                 "testnonce",
+    "code_challenge":        "e3b0c44298fc1c149afbf4c8996fb924",
+    "code_challenge_method": "S256",
+    "response_type":         "code",
+    "login_hint":            "user_test",
+}
+
 
 @pytest.fixture(scope="session", autouse=True)
 def init_services():
-    """Initialisiert Crypto, WebAuthn und In-Memory-DB einmalig pro Test-Session."""
+    """Initialisiert Crypto und WebAuthn einmalig pro Test-Session."""
     os.environ["X2FA_SECRET"] = TEST_SECRET
     os.environ["X2FA_DOMAIN"] = TEST_DOMAIN
     os.environ["X2FA_DATABASE_URL"] = "sqlite:///:memory:"
 
     from app.services.crypto import CryptoService
     from webauthn_helpers import init_webauthn
-    
-    crypto = CryptoService(TEST_SECRET)
+
+    CryptoService(TEST_SECRET)
     init_webauthn(TEST_DOMAIN)
 
 
-# @pytest.fixture(autouse=True)
-# def clean_db():
-#     """Leert alle Tabellen vor jedem Test."""
-#     from app.models import db, Credential, Challenge, TOTPSecret, BackupCode, AuditLog
-#     from flask import current_app
-#     
-#     with current_app.app_context():
-#         with db.session() as session:
-#             session.query(AuditLog).delete()
-#             session.query(BackupCode).delete()
-#             session.query(TOTPSecret).delete()
-#             session.query(Challenge).delete()
-#             session.query(Credential).delete()
-#             session.commit()
-
-
 class TestClient:
-    """Minimaler WSGI-Client für Bottle-Tests."""
+    """Wrapper um Flask-Testclient mit OIDC-Session-Unterstützung."""
 
-    def __init__(self, app):
-        self.app = app.wsgi_app
+    def __init__(self, flask_app):
+        self._app = flask_app
+        self._client = flask_app.test_client()
 
-    def _call(self, method, path, query="", body=b"", content_type="application/x-www-form-urlencoded"):
-        environ = {
-            "REQUEST_METHOD": method,
-            "PATH_INFO": path,
-            "QUERY_STRING": query,
-            "CONTENT_TYPE": content_type,
-            "CONTENT_LENGTH": str(len(body)),
-            "wsgi.input": io.BytesIO(body),
-            "wsgi.errors": io.StringIO(),
-            "SERVER_NAME": "localhost",
-            "SERVER_PORT": "5000",
-            "HTTP_HOST": "localhost:5000",
-            "wsgi.url_scheme": "http",
-            "REMOTE_ADDR": "127.0.0.1",
-        }
-        captured = {}
-        def start_response(status, headers, exc_info=None):
-            captured["status"] = status
-            captured["headers"] = dict(headers)
+    def app_context(self):
+        """App-Context für DB-Operationen außerhalb von Requests."""
+        return self._app.app_context()
 
-        body_chunks = list(self.app(environ, start_response))
-        return captured["status"], captured["headers"], b"".join(body_chunks)
+    def set_session(self, user_id: str = "user_test", setup_mode: bool = False):
+        """Setzt eine gültige OIDC-Session vor dem nächsten Request."""
+        oidc_req = _OIDC_REQUEST_VERIFY.copy()
+        oidc_req["login_hint"] = user_id
+        if setup_mode:
+            oidc_req["scope"] = "openid x2fa:setup"
+        with self._client.session_transaction() as sess:
+            sess["oidc_request"] = oidc_req
+            sess["user_id"] = user_id
+            sess["2fa_verified"] = False
+            sess["setup_mode"] = setup_mode
 
-    def get(self, path, query=""):
-        return self._call("GET", path, query=query)
+    def _extract(self, response):
+        status  = response.status          # e.g. "200 OK" oder "302 FOUND"
+        headers = dict(response.headers)
+        body    = response.data
+        return status, headers, body
 
-    def post_form(self, path, data: dict):
-        from urllib.parse import urlencode
-        body = urlencode(data).encode()
-        return self._call("POST", path, body=body)
+    def get(self, path: str, query: str = ""):
+        url = f"{path}?{query}" if query else path
+        return self._extract(self._client.get(url))
 
-    def post_json(self, path, data: dict):
-        import json
-        body = json.dumps(data).encode()
-        return self._call("POST", path, body=body, content_type="application/json")
+    def post_form(self, path: str, data: dict):
+        return self._extract(self._client.post(path, data=data))
+
+    def post_json(self, path: str, data: dict):
+        return self._extract(self._client.post(path, json=data))
 
 
 @pytest.fixture
 def client():
     from app import create_app
     flask_app = create_app("testing")
-    # Rate-Limiter vor jedem Test zurücksetzen
     import app.routes.backup
     app.routes.backup._backup_attempts.clear()
     return TestClient(flask_app)
-
-
-@pytest.fixture
-def setup_token():
-    """Mock JWT token for TOTP setup flow."""
-    return "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyX3Rlc3QiLCJhY3Rpb24iOiJzZXR1cCIsInJlZGlydWxlX3VybCI6Imh0dHBzOi8vYXBwL2NicyIsImlhdCI6MTY3NTA5OTU3N30.XCZzXCZzXCZzXCZzXCZzXCZzXCZzXCZzXCZz"  # Mock token
-
-
-@pytest.fixture
-def verify_token():
-    """Mock JWT token for TOTP verify flow."""
-    return "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyX3Rlc3QiLCJhY3Rpb24iOiJ2ZXJpZmllZCIsInJlZGlydWxlX3VybCI6Imh0dHBzOi8vYXBwL2NicyIsImlhdCI6MTY3NTA5OTU3N30.XCZzXCZzXCZzXCZzXCZzXCZzXCZzXCZzXCZz"  # Mock token

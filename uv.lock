@@ -1053,6 +1053,7 @@ postgres = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "pyjwt" },
     { name = "pytest" },
     { name = "pytest-mock" },
 ]
@@ -1081,6 +1082,7 @@ provides-extras = ["postgres", "mysql"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "pyjwt", specifier = ">=2.12.1" },
     { name = "pytest", specifier = ">=9.0.2" },
     { name = "pytest-mock", specifier = ">=3.15.1" },
 ]
