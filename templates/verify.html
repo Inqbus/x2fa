@@ -13,6 +13,7 @@
     background: #1a56db; color: white; cursor: pointer; margin-top: 1rem;
   }
   button:disabled { background: #9ab; cursor: not-allowed; }
+  #cancel-btn { background: #6b7280; display: none; }
   .error { color: #c00; margin-top: 1rem; display: none; }
   .hint  { font-size: 0.85rem; color: #888; margin-top: 1.5rem; }
   .links { display: flex; gap: 1rem; flex-wrap: wrap; }
@@ -24,6 +25,7 @@
 <p id="desc">Verwende FaceID, TouchID, Windows Hello oder einen Sicherheitsschlüssel.</p>
 
 <button id="btn">Bestätigen</button>
+<button id="cancel-btn">Abbrechen</button>
 <div class="error" id="err"></div>
 <p class="hint">Probleme?
   <span class="links">
@@ -35,6 +37,8 @@
 <script nonce="{{ nonce }}">
 const OPTIONS      = {{ options_json | safe }};
 const CHALLENGE_ID = "{{ challenge_id }}";
+
+let _abortController = null;
 
 function b64url(buf) {
   return btoa(String.fromCharCode(...new Uint8Array(buf)))
@@ -65,11 +69,26 @@ if (window.PublicKeyCredential && PublicKeyCredential.isUserVerifyingPlatformAut
 }
 
 document.getElementById('btn').addEventListener('click', startAuthentication);
+document.getElementById('cancel-btn').addEventListener('click', cancelAuthentication);
+
+function cancelAuthentication() {
+  if (_abortController) {
+    _abortController.abort();
+    _abortController = null;
+  }
+}
 
 async function startAuthentication() {
-  const btn = document.getElementById("btn");
-  btn.disabled = true;
-  btn.textContent = "Warte auf Authenticator\u2026";
+  const btn       = document.getElementById("btn");
+  const cancelBtn = document.getElementById("cancel-btn");
+  const err       = document.getElementById("err");
+
+  btn.disabled          = true;
+  btn.textContent       = "Warte auf Authenticator\u2026";
+  cancelBtn.style.display = "block";
+  err.style.display     = "none";
+
+  _abortController = new AbortController();
 
   try {
     const opts = structuredClone(OPTIONS);
@@ -78,7 +97,12 @@ async function startAuthentication() {
       opts.allowCredentials = opts.allowCredentials.map(c => ({...c, id: fromB64url(c.id)}));
     }
 
-    const cred = await navigator.credentials.get({ publicKey: opts });
+    const cred = await navigator.credentials.get({
+      publicKey: opts,
+      signal: _abortController.signal,
+    });
+
+    cancelBtn.style.display = "none";
 
     const payload = {
       challenge_id: CHALLENGE_ID,
@@ -103,11 +127,20 @@ async function startAuthentication() {
     window.location = data.redirect_url;
 
   } catch (e) {
-    const err = document.getElementById("err");
-    err.textContent = e.message || "Bestätigung fehlgeschlagen.";
+    cancelBtn.style.display = "none";
+    _abortController = null;
+
+    if (e.name === "AbortError") {
+      // User cancelled — reset silently
+      btn.disabled    = false;
+      btn.textContent = "Bestätigen";
+      return;
+    }
+
+    err.textContent   = e.message || "Bestätigung fehlgeschlagen.";
     err.style.display = "block";
-    btn.disabled = false;
-    btn.textContent = "Erneut versuchen";
+    btn.disabled      = false;
+    btn.textContent   = "Erneut versuchen";
   }
 }
 </script>
