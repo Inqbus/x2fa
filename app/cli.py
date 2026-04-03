@@ -67,9 +67,10 @@ def add_client(client_id, redirect_uri, secret, scopes):
 
     existing = OIDCClient.query.get(client_id)
     if existing:
-        click.echo(f"Client '{client_id}' existiert bereits. Überschreibe redirect_uri.", err=True)
-        existing.redirect_uris = redirect_uri
+        click.echo(f"Client '{client_id}' already exists. Updating configuration.", err=True)
+        existing.redirect_uris  = redirect_uri
         existing.allowed_scopes = scopes
+        existing.client_secret  = secret  # always update (new random or explicitly given)
     else:
         db.session.add(OIDCClient(
             client_id=client_id,

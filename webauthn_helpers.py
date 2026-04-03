@@ -11,6 +11,7 @@ from webauthn import (
 )
 from webauthn.helpers.structs import (
     AuthenticatorSelectionCriteria,
+    AuthenticatorTransport,
     PublicKeyCredentialDescriptor,
     ResidentKeyRequirement,
     UserVerificationRequirement,
@@ -138,10 +139,23 @@ def build_authentication_options_json(
     challenge: bytes, credential_ids: list[bytes], transports: list[list[str]] | None = None
 ) -> str:
     domain = _require_domain()
+    def _to_transport_enums(raw: list[str] | None) -> list[AuthenticatorTransport] | None:
+        if not raw:
+            return None
+        result = []
+        for t in raw:
+            try:
+                result.append(AuthenticatorTransport(t))
+            except ValueError:
+                pass
+        return result or None
+
     allow_credentials = [
         PublicKeyCredentialDescriptor(
             id=cred_id,
-            transports=transports[i] if transports and i < len(transports) else None,
+            transports=_to_transport_enums(
+                transports[i] if transports and i < len(transports) else None
+            ),
         )
         for i, cred_id in enumerate(credential_ids)
     ]

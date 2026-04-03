@@ -81,7 +81,7 @@ class X2FAOpenIDCode(OpenIDCode):
             return False
         return AuthorizationCode.query.filter_by(nonce=nonce).first() is not None
 
-    def get_jwt_config(self, grant):
+    def get_jwt_config(self, grant, client=None):
         """Returns the JWT signing configuration for the ID token."""
         from flask import current_app
         from app.services.crypto import CryptoService
