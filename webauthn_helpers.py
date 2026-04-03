@@ -14,8 +14,6 @@ from webauthn.helpers.structs import (
     PublicKeyCredentialDescriptor,
     ResidentKeyRequirement,
     UserVerificationRequirement,
-    RegistrationCredential,
-    AuthenticationCredential,
 )
 
 _DOMAIN: str | None = None
@@ -73,9 +71,8 @@ def verify_registration(challenge: bytes, credential_json: str) -> dict:
     """
     domain = _require_domain()
     try:
-        credential = RegistrationCredential.parse_raw(credential_json)
         verification = verify_registration_response(
-            credential=credential,
+            credential=credential_json,
             expected_challenge=challenge,
             expected_rp_id=domain,
             expected_origin=_ORIGIN,
@@ -111,12 +108,16 @@ def verify_registration(challenge: bytes, credential_json: str) -> dict:
         if aaguid and str(aaguid) == "00000000-0000-0000-0000-000000000000":
             authenticator_type = "platform"
 
-    # Transport from the credential object (provided by the browser via getTransports())
+    # Transport from the JSON payload (provided by the browser via getTransports())
+    import json as _json
     transport: str | None = None
-    transports = getattr(credential, "transports", None) \
-        or getattr(getattr(credential, "response", None), "transports", None)
-    if transports:
-        transport = ",".join(transports) if isinstance(transports, list) else str(transports)
+    try:
+        _data = _json.loads(credential_json)
+        transports = _data.get("transports") or _data.get("response", {}).get("transports")
+        if transports:
+            transport = ",".join(transports) if isinstance(transports, list) else str(transports)
+    except Exception:
+        pass
 
     return {
         "credential_id": verification.credential_id,
@@ -166,9 +167,8 @@ def verify_authentication(
     """
     domain = _require_domain()
     try:
-        credential = AuthenticationCredential.parse_raw(credential_json)
         verification = verify_authentication_response(
-            credential=credential,
+            credential=credential_json,
             expected_challenge=challenge,
             expected_rp_id=domain,
             expected_origin=_ORIGIN,
