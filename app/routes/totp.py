@@ -109,7 +109,8 @@ def totp_verify_get():
 
     totp_record = TOTPSecret.query.get(user_id)
     if totp_record is None or not totp_record.verified:
-        abort(400, "Kein verifiziertes TOTP-Secret vorhanden.")
+        from app.routes.auth import _oidc_error_redirect
+        return _oidc_error_redirect("access_denied")
 
     return render_template(
         "totp_verify.html",
@@ -133,7 +134,12 @@ def totp_verify_post():
 
     totp_record = TOTPSecret.query.get(user_id)
     if totp_record is None or not totp_record.verified:
-        abort(400, "Kein verifiziertes TOTP-Secret vorhanden.")
+        # Treat missing TOTP identically to a wrong code — no state leak
+        audit_log(ACTION_FAIL, METHOD_TOTP, user_id)
+        return redirect(url_for(
+            "totp.totp_verify_get",
+            error="Falscher oder bereits verwendeter Code."
+        ))
 
     from app.services.crypto import CryptoService
     from flask import current_app

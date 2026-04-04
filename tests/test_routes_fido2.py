@@ -168,11 +168,12 @@ def test_verify_get_no_session(client):
     assert status.startswith("400")
 
 
-def test_verify_get_no_credentials_redirects_to_totp(client):
+def test_verify_get_no_credentials_no_totp_redirects_to_rp(client):
+    """No WebAuthn and no TOTP → RP receives access_denied (no state leak)."""
     client.set_session()
     status, headers, _ = client.get("/verify")
     assert status.startswith("302")
-    assert "/totp/verify" in headers.get("Location", "")
+    assert "error=access_denied" in headers.get("Location", "")
 
 
 def test_verify_get_with_credentials(client):

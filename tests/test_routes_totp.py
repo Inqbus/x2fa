@@ -106,8 +106,9 @@ def test_totp_setup_verify_no_session(client):
 
 def test_totp_verify_get_no_secret(client):
     client.set_session()
-    status, _, _ = client.get("/totp/verify")
-    assert status.startswith("400")
+    status, headers, _ = client.get("/totp/verify")
+    assert status.startswith("302")
+    assert "error=access_denied" in headers.get("Location", "")
 
 
 def test_totp_verify_get_unverified_secret(client):
@@ -132,8 +133,9 @@ def test_totp_verify_get_unverified_secret(client):
         db.session.commit()
 
     client.set_session()
-    status, _, _ = client.get("/totp/verify")
-    assert status.startswith("400")
+    status, headers, _ = client.get("/totp/verify")
+    assert status.startswith("302")
+    assert "error=access_denied" in headers.get("Location", "")
 
 
 def test_totp_verify_get_valid(client):

@@ -38,8 +38,15 @@ def verify_get():
 
     credentials = Credential.query.filter_by(user_id=user_id).all()
     if not credentials:
-        # No WebAuthn credential registered — fall back to TOTP
-        return redirect(url_for("totp.totp_verify_get"))
+        # No WebAuthn credentials — check for TOTP as fallback
+        from app.models import TOTPSecret
+        totp_record = TOTPSecret.query.get(user_id)
+        if totp_record and totp_record.verified:
+            return redirect(url_for("totp.totp_verify_get"))
+        # No 2FA method registered at all — return OIDC error to the RP
+        # without revealing any user-specific state in the browser
+        from app.routes.auth import _oidc_error_redirect
+        return _oidc_error_redirect("access_denied")
 
     challenge_bytes = secrets.token_bytes(32)
     challenge_id    = str(uuid.uuid4())

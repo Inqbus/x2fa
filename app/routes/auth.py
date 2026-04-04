@@ -162,6 +162,32 @@ def _authorize_continue_url() -> str:
     return "/authorize?" + urlencode({k: v for k, v in oidc_req.items() if v is not None})
 
 
+def _oidc_error_redirect(error: str, description: str = ""):
+    """
+    Redirects back to the RP's redirect_uri with an OIDC error response.
+
+    Use this instead of abort() when the user cannot complete 2FA, so that
+    the RP receives a proper error and no user-state details leak via the UI.
+    """
+    oidc_req = session.get("oidc_request", {})
+    redirect_uri = oidc_req.get("redirect_uri", "")
+    state = oidc_req.get("state")
+
+    for key in ("oidc_request", "user_id", "2fa_verified", "setup_mode"):
+        session.pop(key, None)
+
+    if not redirect_uri:
+        abort(400, "Authentication not possible.")
+
+    params = {"error": error}
+    if description:
+        params["error_description"] = description
+    if state:
+        params["state"] = state
+
+    return redirect(f"{redirect_uri}?{urlencode(params)}")
+
+
 # ---------------------------------------------------------------------------
 # Token Endpoint
 # ---------------------------------------------------------------------------
