@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="{{ get_locale() }}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>2FA einrichten – X2FA</title>
+<title>{{ _("Set up 2FA") }} – X2FA</title>
 <style>
   body { font-family: system-ui, sans-serif; max-width: 440px; margin: 80px auto; padding: 0 1rem; color: #111; }
   h1   { font-size: 1.4rem; margin-bottom: 0.25rem; }
@@ -20,17 +20,17 @@
 </head>
 <body>
 
-<h1>Zwei-Faktor-Authentifizierung einrichten</h1>
-<p>Wähle die Methode, die du verwenden möchtest.</p>
+<h1>{{ _("Set up two-factor authentication") }}</h1>
+<p>{{ _("Choose the method you want to use.") }}</p>
 
 <div class="methods">
   <a class="method" href="/setup/webauthn">
-    <div class="method-title">Passkey oder Sicherheitsschlüssel</div>
-    <div class="method-desc">Handy, YubiKey, Windows Hello, FaceID, TouchID</div>
+    <div class="method-title">{{ _("Passkey or security key") }}</div>
+    <div class="method-desc">{{ _("Phone, YubiKey, Windows Hello, FaceID, TouchID") }}</div>
   </a>
   <a class="method" href="/totp/setup">
-    <div class="method-title">Authenticator-App (TOTP)</div>
-    <div class="method-desc">Google Authenticator, Authy, FreeOTP u.a.</div>
+    <div class="method-title">{{ _("Authenticator app (TOTP)") }}</div>
+    <div class="method-desc">{{ _("Google Authenticator, Authy, FreeOTP and others") }}</div>
   </a>
 </div>
 

@@ -26,6 +26,9 @@ class Config:
     RATELIMIT_STRATEGY = "moving-window"  # prevents burst attacks at window boundaries
     RATELIMIT_HEADERS_ENABLED = True
 
+    BABEL_DEFAULT_LOCALE = "de"
+    BABEL_SUPPORTED_LOCALES = ["de", "en"]
+
 
 class TestingConfig(Config):
     SECRET_KEY = "test-secret-key-not-for-production"

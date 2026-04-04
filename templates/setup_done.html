@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="{{ get_locale() }}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>2FA eingerichtet – X2FA</title>
+<title>{{ _("2FA set up") }} – X2FA</title>
 <style>
   body   { font-family: system-ui, sans-serif; max-width: 480px; margin: 60px auto; padding: 0 1rem; color: #111; }
   h1     { font-size: 1.4rem; margin-bottom: 0.25rem; }
@@ -25,12 +25,11 @@
 </head>
 <body>
 
-<p class="ok">&#10003; 2FA erfolgreich eingerichtet</p>
-<h1>Backup-Codes sichern</h1>
+<p class="ok">&#10003; {{ _("2FA successfully set up") }}</p>
+<h1>{{ _("Save backup codes") }}</h1>
 <div class="warn">
-  <strong>Wichtig:</strong> Notiere diese 10 Backup-Codes jetzt.
-  Sie werden nur einmal angezeigt und können bei verlorenem Gerät verwendet werden.
-  Jeder Code ist nur einmal gültig.
+  <strong>{{ _("Important:") }}</strong>
+  {{ _("Write down these 10 backup codes now. They are shown only once and can be used if you lose your device. Each code is valid only once.") }}
 </div>
 
 <div class="codes">
@@ -39,9 +38,9 @@
   {% endfor %}
 </div>
 
-<p>Hast du alle Codes gesichert? Dann klicke auf Weiter.</p>
+<p>{{ _("Have you saved all codes? Then click Continue.") }}</p>
 
-<a href="{{ continue_url }}" class="btn">Weiter</a>
+<a href="{{ continue_url }}" class="btn">{{ _("Continue") }}</a>
 
 </body>
 </html>

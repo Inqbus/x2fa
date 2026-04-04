@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="{{ get_locale() }}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TOTP einrichten – X2FA</title>
+<title>{{ _("Set up TOTP") }} – X2FA</title>
 <style>
   body    { font-family: system-ui, sans-serif; max-width: 460px; margin: 60px auto; padding: 0 1rem; color: #111; }
   h1      { font-size: 1.4rem; margin-bottom: 0.25rem; }
@@ -27,24 +27,24 @@
 </head>
 <body>
 
-<h1>Authenticator-App einrichten</h1>
-<p>Scanne den QR-Code mit Google Authenticator, Aegis oder einer anderen TOTP-App.</p>
+<h1>{{ _("Set up authenticator app") }}</h1>
+<p>{{ _("Scan the QR code with Google Authenticator, Aegis or another TOTP app.") }}</p>
 
-<p class="step"><strong>Schritt 1:</strong> QR-Code scannen</p>
+<p class="step"><strong>{{ _("Step 1:") }}</strong> {{ _("Scan QR code") }}</p>
 <div class="qr">
   <img src="{{ qr_data_uri }}" alt="TOTP QR-Code" width="200" height="200">
 </div>
 
-<p class="step"><strong>Schritt 2:</strong> Oder Secret manuell eingeben</p>
+<p class="step"><strong>{{ _("Step 2:") }}</strong> {{ _("Or enter secret manually") }}</p>
 <div class="secret">{{ secret }}</div>
 
-<p class="step"><strong>Schritt 3:</strong> 6-stelligen Code aus der App eingeben</p>
+<p class="step"><strong>{{ _("Step 3:") }}</strong> {{ _("Enter the 6-digit code from the app") }}</p>
 <form method="POST" action="/totp/setup/verify">
-  <label for="code">Bestätigungscode</label>
+  <label for="code">{{ _("Confirmation code") }}</label>
   <input type="text" id="code" name="code" inputmode="numeric"
          pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code"
          placeholder="000000" required>
-  <button type="submit">Einrichtung abschließen</button>
+  <button type="submit">{{ _("Complete setup") }}</button>
   <div class="error" id="err">{{ error }}</div>
 </form>
 

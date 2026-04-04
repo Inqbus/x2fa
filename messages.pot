@@ -1,0 +1,316 @@
+# Translations template for PROJECT.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-04-04 14:57+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: app/__init__.py:135
+msgid "Invalid request"
+msgstr ""
+
+#: app/__init__.py:143
+msgid "Unauthorized"
+msgstr ""
+
+#: app/__init__.py:144
+msgid "Please sign in again."
+msgstr ""
+
+#: app/__init__.py:151
+msgid "Access denied"
+msgstr ""
+
+#: app/__init__.py:152
+msgid "You do not have permission to access this page."
+msgstr ""
+
+#: app/__init__.py:159
+msgid "Not found"
+msgstr ""
+
+#: app/__init__.py:160
+msgid "The requested page does not exist."
+msgstr ""
+
+#: app/__init__.py:167
+msgid "Too many requests"
+msgstr ""
+
+#: app/__init__.py:168
+msgid "Please wait a moment."
+msgstr ""
+
+#: app/__init__.py:175
+msgid "Internal error"
+msgstr ""
+
+#: app/__init__.py:176
+msgid "An unexpected error has occurred."
+msgstr ""
+
+#: templates/backup_verify.html:6
+msgid "Backup code"
+msgstr ""
+
+#: templates/backup_verify.html:26 templates/totp_verify.html:36
+#: templates/verify.html:33
+msgid "Use backup code"
+msgstr ""
+
+#: templates/backup_verify.html:28
+msgid "Each code can only be used once."
+msgstr ""
+
+#: templates/backup_verify.html:29
+msgid "After login, a new 2FA setup will be required."
+msgstr ""
+
+#: templates/backup_verify.html:33
+msgid "8-digit backup code"
+msgstr ""
+
+#: templates/backup_verify.html:37
+msgid "Sign in"
+msgstr ""
+
+#: templates/setup.html:6 templates/setup_choose.html:6
+msgid "Set up 2FA"
+msgstr ""
+
+#: templates/setup.html:23 templates/setup.html:42
+msgid "Set up security key"
+msgstr ""
+
+#: templates/setup.html:24 templates/verify.html:25
+msgid "Use FaceID, TouchID, Windows Hello or a security key."
+msgstr ""
+
+#: templates/setup.html:26 templates/setup.html:36
+msgid "Set up now"
+msgstr ""
+
+#: templates/setup.html:27 templates/setup.html:38 templates/verify.html:28
+#: templates/verify.html:44
+msgid "Cancel"
+msgstr ""
+
+#: templates/setup.html:29
+msgid "Choose a different method?"
+msgstr ""
+
+#: templates/setup.html:29
+msgid "Back to selection"
+msgstr ""
+
+#: templates/setup.html:35 templates/verify.html:41
+msgid "Waiting for authenticator…"
+msgstr ""
+
+#: templates/setup.html:37 templates/verify.html:43
+msgid "Try again"
+msgstr ""
+
+#: templates/setup.html:39
+msgid "Setup failed."
+msgstr ""
+
+#: templates/setup.html:40
+msgid "Set up device as security key"
+msgstr ""
+
+#: templates/setup.html:41
+msgid "Use FaceID, TouchID or Windows Hello to register this device."
+msgstr ""
+
+#: templates/setup.html:43
+msgid "You can use:"
+msgstr ""
+
+#: templates/setup.html:43 templates/verify.html:49
+msgid "Phone"
+msgstr ""
+
+#: templates/setup.html:43
+msgid "click Set up, choose Smartphone or Tablet in the browser dialog"
+msgstr ""
+
+#: templates/setup.html:43 templates/verify.html:49
+msgid "USB key"
+msgstr ""
+
+#: templates/setup.html:43 templates/verify.html:49
+msgid "plug in YubiKey etc. and click"
+msgstr ""
+
+#: templates/setup_choose.html:23
+msgid "Set up two-factor authentication"
+msgstr ""
+
+#: templates/setup_choose.html:24
+msgid "Choose the method you want to use."
+msgstr ""
+
+#: templates/setup_choose.html:28
+msgid "Passkey or security key"
+msgstr ""
+
+#: templates/setup_choose.html:29
+msgid "Phone, YubiKey, Windows Hello, FaceID, TouchID"
+msgstr ""
+
+#: templates/setup_choose.html:32
+msgid "Authenticator app (TOTP)"
+msgstr ""
+
+#: templates/setup_choose.html:33
+msgid "Google Authenticator, Authy, FreeOTP and others"
+msgstr ""
+
+#: templates/setup_done.html:6
+msgid "2FA set up"
+msgstr ""
+
+#: templates/setup_done.html:28
+msgid "2FA successfully set up"
+msgstr ""
+
+#: templates/setup_done.html:29
+msgid "Save backup codes"
+msgstr ""
+
+#: templates/setup_done.html:31
+msgid "Important:"
+msgstr ""
+
+#: templates/setup_done.html:32
+msgid ""
+"Write down these 10 backup codes now. They are shown only once and can be"
+" used if you lose your device. Each code is valid only once."
+msgstr ""
+
+#: templates/setup_done.html:41
+msgid "Have you saved all codes? Then click Continue."
+msgstr ""
+
+#: templates/setup_done.html:43
+msgid "Continue"
+msgstr ""
+
+#: templates/totp_setup.html:6
+msgid "Set up TOTP"
+msgstr ""
+
+#: templates/totp_setup.html:30
+msgid "Set up authenticator app"
+msgstr ""
+
+#: templates/totp_setup.html:31
+msgid "Scan the QR code with Google Authenticator, Aegis or another TOTP app."
+msgstr ""
+
+#: templates/totp_setup.html:33
+msgid "Step 1:"
+msgstr ""
+
+#: templates/totp_setup.html:33
+msgid "Scan QR code"
+msgstr ""
+
+#: templates/totp_setup.html:38
+msgid "Step 2:"
+msgstr ""
+
+#: templates/totp_setup.html:38
+msgid "Or enter secret manually"
+msgstr ""
+
+#: templates/totp_setup.html:41
+msgid "Step 3:"
+msgstr ""
+
+#: templates/totp_setup.html:41
+msgid "Enter the 6-digit code from the app"
+msgstr ""
+
+#: templates/totp_setup.html:43
+msgid "Confirmation code"
+msgstr ""
+
+#: templates/totp_setup.html:47
+msgid "Complete setup"
+msgstr ""
+
+#: templates/totp_verify.html:6
+msgid "Enter 2FA code"
+msgstr ""
+
+#: templates/totp_verify.html:24
+msgid "Enter authenticator code"
+msgstr ""
+
+#: templates/totp_verify.html:25
+msgid "Open your authenticator app and enter the current 6-digit code."
+msgstr ""
+
+#: templates/totp_verify.html:28
+msgid "One-time code"
+msgstr ""
+
+#: templates/totp_verify.html:32 templates/verify.html:27
+#: templates/verify.html:42
+msgid "Confirm"
+msgstr ""
+
+#: templates/totp_verify.html:36
+msgid "No access to the app?"
+msgstr ""
+
+#: templates/verify.html:6
+msgid "2FA confirm"
+msgstr ""
+
+#: templates/verify.html:24 templates/verify.html:48
+msgid "Confirm identity"
+msgstr ""
+
+#: templates/verify.html:30
+msgid "Problems?"
+msgstr ""
+
+#: templates/verify.html:32
+msgid "Enter TOTP code"
+msgstr ""
+
+#: templates/verify.html:45
+msgid "Confirmation failed."
+msgstr ""
+
+#: templates/verify.html:46
+msgid "Confirm with device"
+msgstr ""
+
+#: templates/verify.html:47
+msgid "Confirm your identity with FaceID, TouchID or Windows Hello."
+msgstr ""
+
+#: templates/verify.html:49
+msgid "Confirm with the device you used during setup:"
+msgstr ""
+
+#: templates/verify.html:49
+msgid "click Confirm, choose Smartphone or Tablet"
+msgstr ""
+

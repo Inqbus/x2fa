@@ -130,6 +130,8 @@ def authorize():
     if "openid" not in scope:
         abort(400, "scope must include 'openid'.")
 
+    ui_locales = request.args.get("ui_locales", "").strip()
+
     # Store OIDC request parameters in the server-side session
     session["oidc_request"] = {
         "client_id":             client_id,
@@ -141,6 +143,7 @@ def authorize():
         "code_challenge_method": code_challenge_method,
         "response_type":         "code",
         "login_hint":            login_hint,
+        "ui_locales":            ui_locales,
     }
     session["user_id"]      = login_hint
     session["2fa_verified"] = False

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="{{ get_locale() }}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>2FA-Code eingeben – X2FA</title>
+<title>{{ _("Enter 2FA code") }} – X2FA</title>
 <style>
   body   { font-family: system-ui, sans-serif; max-width: 420px; margin: 80px auto; padding: 0 1rem; color: #111; }
   h1     { font-size: 1.4rem; margin-bottom: 0.25rem; }
@@ -21,19 +21,19 @@
 </head>
 <body>
 
-<h1>Authenticator-Code eingeben</h1>
-<p>Öffne deine Authenticator-App und gib den aktuellen 6-stelligen Code ein.</p>
+<h1>{{ _("Enter authenticator code") }}</h1>
+<p>{{ _("Open your authenticator app and enter the current 6-digit code.") }}</p>
 
 <form method="POST" action="/totp/verify">
-  <label for="code">Einmalcode</label>
+  <label for="code">{{ _("One-time code") }}</label>
   <input type="text" id="code" name="code" inputmode="numeric"
          pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code"
          placeholder="000000" required>
-  <button type="submit">Bestätigen</button>
+  <button type="submit">{{ _("Confirm") }}</button>
   <div class="error" id="err">{{ error }}</div>
 </form>
 
-<p class="hint">Kein Zugriff auf die App? <a href="/backup/verify">Backup-Code verwenden</a></p>
+<p class="hint">{{ _("No access to the app?") }} <a href="/backup/verify">{{ _("Use backup code") }}</a></p>
 
 <script nonce="{{ nonce }}">
   document.getElementById('code').focus();

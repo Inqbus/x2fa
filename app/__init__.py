@@ -6,7 +6,7 @@ import secrets
 from flask import Flask, g, render_template, request
 
 from app.config import Config, ProductionConfig, TestingConfig
-from app.extensions import db, limiter, migrate
+from app.extensions import babel, db, limiter, migrate
 from app.oidc import oauth
 from app.oidc.grants import (
     S256OnlyCodeChallenge, X2FAAuthorizationCodeGrant, X2FAOpenIDCode,
@@ -52,6 +52,24 @@ def create_app(config_name: str = "production") -> Flask:
     db.init_app(app)
     migrate.init_app(app, db)
     limiter.init_app(app)
+
+    # Internationalization: language preference comes from ui_locales in the
+    # OIDC request (set by the RP), with Accept-Language as fallback.
+    _SUPPORTED = {"de", "en"}
+
+    def _get_locale():
+        from flask import request, session
+        ui_locales = session.get("oidc_request", {}).get("ui_locales", "")
+        for tag in ui_locales.split():
+            lang = tag.split("-")[0].lower()
+            if lang in _SUPPORTED:
+                return lang
+        return request.accept_languages.best_match(_SUPPORTED, default="de")
+
+    babel.init_app(app, locale_selector=_get_locale)
+
+    from flask_babel import get_locale
+    app.jinja_env.globals["get_locale"] = get_locale
 
     # OIDC / Authlib setup
     oauth.init_app(app, query_client=query_client, save_token=save_token)
@@ -114,44 +132,50 @@ def create_app(config_name: str = "production") -> Flask:
     # Error pages
     @app.errorhandler(400)
     def _e400(err):
+        from flask_babel import gettext as _
         return render_template("error.html",
                                status_code="400",
-                               title="Ungültige Anfrage",
+                               title=_("Invalid request"),
                                message=str(err.description)), 400
 
     @app.errorhandler(401)
     def _e401(err):
+        from flask_babel import gettext as _
         return render_template("error.html",
                                status_code="401",
-                               title="Nicht autorisiert",
-                               message="Bitte melde dich erneut an."), 401
+                               title=_("Unauthorized"),
+                               message=_("Please sign in again.")), 401
 
     @app.errorhandler(403)
     def _e403(err):
+        from flask_babel import gettext as _
         return render_template("error.html",
                                status_code="403",
-                               title="Zugriff verweigert",
-                               message="Du hast keine Berechtigung für diese Seite."), 403
+                               title=_("Access denied"),
+                               message=_("You do not have permission to access this page.")), 403
 
     @app.errorhandler(404)
     def _e404(err):
+        from flask_babel import gettext as _
         return render_template("error.html",
                                status_code="404",
-                               title="Nicht gefunden",
-                               message="Die aufgerufene Seite existiert nicht."), 404
+                               title=_("Not found"),
+                               message=_("The requested page does not exist.")), 404
 
     @app.errorhandler(429)
     def _e429(err):
+        from flask_babel import gettext as _
         return render_template("error.html",
                                status_code="429",
-                               title="Zu viele Anfragen",
-                               message="Bitte warte einen Moment."), 429
+                               title=_("Too many requests"),
+                               message=_("Please wait a moment.")), 429
 
     @app.errorhandler(500)
     def _e500(err):
+        from flask_babel import gettext as _
         return render_template("error.html",
                                status_code="500",
-                               title="Interner Fehler",
-                               message="Ein unerwarteter Fehler ist aufgetreten."), 500
+                               title=_("Internal error"),
+                               message=_("An unexpected error has occurred.")), 500
 
     return app

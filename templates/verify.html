@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="{{ get_locale() }}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>2FA bestätigen – X2FA</title>
+<title>{{ _("2FA confirm") }} – X2FA</title>
 <style>
   body { font-family: system-ui, sans-serif; max-width: 420px; margin: 80px auto; padding: 0 1rem; color: #111; }
   h1   { font-size: 1.4rem; margin-bottom: 0.25rem; }
@@ -21,22 +21,33 @@
 </head>
 <body>
 
-<h1 id="title">Identität bestätigen</h1>
-<p id="desc">Verwende FaceID, TouchID, Windows Hello oder einen Sicherheitsschlüssel.</p>
+<h1 id="title">{{ _("Confirm identity") }}</h1>
+<p id="desc">{{ _("Use FaceID, TouchID, Windows Hello or a security key.") }}</p>
 
-<button id="btn">Bestätigen</button>
-<button id="cancel-btn">Abbrechen</button>
+<button id="btn">{{ _("Confirm") }}</button>
+<button id="cancel-btn">{{ _("Cancel") }}</button>
 <div class="error" id="err"></div>
-<p class="hint">Probleme?
+<p class="hint">{{ _("Problems?") }}
   <span class="links">
-    <a href="/totp/verify">TOTP-Code eingeben</a>
-    <a href="/backup/verify">Backup-Code verwenden</a>
+    <a href="/totp/verify">{{ _("Enter TOTP code") }}</a>
+    <a href="/backup/verify">{{ _("Use backup code") }}</a>
   </span>
 </p>
 
 <script nonce="{{ nonce }}">
 const OPTIONS      = {{ options_json | safe }};
 const CHALLENGE_ID = "{{ challenge_id }}";
+const I18N = {
+  waiting:  "{{ _('Waiting for authenticator\u2026') }}",
+  confirm:  "{{ _('Confirm') }}",
+  retry:    "{{ _('Try again') }}",
+  cancel:   "{{ _('Cancel') }}",
+  failed:   "{{ _('Confirmation failed.') }}",
+  platform_title: "{{ _('Confirm with device') }}",
+  platform_desc:  "{{ _('Confirm your identity with FaceID, TouchID or Windows Hello.') }}",
+  roaming_title:  "{{ _('Confirm identity') }}",
+  roaming_desc:   "{{ _('Confirm with the device you used during setup:') }}\n\u2022 {{ _('Phone') }} \u2013 {{ _('click Confirm, choose Smartphone or Tablet') }}\n\u2022 {{ _('USB key') }} \u2013 {{ _('plug in YubiKey etc. and click') }}",
+};
 
 let _abortController = null;
 
@@ -56,14 +67,11 @@ if (!window.PublicKeyCredential) {
 if (window.PublicKeyCredential && PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) {
   PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(available => {
     if (available) {
-      document.getElementById('title').textContent = "Mit Gerät bestätigen";
-      document.getElementById('desc').textContent = "Bestätige deine Identität mit FaceID, TouchID oder Windows Hello.";
+      document.getElementById('title').textContent = I18N.platform_title;
+      document.getElementById('desc').textContent  = I18N.platform_desc;
     } else {
-      document.getElementById('title').textContent = "Identität bestätigen";
-      document.getElementById('desc').innerHTML =
-        'Best\u00e4tige mit dem Ger\u00e4t, das du beim Einrichten verwendet hast:<br>' +
-        '&#8226; <b>Handy</b> \u2013 klicke Best\u00e4tigen, w\u00e4hle <i>Smartphone oder Tablet</i><br>' +
-        '&#8226; <b>USB-Schl\u00fcssel</b> \u2013 YubiKey o.\u00e4. einstecken und klicken';
+      document.getElementById('title').textContent = I18N.roaming_title;
+      document.getElementById('desc').innerText    = I18N.roaming_desc;
     }
   });
 }
@@ -83,10 +91,10 @@ async function startAuthentication() {
   const cancelBtn = document.getElementById("cancel-btn");
   const err       = document.getElementById("err");
 
-  btn.disabled          = true;
-  btn.textContent       = "Warte auf Authenticator\u2026";
+  btn.disabled            = true;
+  btn.textContent         = I18N.waiting;
   cancelBtn.style.display = "block";
-  err.style.display     = "none";
+  err.style.display       = "none";
 
   _abortController = new AbortController();
 
@@ -123,7 +131,7 @@ async function startAuthentication() {
       body: JSON.stringify(payload),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Unbekannter Fehler");
+    if (!res.ok) throw new Error(data.error || I18N.failed);
     window.location = data.redirect_url;
 
   } catch (e) {
@@ -131,16 +139,15 @@ async function startAuthentication() {
     _abortController = null;
 
     if (e.name === "AbortError") {
-      // User cancelled — reset silently
       btn.disabled    = false;
-      btn.textContent = "Bestätigen";
+      btn.textContent = I18N.confirm;
       return;
     }
 
-    err.textContent   = e.message || "Bestätigung fehlgeschlagen.";
+    err.textContent   = e.message || I18N.failed;
     err.style.display = "block";
     btn.disabled      = false;
-    btn.textContent   = "Erneut versuchen";
+    btn.textContent   = I18N.retry;
   }
 }
 </script>
