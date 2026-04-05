@@ -13,17 +13,25 @@ Usage:
     uv run python testapp.py
 
 Then open http://localhost:5001
+
+Updating translations:
+    uv run pybabel extract -F testapp_babel.cfg -o testapp_translations/messages.pot testapp.py
+    uv run pybabel update -i testapp_translations/messages.pot -d testapp_translations
+    # edit .po files, then:
+    uv run pybabel compile -d testapp_translations
 """
 
 import base64
 import hashlib
 import json
+import os
 import secrets
 import urllib.error
 import urllib.parse
 import urllib.request
 
 from flask import Flask, redirect, render_template_string, request, session, url_for
+from flask_babel import Babel, gettext as _
 
 # ---------------------------------------------------------------------------
 # Configuration — must match the registered OIDC client in X2FA
@@ -35,8 +43,28 @@ CLIENT_ID     = "testapp"
 CLIENT_SECRET = "testsecret"
 REDIRECT_URI  = TESTAPP_URL + "/callback"
 
+_SUPPORTED_UI  = {"de", "en"}
+_SUPPORTED_X2FA = {"de", "en", "fr", "es", "pt", "it", "nl", "pl",
+                   "ru", "zh", "ja", "ko", "ar", "tr", "sv", "cs", "hu"}
+
 app = Flask(__name__)
 app.secret_key = "testapp-not-for-production"
+app.config["BABEL_DEFAULT_LOCALE"]          = "en"
+app.config["BABEL_TRANSLATION_DIRECTORIES"] = os.path.join(
+    os.path.dirname(__file__), "testapp_translations"
+)
+
+babel = Babel()
+
+
+def _get_locale() -> str:
+    return request.accept_languages.best_match(_SUPPORTED_UI, default="en")
+
+
+babel.init_app(app, locale_selector=_get_locale)
+
+from flask_babel import get_locale
+app.jinja_env.globals["get_locale"] = get_locale
 
 
 # ---------------------------------------------------------------------------
@@ -82,8 +110,16 @@ def index():
 @app.route("/login")
 def login():
     """Starts the OIDC flow: generates PKCE pair and redirects to X2FA /authorize."""
-    mode    = request.args.get("mode", "verify")
-    user_id = request.args.get("user_id", "").strip() or "alice"
+    mode       = request.args.get("mode", "verify")
+    user_id    = request.args.get("user_id", "").strip() or "alice"
+    ui_locales = request.args.get("ui_locales", "").strip()
+
+    # If no explicit language was chosen, forward the browser's Accept-Language
+    # so X2FA can honour it (best match against the supported set).
+    if not ui_locales:
+        best = request.accept_languages.best_match(_SUPPORTED_X2FA)
+        if best:
+            ui_locales = best
 
     verifier, challenge = _pkce_pair()
     state = secrets.token_urlsafe(16)
@@ -94,7 +130,7 @@ def login():
     session["nonce"]         = nonce
 
     scope  = "openid x2fa:setup" if mode == "setup" else "openid"
-    params = urllib.parse.urlencode({
+    auth_params = {
         "client_id":             CLIENT_ID,
         "redirect_uri":          REDIRECT_URI,
         "response_type":         "code",
@@ -104,7 +140,10 @@ def login():
         "login_hint":            user_id,
         "code_challenge":        challenge,
         "code_challenge_method": "S256",
-    })
+    }
+    if ui_locales:
+        auth_params["ui_locales"] = ui_locales
+    params = urllib.parse.urlencode(auth_params)
     return redirect(f"{X2FA_URL}/authorize?{params}")
 
 
@@ -167,7 +206,7 @@ def logout():
 
 _TEMPLATE = """\
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ get_locale() }}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -199,7 +238,7 @@ _TEMPLATE = """\
 <body>
 
 <h1>X2FA Test App</h1>
-<p class="sub">Simulates an OIDC relying party. X2FA must be running at <code>{{ x2fa_url }}</code>.</p>
+<p class="sub">{{ _("Simulates an OIDC relying party. X2FA must be running at") }} <code>{{ x2fa_url }}</code>.</p>
 
 {% if error %}
 <div class="card"><p class="err">&#x26A0; {{ error }}</p></div>
@@ -207,36 +246,58 @@ _TEMPLATE = """\
 
 {% if user %}
 <div class="card">
-  <p class="ok">&#10003; Authenticated as <strong>{{ user }}</strong></p>
-  <p style="margin:0.8rem 0 0.3rem"><strong>ID Token Claims</strong></p>
+  <p class="ok">&#10003; {{ _("Authenticated as") }} <strong>{{ user }}</strong></p>
+  <p style="margin:0.8rem 0 0.3rem"><strong>{{ _("ID Token Claims") }}</strong></p>
   <pre>{{ claims | tojson(indent=2) }}</pre>
   <br>
-  <a href="/logout"><button class="btn-red">Log out</button></a>
+  <a href="/logout"><button class="btn-red">{{ _("Log out") }}</button></a>
 </div>
 {% else %}
 <div class="card">
-  <p style="margin-top:0"><strong>Not authenticated.</strong> Start a flow:</p>
+  <p style="margin-top:0"><strong>{{ _("Not authenticated.") }}</strong> {{ _("Start a flow:") }}</p>
   <form action="/login" method="get">
-    <label for="uid">User ID <span style="font-weight:400;color:#888">(login_hint / sub in ID token)</span></label>
+    <label for="uid">{{ _("User ID") }} <span style="font-weight:400;color:#888">{{ _("(login_hint / sub in ID token)") }}</span></label>
     <input type="text" id="uid" name="user_id" value="alice" placeholder="alice">
-    <br>
-    <button type="submit" name="mode" value="verify" class="btn-blue">Verify 2FA</button>
-    <button type="submit" name="mode" value="setup"  class="btn-gray">Setup 2FA</button>
+    <br><br>
+    <label for="loc">{{ _("Language") }} <span style="font-weight:400;color:#888">{{ _("(ui_locales — empty = server default)") }}</span></label>
+    <select id="loc" name="ui_locales" style="padding:0.5rem 0.7rem;border:1px solid #ccc;border-radius:5px;font-size:1rem;margin-right:0.5rem;">
+      <option value="">{{ _("— default —") }}</option>
+      <option value="de">de — Deutsch</option>
+      <option value="en">en — English</option>
+      <option value="ar">ar — العربية</option>
+      <option value="cs">cs — Čeština</option>
+      <option value="es">es — Español</option>
+      <option value="fr">fr — Français</option>
+      <option value="hu">hu — Magyar</option>
+      <option value="it">it — Italiano</option>
+      <option value="ja">ja — 日本語</option>
+      <option value="ko">ko — 한국어</option>
+      <option value="nl">nl — Nederlands</option>
+      <option value="pl">pl — Polski</option>
+      <option value="pt">pt — Português</option>
+      <option value="ru">ru — Русский</option>
+      <option value="sv">sv — Svenska</option>
+      <option value="tr">tr — Türkçe</option>
+      <option value="zh">zh — 中文</option>
+    </select>
+    <br><br>
+    <button type="submit" name="mode" value="verify" class="btn-blue">{{ _("Verify 2FA") }}</button>
+    <button type="submit" name="mode" value="setup"  class="btn-gray">{{ _("Setup 2FA") }}</button>
   </form>
   <p class="meta" style="margin-top:1rem">
-    <strong>Verify</strong> — uses <code>scope=openid</code>, requires existing credentials.<br>
-    <strong>Setup</strong> &nbsp;— uses <code>scope=openid x2fa:setup</code>, registers new credentials.
+    <strong>{{ _("Verify") }}</strong> — {{ _("uses scope=openid, requires existing credentials.") }}<br>
+    <strong>{{ _("Setup") }}</strong> &nbsp;— {{ _("uses scope=openid x2fa:setup, registers new credentials.") }}
   </p>
 </div>
 {% endif %}
 
 <div class="card meta">
-  <strong>Client config</strong><br>
+  <strong>{{ _("Client config") }}</strong><br>
   Client ID: <code>{{ client_id }}</code> &nbsp;&bull;&nbsp;
   Callback: <code>{{ redirect_uri }}</code> &nbsp;&bull;&nbsp;
   X2FA: <code>{{ x2fa_url }}</code>
   <br><br>
-  <strong>First-time setup</strong> (run once in the X2FA directory):<br>
+  <strong>{{ _("First-time setup") }}</strong> ({{ _("run once in the X2FA directory") }}):<br>
   <code>flask add-client testapp http://localhost:5001/callback --secret testsecret</code>
 </div>
 
@@ -250,4 +311,3 @@ if __name__ == "__main__":
     print(f"  X2FA expected  →  {X2FA_URL}")
     print("=" * 55)
     app.run(port=5001, debug=True)
-
