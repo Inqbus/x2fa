@@ -51,10 +51,12 @@ class TestClient:
         """App context for DB operations outside of requests."""
         return self._app.app_context()
 
-    def set_session(self, user_id: str = "user_test", setup_mode: bool = False):
+    def set_session(self, user_id: str = "user_test", setup_mode: bool = False,
+                    ui_locales: str = ""):
         """Sets a valid OIDC session before the next request."""
         oidc_req = _OIDC_REQUEST_VERIFY.copy()
         oidc_req["login_hint"] = user_id
+        oidc_req["ui_locales"] = ui_locales
         if setup_mode:
             oidc_req["scope"] = "openid x2fa:setup"
         with self._client.session_transaction() as sess:

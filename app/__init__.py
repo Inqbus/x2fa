@@ -55,7 +55,8 @@ def create_app(config_name: str = "production") -> Flask:
 
     # Internationalization: language preference comes from ui_locales in the
     # OIDC request (set by the RP), with Accept-Language as fallback.
-    _SUPPORTED = {"de", "en"}
+    _SUPPORTED = {"de", "en", "fr", "es", "pt", "it", "nl", "pl",
+                  "ru", "zh", "ja", "ko", "ar", "tr", "sv", "cs", "hu"}
 
     def _get_locale():
         from flask import request, session

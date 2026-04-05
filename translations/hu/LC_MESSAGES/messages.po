@@ -1,0 +1,230 @@
+# Hungarian translations for X2FA.
+msgid ""
+msgstr ""
+"Project-Id-Version: x2fa 2.0\n"
+"Language: hu\n"
+"Language-Team: hu\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Invalid request"
+msgstr "Érvénytelen kérés"
+
+msgid "Unauthorized"
+msgstr "Nem engedélyezett"
+
+msgid "Please sign in again."
+msgstr "Kérjük, jelentkezzen be újra."
+
+msgid "Access denied"
+msgstr "Hozzáférés megtagadva"
+
+msgid "You do not have permission to access this page."
+msgstr "Nincs jogosultsága az oldal eléréséhez."
+
+msgid "Not found"
+msgstr "Nem található"
+
+msgid "The requested page does not exist."
+msgstr "A kért oldal nem létezik."
+
+msgid "Too many requests"
+msgstr "Túl sok kérés"
+
+msgid "Please wait a moment."
+msgstr "Kérjük, várjon egy pillanatot."
+
+msgid "Internal error"
+msgstr "Belső hiba"
+
+msgid "An unexpected error has occurred."
+msgstr "Váratlan hiba történt."
+
+msgid "Backup code"
+msgstr "Mentőkód"
+
+msgid "Use backup code"
+msgstr "Mentőkód használata"
+
+msgid "Each code can only be used once."
+msgstr "Minden kód csak egyszer használható."
+
+msgid "After login, a new 2FA setup will be required."
+msgstr "Bejelentkezés után új 2FA beállítás szükséges."
+
+msgid "8-digit backup code"
+msgstr "8 jegyű mentőkód"
+
+msgid "Sign in"
+msgstr "Bejelentkezés"
+
+msgid "Set up 2FA"
+msgstr "2FA beállítása"
+
+msgid "Set up security key"
+msgstr "Biztonsági kulcs beállítása"
+
+msgid "Use FaceID, TouchID, Windows Hello or a security key."
+msgstr "Használjon FaceID-t, TouchID-t, Windows Hello-t vagy biztonsági kulcsot."
+
+msgid "Set up now"
+msgstr "Beállítás most"
+
+msgid "Cancel"
+msgstr "Mégsem"
+
+msgid "Choose a different method?"
+msgstr "Más módszert választ?"
+
+msgid "Back to selection"
+msgstr "Vissza a választáshoz"
+
+msgid "Waiting for authenticator…"
+msgstr "Hőselesítőre vár…"
+
+msgid "Try again"
+msgstr "Újra próbál"
+
+msgid "Setup failed."
+msgstr "A beállítás nem sikerült."
+
+msgid "Set up device as security key"
+msgstr "Az eszköz beállítása biztonsági kulcsként"
+
+msgid "Use FaceID, TouchID or Windows Hello to register this device."
+msgstr "Használjon FaceID-t, TouchID-t vagy Windows Hello-t az eszköz regisztrálásához."
+
+msgid "You can use:"
+msgstr "Használhatja:"
+
+msgid "Phone"
+msgstr "Telefon"
+
+msgid "click Set up, choose Smartphone or Tablet in the browser dialog"
+msgstr "kattintson a Beállításra, válasszon Okostelefont vagy Tabletet a böngésző párbeszédablakában"
+
+msgid "USB key"
+msgstr "USB kulcs"
+
+msgid "plug in YubiKey etc. and click"
+msgstr "csatlakoztassa a YubiKey-t stb. és kattintson"
+
+msgid "Set up two-factor authentication"
+msgstr "Két faktoros hitelesítés beállítása"
+
+msgid "Choose the method you want to use."
+msgstr "Válassza ki a használni kívánt módszert."
+
+msgid "Passkey or security key"
+msgstr "Jelszó-kulcs vagy biztonsági kulcs"
+
+msgid "Phone, YubiKey, Windows Hello, FaceID, TouchID"
+msgstr "Telefon, YubiKey, Windows Hello, FaceID, TouchID"
+
+msgid "Authenticator app (TOTP)"
+msgstr "Hűselesítő alkalmazás (TOTP)"
+
+msgid "Google Authenticator, Authy, FreeOTP and others"
+msgstr "Google Authenticator, Authy, FreeOTP és mások"
+
+msgid "2FA set up"
+msgstr "2FA beállítva"
+
+msgid "2FA successfully set up"
+msgstr "2FA sikeresen beállítva"
+
+msgid "Save backup codes"
+msgstr "Mentőkódok mentése"
+
+msgid "Important:"
+msgstr "Fontos:"
+
+msgid "Write down these 10 backup codes now. They are shown only once and can be used if you lose your device. Each code is valid only once."
+msgstr "Írja le ezt a 10 mentőkódot most. Csak egyszer jelennek meg, és eszköze elvészése esetén használhatók. Minden kód csak egyszer érvényes."
+
+msgid "Have you saved all codes? Then click Continue."
+msgstr "Elmentette az összes kódot? Kattintson a Tovább gombra."
+
+msgid "Continue"
+msgstr "Tovább"
+
+msgid "Set up TOTP"
+msgstr "TOTP beállítása"
+
+msgid "Set up authenticator app"
+msgstr "Hűselesítő alkalmazás beállítása"
+
+msgid "Scan the QR code with Google Authenticator, Aegis or another TOTP app."
+msgstr "Szkennelje be a QR-kódot a Google Authenticatorral, Aegisszel vagy más TOTP alkalmazással."
+
+msgid "Step 1:"
+msgstr "1. lépés:"
+
+msgid "Scan QR code"
+msgstr "QR-kód beszkennelse"
+
+msgid "Step 2:"
+msgstr "2. lépés:"
+
+msgid "Or enter secret manually"
+msgstr "Vagy adja meg kézileg a titokértéket"
+
+msgid "Step 3:"
+msgstr "3. lépés:"
+
+msgid "Enter the 6-digit code from the app"
+msgstr "Adja meg az alkalmazás 6 jegyű kódját"
+
+msgid "Confirmation code"
+msgstr "Megerősítő kód"
+
+msgid "Complete setup"
+msgstr "Beállítás befejezése"
+
+msgid "Enter 2FA code"
+msgstr "2FA kód megadása"
+
+msgid "Enter authenticator code"
+msgstr "Hűselesítő kód megadása"
+
+msgid "Open your authenticator app and enter the current 6-digit code."
+msgstr "Nyílja meg a hűselesítő alkalmazást, és adja meg az aktuális 6 jegyű kódot."
+
+msgid "One-time code"
+msgstr "Egyszeri kód"
+
+msgid "Confirm"
+msgstr "Megerősít"
+
+msgid "No access to the app?"
+msgstr "Nincs hozzáférése az alkalmazáshoz?"
+
+msgid "2FA confirm"
+msgstr "2FA megerősítése"
+
+msgid "Confirm identity"
+msgstr "Személyazonosság megerősítése"
+
+msgid "Problems?"
+msgstr "Probléma?"
+
+msgid "Enter TOTP code"
+msgstr "TOTP kód megadása"
+
+msgid "Confirmation failed."
+msgstr "Megerősítés nem sikerült."
+
+msgid "Confirm with device"
+msgstr "Megerősítés eszközzel"
+
+msgid "Confirm your identity with FaceID, TouchID or Windows Hello."
+msgstr "Erősítse meg személyazonosságát FaceID-val, TouchID-val vagy Windows Hello-val."
+
+msgid "Confirm with the device you used during setup:"
+msgstr "Erősítse meg a beállítás során használt eszközzel:"
+
+msgid "click Confirm, choose Smartphone or Tablet"
+msgstr "kattintson a Megerősítésre, válasszon Okostelefont vagy Tabletet"
+

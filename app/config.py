@@ -27,7 +27,11 @@ class Config:
     RATELIMIT_HEADERS_ENABLED = True
 
     BABEL_DEFAULT_LOCALE = "de"
-    BABEL_SUPPORTED_LOCALES = ["de", "en"]
+    BABEL_TRANSLATION_DIRECTORIES = "../translations"
+    BABEL_SUPPORTED_LOCALES = [
+        "de", "en", "fr", "es", "pt", "it", "nl", "pl",
+        "ru", "zh", "ja", "ko", "ar", "tr", "sv", "cs", "hu",
+    ]
 
 
 class TestingConfig(Config):

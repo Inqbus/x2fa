@@ -1,0 +1,230 @@
+# Czech translations for X2FA.
+msgid ""
+msgstr ""
+"Project-Id-Version: x2fa 2.0\n"
+"Language: cs\n"
+"Language-Team: cs\n"
+"Plural-Forms: nplurals=3; plural=(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Invalid request"
+msgstr "Neplatný požadavek"
+
+msgid "Unauthorized"
+msgstr "Neautorizováno"
+
+msgid "Please sign in again."
+msgstr "Prosím, přihlašte se znovu."
+
+msgid "Access denied"
+msgstr "Přístup odmítnut"
+
+msgid "You do not have permission to access this page."
+msgstr "Nemáte oprávnění k přístupu na tuto stránku."
+
+msgid "Not found"
+msgstr "Nenalezeno"
+
+msgid "The requested page does not exist."
+msgstr "Požadovaná stránka neexistuje."
+
+msgid "Too many requests"
+msgstr "Příliš mnoho požadavků"
+
+msgid "Please wait a moment."
+msgstr "Prosím, chvilku počkejte."
+
+msgid "Internal error"
+msgstr "Interní chyba"
+
+msgid "An unexpected error has occurred."
+msgstr "Došlo k neočekávané chybě."
+
+msgid "Backup code"
+msgstr "Záložní kód"
+
+msgid "Use backup code"
+msgstr "Použít záložní kód"
+
+msgid "Each code can only be used once."
+msgstr "Každý kód lze použít pouze jednou."
+
+msgid "After login, a new 2FA setup will be required."
+msgstr "Po přihlašení bude vyžadováno nové nastavení 2FA."
+
+msgid "8-digit backup code"
+msgstr "8-místný záložní kód"
+
+msgid "Sign in"
+msgstr "Přihlásit se"
+
+msgid "Set up 2FA"
+msgstr "Nastavit 2FA"
+
+msgid "Set up security key"
+msgstr "Nastavit bezpečnostní klíč"
+
+msgid "Use FaceID, TouchID, Windows Hello or a security key."
+msgstr "Použijte FaceID, TouchID, Windows Hello nebo bezpečnostní klíč."
+
+msgid "Set up now"
+msgstr "Nastavit nyní"
+
+msgid "Cancel"
+msgstr "Zrušit"
+
+msgid "Choose a different method?"
+msgstr "Vybrat jinou metodu?"
+
+msgid "Back to selection"
+msgstr "Zpět na výběr"
+
+msgid "Waiting for authenticator…"
+msgstr "Čekání na autentikátor…"
+
+msgid "Try again"
+msgstr "Zkusit znovu"
+
+msgid "Setup failed."
+msgstr "Nastavení se nezdařilo."
+
+msgid "Set up device as security key"
+msgstr "Nastavit zařízení jako bezpečnostní klíč"
+
+msgid "Use FaceID, TouchID or Windows Hello to register this device."
+msgstr "Použijte FaceID, TouchID nebo Windows Hello k registraci tohoto zařízení."
+
+msgid "You can use:"
+msgstr "Můžete použít:"
+
+msgid "Phone"
+msgstr "Telefon"
+
+msgid "click Set up, choose Smartphone or Tablet in the browser dialog"
+msgstr "klikněte na Nastavit, vyberte Smartphone nebo Tablet v dialogu prohlížeče"
+
+msgid "USB key"
+msgstr "USB klíč"
+
+msgid "plug in YubiKey etc. and click"
+msgstr "zasunte YubiKey apod. a klikněte"
+
+msgid "Set up two-factor authentication"
+msgstr "Nastavit dvoufaktorové ověřování"
+
+msgid "Choose the method you want to use."
+msgstr "Vyberte metodu, kterou chcete použít."
+
+msgid "Passkey or security key"
+msgstr "Přístupový klíč nebo bezpečnostní klíč"
+
+msgid "Phone, YubiKey, Windows Hello, FaceID, TouchID"
+msgstr "Telefon, YubiKey, Windows Hello, FaceID, TouchID"
+
+msgid "Authenticator app (TOTP)"
+msgstr "Autentikační aplikace (TOTP)"
+
+msgid "Google Authenticator, Authy, FreeOTP and others"
+msgstr "Google Authenticator, Authy, FreeOTP a další"
+
+msgid "2FA set up"
+msgstr "2FA nastavena"
+
+msgid "2FA successfully set up"
+msgstr "2FA úspěšně nastavena"
+
+msgid "Save backup codes"
+msgstr "Uložit záložní kódy"
+
+msgid "Important:"
+msgstr "Důležité:"
+
+msgid "Write down these 10 backup codes now. They are shown only once and can be used if you lose your device. Each code is valid only once."
+msgstr "Opište si těchto 10 záložních kódů nyní. Zobrazí se pouze jednou a lze je použít při ztrátě zařízení. Každý kód je platný pouze jednou."
+
+msgid "Have you saved all codes? Then click Continue."
+msgstr "Uložili jste všechny kódy? Klikněte na Pokračovat."
+
+msgid "Continue"
+msgstr "Pokračovat"
+
+msgid "Set up TOTP"
+msgstr "Nastavit TOTP"
+
+msgid "Set up authenticator app"
+msgstr "Nastavit autentikační aplikaci"
+
+msgid "Scan the QR code with Google Authenticator, Aegis or another TOTP app."
+msgstr "Nasnímejte QR kód pomocí Google Authenticator, Aegis nebo jiné aplikace TOTP."
+
+msgid "Step 1:"
+msgstr "Krok 1:"
+
+msgid "Scan QR code"
+msgstr "Nasnímat QR kód"
+
+msgid "Step 2:"
+msgstr "Krok 2:"
+
+msgid "Or enter secret manually"
+msgstr "Nebo zadat tajemství ručně"
+
+msgid "Step 3:"
+msgstr "Krok 3:"
+
+msgid "Enter the 6-digit code from the app"
+msgstr "Zadat 6-místný kód z aplikace"
+
+msgid "Confirmation code"
+msgstr "Potvrzení kód"
+
+msgid "Complete setup"
+msgstr "Dokončit nastavení"
+
+msgid "Enter 2FA code"
+msgstr "Zadat kód 2FA"
+
+msgid "Enter authenticator code"
+msgstr "Zadat autentikační kód"
+
+msgid "Open your authenticator app and enter the current 6-digit code."
+msgstr "Otevřete autentikační aplikaci a zadejte aktuální 6-místný kód."
+
+msgid "One-time code"
+msgstr "Jednorázový kód"
+
+msgid "Confirm"
+msgstr "Potvrdit"
+
+msgid "No access to the app?"
+msgstr "Nemáte přístup k aplikaci?"
+
+msgid "2FA confirm"
+msgstr "Potvrdit 2FA"
+
+msgid "Confirm identity"
+msgstr "Potvrdit identitu"
+
+msgid "Problems?"
+msgstr "Problémy?"
+
+msgid "Enter TOTP code"
+msgstr "Zadat kód TOTP"
+
+msgid "Confirmation failed."
+msgstr "Potvrzení se nezdařilo."
+
+msgid "Confirm with device"
+msgstr "Potvrdit zařízením"
+
+msgid "Confirm your identity with FaceID, TouchID or Windows Hello."
+msgstr "Potvrzte svou identitu pomocí FaceID, TouchID nebo Windows Hello."
+
+msgid "Confirm with the device you used during setup:"
+msgstr "Potvrdte zařízením použitým při nastavení:"
+
+msgid "click Confirm, choose Smartphone or Tablet"
+msgstr "klikněte na Potvrdit, vyberte Smartphone nebo Tablet"
+

@@ -143,7 +143,7 @@ def test_totp_verify_get_valid(client):
     client.set_session()
     status, _, body = client.get("/totp/verify")
     assert status.startswith("200")
-    assert b"One-time code" in body
+    assert "Einmalcode".encode() in body
 
 
 # ---------------------------------------------------------------------------

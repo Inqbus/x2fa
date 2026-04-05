@@ -81,8 +81,8 @@ msgstr "Andere Methode wählen?"
 msgid "Back to selection"
 msgstr "Zurück zur Auswahl"
 
-msgid "Waiting for authenticator\u2026"
-msgstr "Warte auf Authenticator\u2026"
+msgid "Waiting for authenticator…"
+msgstr "Warte auf Authenticator…"
 
 msgid "Try again"
 msgstr "Erneut versuchen"
@@ -109,16 +109,16 @@ msgid "USB key"
 msgstr "USB-Schlüssel"
 
 msgid "plug in YubiKey etc. and click"
-msgstr "YubiKey o.\u00e4. einstecken und klicken"
+msgstr "YubiKey o.ä. einstecken und klicken"
 
 msgid "Set up two-factor authentication"
 msgstr "Zwei-Faktor-Authentifizierung einrichten"
 
 msgid "Choose the method you want to use."
-msgstr "W\u00e4hle die Methode, die du verwenden m\u00f6chtest."
+msgstr "Wähle die Methode, die du verwenden möchtest."
 
 msgid "Passkey or security key"
-msgstr "Passkey oder Sicherheitsschl\u00fcssel"
+msgstr "Passkey oder Sicherheitsschlüssel"
 
 msgid "Phone, YubiKey, Windows Hello, FaceID, TouchID"
 msgstr "Handy, YubiKey, Windows Hello, FaceID, TouchID"
@@ -142,7 +142,7 @@ msgid "Important:"
 msgstr "Wichtig:"
 
 msgid "Write down these 10 backup codes now. They are shown only once and can be used if you lose your device. Each code is valid only once."
-msgstr "Notiere diese 10 Backup-Codes jetzt. Sie werden nur einmal angezeigt und k\u00f6nnen bei verlorenem Ger\u00e4t verwendet werden. Jeder Code ist nur einmal g\u00fcltig."
+msgstr "Notiere diese 10 Backup-Codes jetzt. Sie werden nur einmal angezeigt und können bei verlorenem Gerät verwendet werden. Jeder Code ist nur einmal gültig."
 
 msgid "Have you saved all codes? Then click Continue."
 msgstr "Hast du alle Codes gesichert? Dann klicke auf Weiter."
@@ -178,10 +178,10 @@ msgid "Enter the 6-digit code from the app"
 msgstr "6-stelligen Code aus der App eingeben"
 
 msgid "Confirmation code"
-msgstr "Best\u00e4tigungscode"
+msgstr "Bestätigungscode"
 
 msgid "Complete setup"
-msgstr "Einrichtung abschlie\u00dfen"
+msgstr "Einrichtung abschließen"
 
 msgid "Enter 2FA code"
 msgstr "2FA-Code eingeben"
@@ -190,22 +190,22 @@ msgid "Enter authenticator code"
 msgstr "Authenticator-Code eingeben"
 
 msgid "Open your authenticator app and enter the current 6-digit code."
-msgstr "\u00d6ffne deine Authenticator-App und gib den aktuellen 6-stelligen Code ein."
+msgstr "Öffne deine Authenticator-App und gib den aktuellen 6-stelligen Code ein."
 
 msgid "One-time code"
 msgstr "Einmalcode"
 
 msgid "Confirm"
-msgstr "Best\u00e4tigen"
+msgstr "Bestätigen"
 
 msgid "No access to the app?"
 msgstr "Kein Zugriff auf die App?"
 
 msgid "2FA confirm"
-msgstr "2FA best\u00e4tigen"
+msgstr "2FA bestätigen"
 
 msgid "Confirm identity"
-msgstr "Identit\u00e4t best\u00e4tigen"
+msgstr "Identität bestätigen"
 
 msgid "Problems?"
 msgstr "Probleme?"
@@ -214,16 +214,17 @@ msgid "Enter TOTP code"
 msgstr "TOTP-Code eingeben"
 
 msgid "Confirmation failed."
-msgstr "Best\u00e4tigung fehlgeschlagen."
+msgstr "Bestätigung fehlgeschlagen."
 
 msgid "Confirm with device"
-msgstr "Mit Ger\u00e4t best\u00e4tigen"
+msgstr "Mit Gerät bestätigen"
 
 msgid "Confirm your identity with FaceID, TouchID or Windows Hello."
-msgstr "Best\u00e4tige deine Identit\u00e4t mit FaceID, TouchID oder Windows Hello."
+msgstr "Bestätige deine Identität mit FaceID, TouchID oder Windows Hello."
 
 msgid "Confirm with the device you used during setup:"
-msgstr "Best\u00e4tige mit dem Ger\u00e4t, das du beim Einrichten verwendet hast:"
+msgstr "Bestätige mit dem Gerät, das du beim Einrichten verwendet hast:"
 
 msgid "click Confirm, choose Smartphone or Tablet"
-msgstr "klicke Best\u00e4tigen, w\u00e4hle Smartphone oder Tablet"
+msgstr "klicke Bestätigen, wähle Smartphone oder Tablet"
+

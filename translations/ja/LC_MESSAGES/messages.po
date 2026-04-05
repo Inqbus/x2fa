@@ -1,0 +1,230 @@
+# Japanese translations for X2FA.
+msgid ""
+msgstr ""
+"Project-Id-Version: x2fa 2.0\n"
+"Language: ja\n"
+"Language-Team: ja\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Invalid request"
+msgstr "無効なリクエスト"
+
+msgid "Unauthorized"
+msgstr "認証されていません"
+
+msgid "Please sign in again."
+msgstr "再度サインインしてください。"
+
+msgid "Access denied"
+msgstr "アクセスが拒否されました"
+
+msgid "You do not have permission to access this page."
+msgstr "このページへのアクセス権限がありません。"
+
+msgid "Not found"
+msgstr "見つかりません"
+
+msgid "The requested page does not exist."
+msgstr "要求されたページは存在しません。"
+
+msgid "Too many requests"
+msgstr "リクエストが多すぎます"
+
+msgid "Please wait a moment."
+msgstr "しばらくお待ちください。"
+
+msgid "Internal error"
+msgstr "内部エラー"
+
+msgid "An unexpected error has occurred."
+msgstr "予期しないエラーが発生しました。"
+
+msgid "Backup code"
+msgstr "バックアップコード"
+
+msgid "Use backup code"
+msgstr "バックアップコードを使用"
+
+msgid "Each code can only be used once."
+msgstr "各コードは一度しか使えません。"
+
+msgid "After login, a new 2FA setup will be required."
+msgstr "ログイン後、新たに 2FA を設定する必要があります。"
+
+msgid "8-digit backup code"
+msgstr "8桁のバックアップコード"
+
+msgid "Sign in"
+msgstr "サインイン"
+
+msgid "Set up 2FA"
+msgstr "2FA を設定"
+
+msgid "Set up security key"
+msgstr "セキュリティキーを設定"
+
+msgid "Use FaceID, TouchID, Windows Hello or a security key."
+msgstr "FaceID、TouchID、Windows Helloまたはセキュリティキーを使用してください。"
+
+msgid "Set up now"
+msgstr "今すぐ設定"
+
+msgid "Cancel"
+msgstr "キャンセル"
+
+msgid "Choose a different method?"
+msgstr "別の方法を選びますか？"
+
+msgid "Back to selection"
+msgstr "選択に戻る"
+
+msgid "Waiting for authenticator…"
+msgstr "認証器を待っています…"
+
+msgid "Try again"
+msgstr "再試行"
+
+msgid "Setup failed."
+msgstr "設定に失敗しました。"
+
+msgid "Set up device as security key"
+msgstr "デバイスをセキュリティキーとして設定"
+
+msgid "Use FaceID, TouchID or Windows Hello to register this device."
+msgstr "FaceID、TouchIDまたは Windows Hello でこのデバイスを登録してください。"
+
+msgid "You can use:"
+msgstr "使用できるもの："
+
+msgid "Phone"
+msgstr "スマートフォン"
+
+msgid "click Set up, choose Smartphone or Tablet in the browser dialog"
+msgstr "「設定」をクリックし、ブラウザのダイアログで「スマートフォンまたはタブレット」を選択"
+
+msgid "USB key"
+msgstr "USBキー"
+
+msgid "plug in YubiKey etc. and click"
+msgstr "YubiKey などを差し込んでクリック"
+
+msgid "Set up two-factor authentication"
+msgstr "二要素認証を設定"
+
+msgid "Choose the method you want to use."
+msgstr "使用する方法を選択してください。"
+
+msgid "Passkey or security key"
+msgstr "パスキーまたはセキュリティキー"
+
+msgid "Phone, YubiKey, Windows Hello, FaceID, TouchID"
+msgstr "スマートフォン、YubiKey、Windows Hello、FaceID、TouchID"
+
+msgid "Authenticator app (TOTP)"
+msgstr "認証アプリ（TOTP）"
+
+msgid "Google Authenticator, Authy, FreeOTP and others"
+msgstr "Google Authenticator、Authy、FreeOTP など"
+
+msgid "2FA set up"
+msgstr "2FA 設定完了"
+
+msgid "2FA successfully set up"
+msgstr "2FA の設定に成功しました"
+
+msgid "Save backup codes"
+msgstr "バックアップコードを保存"
+
+msgid "Important:"
+msgstr "重要："
+
+msgid "Write down these 10 backup codes now. They are shown only once and can be used if you lose your device. Each code is valid only once."
+msgstr "この 10 個のバックアップコードを今すぐメモしてください。一度しか表示されず、デバイスを紛失した際に使用できます。各コードは一度だけ有効です。"
+
+msgid "Have you saved all codes? Then click Continue."
+msgstr "全てのコードを保存しましたか？「続行」をクリックしてください。"
+
+msgid "Continue"
+msgstr "続行"
+
+msgid "Set up TOTP"
+msgstr "TOTP を設定"
+
+msgid "Set up authenticator app"
+msgstr "認証アプリを設定"
+
+msgid "Scan the QR code with Google Authenticator, Aegis or another TOTP app."
+msgstr "Google Authenticator、Aegisまたは他の TOTP アプリで QR コードをスキャンしてください。"
+
+msgid "Step 1:"
+msgstr "ステップ 1："
+
+msgid "Scan QR code"
+msgstr "QR コードをスキャン"
+
+msgid "Step 2:"
+msgstr "ステップ 2："
+
+msgid "Or enter secret manually"
+msgstr "またはシークレットを手動入力"
+
+msgid "Step 3:"
+msgstr "ステップ 3："
+
+msgid "Enter the 6-digit code from the app"
+msgstr "アプリの 6 桁コードを入力"
+
+msgid "Confirmation code"
+msgstr "確認コード"
+
+msgid "Complete setup"
+msgstr "設定を完了"
+
+msgid "Enter 2FA code"
+msgstr "2FA コードを入力"
+
+msgid "Enter authenticator code"
+msgstr "認証コードを入力"
+
+msgid "Open your authenticator app and enter the current 6-digit code."
+msgstr "認証アプリを開き、現在の 6 桁コードを入力してください。"
+
+msgid "One-time code"
+msgstr "ワンタイムコード"
+
+msgid "Confirm"
+msgstr "確認"
+
+msgid "No access to the app?"
+msgstr "アプリにアクセスできませんか？"
+
+msgid "2FA confirm"
+msgstr "2FA を確認"
+
+msgid "Confirm identity"
+msgstr "本人確認"
+
+msgid "Problems?"
+msgstr "問題がありますか？"
+
+msgid "Enter TOTP code"
+msgstr "TOTP コードを入力"
+
+msgid "Confirmation failed."
+msgstr "確認に失敗しました。"
+
+msgid "Confirm with device"
+msgstr "デバイスで確認"
+
+msgid "Confirm your identity with FaceID, TouchID or Windows Hello."
+msgstr "FaceID、TouchIDまたは Windows Hello で本人確認をしてください。"
+
+msgid "Confirm with the device you used during setup:"
+msgstr "設定時に使用したデバイスで確認してください："
+
+msgid "click Confirm, choose Smartphone or Tablet"
+msgstr "「確認」をクリックし、スマートフォンまたはタブレットを選択"
+

@@ -1,0 +1,230 @@
+# Portuguese translations for X2FA.
+msgid ""
+msgstr ""
+"Project-Id-Version: x2fa 2.0\n"
+"Language: pt\n"
+"Language-Team: pt\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Invalid request"
+msgstr "Pedido inválido"
+
+msgid "Unauthorized"
+msgstr "Não autorizado"
+
+msgid "Please sign in again."
+msgstr "Por favor, faça login novamente."
+
+msgid "Access denied"
+msgstr "Acesso negado"
+
+msgid "You do not have permission to access this page."
+msgstr "Não tens permissão para aceder a esta página."
+
+msgid "Not found"
+msgstr "Não encontrado"
+
+msgid "The requested page does not exist."
+msgstr "A página solicitada não existe."
+
+msgid "Too many requests"
+msgstr "Demasiados pedidos"
+
+msgid "Please wait a moment."
+msgstr "Por favor, aguarda um momento."
+
+msgid "Internal error"
+msgstr "Erro interno"
+
+msgid "An unexpected error has occurred."
+msgstr "Ocorreu um erro inesperado."
+
+msgid "Backup code"
+msgstr "Código de backup"
+
+msgid "Use backup code"
+msgstr "Usar código de backup"
+
+msgid "Each code can only be used once."
+msgstr "Cada código só pode ser usado uma vez."
+
+msgid "After login, a new 2FA setup will be required."
+msgstr "Após o login, será necessária uma nova configuração 2FA."
+
+msgid "8-digit backup code"
+msgstr "Código de backup de 8 dígitos"
+
+msgid "Sign in"
+msgstr "Iniciar sessão"
+
+msgid "Set up 2FA"
+msgstr "Configurar 2FA"
+
+msgid "Set up security key"
+msgstr "Configurar chave de segurança"
+
+msgid "Use FaceID, TouchID, Windows Hello or a security key."
+msgstr "Usa FaceID, TouchID, Windows Hello ou uma chave de segurança."
+
+msgid "Set up now"
+msgstr "Configurar agora"
+
+msgid "Cancel"
+msgstr "Cancelar"
+
+msgid "Choose a different method?"
+msgstr "Escolher outro método?"
+
+msgid "Back to selection"
+msgstr "Voltar à seleção"
+
+msgid "Waiting for authenticator…"
+msgstr "A aguardar o autenticador…"
+
+msgid "Try again"
+msgstr "Tentar novamente"
+
+msgid "Setup failed."
+msgstr "A configuração falhou."
+
+msgid "Set up device as security key"
+msgstr "Configurar dispositivo como chave de segurança"
+
+msgid "Use FaceID, TouchID or Windows Hello to register this device."
+msgstr "Usa FaceID, TouchID ou Windows Hello para registar este dispositivo."
+
+msgid "You can use:"
+msgstr "Podes usar:"
+
+msgid "Phone"
+msgstr "Telefóne"
+
+msgid "click Set up, choose Smartphone or Tablet in the browser dialog"
+msgstr "clica em Configurar, escolhe Smartphone ou Tablet na caixa de diálogo"
+
+msgid "USB key"
+msgstr "Chave USB"
+
+msgid "plug in YubiKey etc. and click"
+msgstr "liga o YubiKey etc. e clica"
+
+msgid "Set up two-factor authentication"
+msgstr "Configurar autenticação de dois fatores"
+
+msgid "Choose the method you want to use."
+msgstr "Escolhe o método que pretendes usar."
+
+msgid "Passkey or security key"
+msgstr "Chave de acesso ou chave de segurança"
+
+msgid "Phone, YubiKey, Windows Hello, FaceID, TouchID"
+msgstr "Telefóne, YubiKey, Windows Hello, FaceID, TouchID"
+
+msgid "Authenticator app (TOTP)"
+msgstr "Aplicação autenticadora (TOTP)"
+
+msgid "Google Authenticator, Authy, FreeOTP and others"
+msgstr "Google Authenticator, Authy, FreeOTP e outros"
+
+msgid "2FA set up"
+msgstr "2FA configurado"
+
+msgid "2FA successfully set up"
+msgstr "2FA configurado com sucesso"
+
+msgid "Save backup codes"
+msgstr "Guardar códigos de backup"
+
+msgid "Important:"
+msgstr "Importante:"
+
+msgid "Write down these 10 backup codes now. They are shown only once and can be used if you lose your device. Each code is valid only once."
+msgstr "Anota estes 10 códigos de backup agora. São exibidos apenas uma vez e podem ser usados caso percas o teu dispositivo. Cada código é válido apenas uma vez."
+
+msgid "Have you saved all codes? Then click Continue."
+msgstr "Guardaste todos os códigos? Clica em Continuar."
+
+msgid "Continue"
+msgstr "Continuar"
+
+msgid "Set up TOTP"
+msgstr "Configurar TOTP"
+
+msgid "Set up authenticator app"
+msgstr "Configurar aplicação autenticadora"
+
+msgid "Scan the QR code with Google Authenticator, Aegis or another TOTP app."
+msgstr "Digitaliza o código QR com o Google Authenticator, Aegis ou outra aplicação TOTP."
+
+msgid "Step 1:"
+msgstr "Passo 1:"
+
+msgid "Scan QR code"
+msgstr "Digitalizar código QR"
+
+msgid "Step 2:"
+msgstr "Passo 2:"
+
+msgid "Or enter secret manually"
+msgstr "Ou introduzir o segredo manualmente"
+
+msgid "Step 3:"
+msgstr "Passo 3:"
+
+msgid "Enter the 6-digit code from the app"
+msgstr "Introduzir o código de 6 dígitos da aplicação"
+
+msgid "Confirmation code"
+msgstr "Código de confirmação"
+
+msgid "Complete setup"
+msgstr "Concluir configuração"
+
+msgid "Enter 2FA code"
+msgstr "Introduzir código 2FA"
+
+msgid "Enter authenticator code"
+msgstr "Introduzir código autenticador"
+
+msgid "Open your authenticator app and enter the current 6-digit code."
+msgstr "Abre a tua aplicação autenticadora e introduz o código atual de 6 dígitos."
+
+msgid "One-time code"
+msgstr "Código de uso único"
+
+msgid "Confirm"
+msgstr "Confirmar"
+
+msgid "No access to the app?"
+msgstr "Sem acesso à aplicação?"
+
+msgid "2FA confirm"
+msgstr "Confirmar 2FA"
+
+msgid "Confirm identity"
+msgstr "Confirmar identidade"
+
+msgid "Problems?"
+msgstr "Problemas?"
+
+msgid "Enter TOTP code"
+msgstr "Introduzir código TOTP"
+
+msgid "Confirmation failed."
+msgstr "Confirmação falhou."
+
+msgid "Confirm with device"
+msgstr "Confirmar com dispositivo"
+
+msgid "Confirm your identity with FaceID, TouchID or Windows Hello."
+msgstr "Confirma a tua identidade com FaceID, TouchID ou Windows Hello."
+
+msgid "Confirm with the device you used during setup:"
+msgstr "Confirma com o dispositivo que usaste durante a configuração:"
+
+msgid "click Confirm, choose Smartphone or Tablet"
+msgstr "clica em Confirmar, escolhe Smartphone ou Tablet"
+
