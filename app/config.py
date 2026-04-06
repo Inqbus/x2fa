@@ -1,11 +1,20 @@
 import os
 from datetime import timedelta
+from dynaconf import Dynaconf
+
+# Load configuration
+settings = Dynaconf(
+    settings_files=["settings.toml"],
+    environments=True,
+    load_dotenv=True,
+    envvar_prefix="X2FA",
+)
 
 
 class Config:
-    # Accept either FLASK_SECRET_KEY or X2FA_SECRET for backwards compatibility
-    SECRET_KEY = os.environ.get("FLASK_SECRET_KEY") or os.environ.get("X2FA_SECRET")
-    X2FA_SECRET = os.environ.get("X2FA_SECRET") or os.environ.get("FLASK_SECRET_KEY")
+    # Use Dynaconf settings
+    SECRET_KEY = settings.SECRET_KEY
+    X2FA_SECRET = settings.SECRET_KEY
 
     SQLALCHEMY_DATABASE_URI = (
         os.environ.get("DATABASE_URL")
@@ -14,8 +23,10 @@ class Config:
     )
     SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
 
-    X2FA_DOMAIN = os.environ.get("X2FA_DOMAIN", "localhost")
-    X2FA_ORIGIN = os.environ.get("X2FA_ORIGIN")  # defaults to https://<X2FA_DOMAIN> if unset
+    X2FA_DOMAIN = settings.DOMAIN
+    X2FA_ORIGIN = (
+        os.environ.get("X2FA_ORIGIN") or f"https://{settings.DOMAIN}"
+    )  # defaults to https://<X2FA_DOMAIN> if unset
 
     SESSION_COOKIE_SECURE = True
     SESSION_COOKIE_HTTPONLY = True
@@ -29,8 +40,23 @@ class Config:
     BABEL_DEFAULT_LOCALE = "de"
     BABEL_TRANSLATION_DIRECTORIES = "../translations"
     BABEL_SUPPORTED_LOCALES = [
-        "de", "en", "fr", "es", "pt", "it", "nl", "pl",
-        "ru", "zh", "ja", "ko", "ar", "tr", "sv", "cs", "hu",
+        "de",
+        "en",
+        "fr",
+        "es",
+        "pt",
+        "it",
+        "nl",
+        "pl",
+        "ru",
+        "zh",
+        "ja",
+        "ko",
+        "ar",
+        "tr",
+        "sv",
+        "cs",
+        "hu",
     ]
 
 
@@ -43,6 +69,21 @@ class TestingConfig(Config):
     RATELIMIT_STORAGE_URI = "memory://"
     WTF_CSRF_ENABLED = False
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
+
+
+class E2ETestingConfig(TestingConfig):
+    """Config for Playwright E2E tests.
+
+    Uses StaticPool so that the fixture thread and the werkzeug server thread
+    share the same in-memory SQLite connection (required for in-process tests).
+    """
+
+    from sqlalchemy.pool import StaticPool
+
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "connect_args": {"check_same_thread": False},
+        "poolclass": StaticPool,
+    }
 
 
 class ProductionConfig(Config):

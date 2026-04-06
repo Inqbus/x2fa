@@ -20,6 +20,7 @@ dependencies = [
     "redis>=5.0.0",
     "pyjwt>=2.12.1",
     "flask-babel>=4.0.0",
+    "litellm[proxy]>=1.83.3",
 ]
 
 [project.optional-dependencies]
@@ -32,4 +33,5 @@ dev = [
     "pytest-mock>=3.15.1",
     "pyjwt>=2.12.1",
     "pytest-playwright>=0.7.2",
+    "litellm>=1.83.3",
 ]

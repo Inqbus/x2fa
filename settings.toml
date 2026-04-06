@@ -1,0 +1,30 @@
+[default]
+# Default configuration
+SECRET_KEY = "your-default-secret-key"
+DOMAIN = "localhost"
+PORT = 5000
+HOST = "127.0.0.1"
+
+[development]
+SECRET_KEY = "dev-secret-key"
+DOMAIN = "localhost"
+PORT = 5000
+HOST = "127.0.0.1"
+
+[production]
+SECRET_KEY = "your-production-secret-key"
+DOMAIN = "example.com"
+PORT = 8000
+HOST = "prod.example.com"
+
+[test]
+SECRET_KEY = "test-secret-key"
+DOMAIN = "localhost"
+PORT = 5098
+HOST = "127.0.0.1"
+
+[e2e]
+SECRET_KEY = "e2e-secret-key"
+DOMAIN = "localhost"
+PORT = 5098
+HOST = "127.0.0.1"
