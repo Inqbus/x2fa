@@ -117,6 +117,15 @@ def create_app(config_name: str = "production") -> Flask:
     def _set_nonce():
         g.nonce = secrets.token_urlsafe(16)
 
+    # In test/e2e mode, allow localhost HTTP callbacks so Chromium follows OIDC
+    # redirect chains through form submissions (Chrome enforces form-action on
+    # the full redirect chain, blocking non-self http: targets otherwise).
+    _extra_form_action = (
+        " http://127.0.0.1:*"
+        if config_name in ("testing", "e2e")
+        else ""
+    )
+
     @app.after_request
     def _security_headers(response):
         nonce = getattr(g, "nonce", "")
@@ -127,7 +136,7 @@ def create_app(config_name: str = "production") -> Flask:
             "style-src 'unsafe-inline'",
             "img-src data:",          # for TOTP QR code
             "connect-src 'self'",
-            "form-action 'self' https:",
+            f"form-action 'self' https:{_extra_form_action}",
             "base-uri 'none'",
             "frame-ancestors 'none'",
         ]

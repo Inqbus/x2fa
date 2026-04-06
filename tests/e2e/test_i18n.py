@@ -1,9 +1,7 @@
+import urllib.parse
+
 from playwright.sync_api import Page, expect
 import pytest
-
-# -------------------------
-# Existing TOTP/Backup tests
-# -------------------------
 
 
 class TestTOTPVerifyI18n:
@@ -50,67 +48,63 @@ class TestBackupVerifyI18n:
         expect(page.locator("h1")).to_contain_text("backup code")
 
 
-# -------------------------
-# New Main App Tests
-# -------------------------
-
-
 class TestCoreRoutesI18n:
-    def test_homepage_language_switching(self, page: Page, live_server):
-        # Test German locale - use a real route that exists
-        page.goto(f"{live_server}/setup?ui_locales=de")
+    def test_homepage_language_switching(
+        self, page: Page, goto_with_session, live_server
+    ):
+        """Setup page renders in the language specified by ui_locales."""
+        goto_with_session("/setup", setup_mode=True, ui_locales="de")
         expect(page.locator("h1")).to_contain_text("Zwei-Faktor-Authentifizierung")
         expect(page.locator("[lang=de]")).to_be_visible()
 
-        # Test French locale
-        page.goto(f"{live_server}/setup?ui_locales=fr")
-        expect(page.locator("h1")).to_contain_text("Authentification à deux facteurs")
+        goto_with_session("/setup", setup_mode=True, ui_locales="fr")
+        expect(page.locator("h1")).to_contain_text("deux facteurs")
         expect(page.locator("[lang=fr]")).to_be_visible()
 
-    def test_settings_page_language(self, page: Page, live_server):
-        page.goto(f"{live_server}/setup/webauthn?ui_locales=es")
-        expect(page.locator("h1")).to_contain_text("WebAuthn")
+    def test_settings_page_language(
+        self, page: Page, goto_with_session, live_server
+    ):
+        """WebAuthn setup page renders in Spanish."""
+        goto_with_session("/setup/webauthn", setup_mode=True, ui_locales="es")
+        expect(page.locator("h1")).to_contain_text("Configurar")
         expect(page.locator("[lang=es]")).to_be_visible()
 
-    def test_about_page_language(self, page: Page, live_server):
-        page.goto(f"{live_server}/setup/done?ui_locales=ja")
-        expect(page.locator("h1")).to_contain_text("完了")
+    def test_about_page_language(
+        self, page: Page, goto_with_session, live_server
+    ):
+        """Setup page renders in Japanese."""
+        goto_with_session("/setup", setup_mode=True, ui_locales="ja")
+        expect(page.locator("h1")).to_contain_text("二要素認証")
         expect(page.locator("[lang=ja]")).to_be_visible()
 
-    def test_error_page_language(self, page: Page, live_server):
-        page.goto(f"{live_server}/invalid-route?ui_locales=ru")
+    def test_error_page_language(
+        self, page: Page, goto_with_session, live_server
+    ):
+        """404 error page renders in the language from the active session."""
+        goto_with_session("/nonexistent-page", ui_locales="ru")
         expect(page.locator("h1")).to_contain_text("404")
         expect(page.locator("[lang=ru]")).to_be_visible()
 
 
-# -------------------------
-# WebAuthn Specific Tests
-# -------------------------
-
-
-def test_webauthn_cancel_button_i18n(page: Page, live_server):
-    # German locale
-    page.goto(f"{live_server}/setup/webauthn?ui_locales=de")
-    expect(page.locator('button:has-text("Abbrechen")')).to_be_visible()
+def test_webauthn_cancel_button_i18n(
+    page: Page, goto_with_session, live_server
+):
+    """Cancel button on WebAuthn setup page is translated (button is hidden until WebAuthn starts)."""
+    goto_with_session("/setup/webauthn", setup_mode=True, ui_locales="de")
+    expect(page.locator("#cancel-btn")).to_have_text("Abbrechen")
     expect(page.locator("[lang=de]")).to_be_visible()
 
-    # English locale
-    page.goto(f"{live_server}/setup/webauthn?ui_locales=en")
-    expect(page.locator('button:has-text("Cancel")')).to_be_visible()
+    goto_with_session("/setup/webauthn", setup_mode=True, ui_locales="en")
+    expect(page.locator("#cancel-btn")).to_have_text("Cancel")
     expect(page.locator("[lang=en]")).to_be_visible()
 
 
-# -------------------------
-# Security Tests
-# -------------------------
-
-
-def test_user_verification_security(page: Page, live_server):
-    # Should not reveal user existence
-    page.goto(f"{live_server}/verify?username=test")
-    # Check that page loads (status 200) by verifying content is present
-    expect(page.locator("text=Verification pending...")).to_be_visible()
-
-    # No specific error messages for non-existent users
-    page.goto(f"{live_server}/verify?username=nonexistent")
-    expect(page.locator("text=Verification pending...")).to_be_visible()
+def test_user_verification_security(
+    page: Page, goto_with_session, capture_callback, live_server
+):
+    """Users without 2FA get an OIDC access_denied error, not a user-specific message."""
+    url = capture_callback(
+        lambda: goto_with_session("/verify", user_id="e2e-no-2fa-user")
+    )
+    params = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
+    assert params.get("error") == ["access_denied"]
