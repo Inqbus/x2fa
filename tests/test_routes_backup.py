@@ -106,4 +106,4 @@ def test_backup_verify_rate_limit(client):
     client.set_session()
     status, headers, _ = client.post_form("/backup/verify", {"code": "00000000"})
     assert status.startswith("302")
-    assert "warten" in headers.get("Location", "")
+    assert "wait" in headers.get("Location", "").lower()

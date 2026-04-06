@@ -51,7 +51,7 @@ def init_keys():
         active=True,
     ))
     db.session.commit()
-    click.echo(f"Signing-Key generiert: kid={kid}")
+    click.echo(f"Signing key generated: kid={kid}")
 
 
 @click.command("add-client")
@@ -65,7 +65,7 @@ def add_client(client_id, redirect_uri, secret, scopes):
     if not secret:
         secret = secrets.token_urlsafe(32)
 
-    existing = OIDCClient.query.get(client_id)
+    existing = db.session.get(OIDCClient, client_id)
     if existing:
         click.echo(f"Client '{client_id}' already exists. Updating configuration.", err=True)
         existing.redirect_uris  = redirect_uri
@@ -80,9 +80,9 @@ def add_client(client_id, redirect_uri, secret, scopes):
         ))
 
     db.session.commit()
-    click.echo(f"Client-ID:     {client_id}")
-    click.echo(f"Client-Secret: {secret}")
-    click.echo(f"Redirect-URI:  {redirect_uri}")
+    click.echo(f"Client ID:     {client_id}")
+    click.echo(f"Client secret: {secret}")
+    click.echo(f"Redirect URI:  {redirect_uri}")
     click.echo(f"Scopes:        {scopes}")
 
 
@@ -92,10 +92,10 @@ def list_clients():
     """Lists all registered OIDC clients."""
     clients = OIDCClient.query.all()
     if not clients:
-        click.echo("Keine Clients registriert.")
+        click.echo("No clients registered.")
         return
     for c in clients:
-        status = "aktiv" if c.active else "deaktiviert"
+        status = "active" if c.active else "deactivated"
         click.echo(f"  {c.client_id:30s} [{status}]  {c.redirect_uris[:60]}")
 
 
@@ -104,13 +104,13 @@ def list_clients():
 @with_appcontext
 def revoke_client(client_id):
     """Deactivates an OIDC client."""
-    client = OIDCClient.query.get(client_id)
+    client = db.session.get(OIDCClient, client_id)
     if not client:
-        click.echo(f"Client '{client_id}' nicht gefunden.", err=True)
+        click.echo(f"Client '{client_id}' not found.", err=True)
         return
     client.active = False
     db.session.commit()
-    click.echo(f"Client '{client_id}' deaktiviert.")
+    click.echo(f"Client '{client_id}' deactivated.")
 
 
 @click.command("stats")
@@ -123,13 +123,13 @@ def stats():
         .group_by(AuditLog.action, AuditLog.method)
         .all()
     )
-    click.echo("Audit-Statistiken:")
+    click.echo("Audit statistics:")
     for action, method, count in rows:
         click.echo(f"  {action:8s} {method:25s} {count:5d}x")
 
     click.echo(f"\nCredentials:  {Credential.query.count()}")
-    click.echo(f"TOTP-Secrets: {TOTPSecret.query.count()}")
-    click.echo(f"Backup-Codes: {BackupCode.query.filter(BackupCode.used_at.is_(None)).count()} verbleibend")
+    click.echo(f"TOTP secrets: {TOTPSecret.query.count()}")
+    click.echo(f"Backup codes: {BackupCode.query.filter(BackupCode.used_at.is_(None)).count()} remaining")
 
 
 @click.command("cleanup-codes")
@@ -145,7 +145,7 @@ def cleanup_codes():
     for code in old:
         db.session.delete(code)
     db.session.commit()
-    click.echo(f"Gelöscht: {count} Authorization Codes (älter als 1 Stunde).")
+    click.echo(f"Deleted: {count} authorization codes (older than 1 hour).")
 
 
 def register_commands(app):

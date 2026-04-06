@@ -30,8 +30,17 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from dynaconf import Dynaconf
 from flask import Flask, redirect, render_template_string, request, session, url_for
 from flask_babel import Babel, gettext as _
+
+_cfg = Dynaconf(
+    settings_files=["settings.toml"],
+    environments=True,
+    env="testapp",
+    load_dotenv=True,
+    envvar_prefix="TESTAPP",
+)
 
 # ---------------------------------------------------------------------------
 # Configuration — must match the registered OIDC client in X2FA
@@ -40,15 +49,16 @@ from flask_babel import Babel, gettext as _
 X2FA_URL      = "https://x2fa.dev.inqbus.de"
 TESTAPP_URL   = "https://x2fa-testapp.dev.inqbus.de"
 CLIENT_ID     = "testapp"
-CLIENT_SECRET = "testsecret"
+CLIENT_SECRET = _cfg.CLIENT_SECRET
 REDIRECT_URI  = TESTAPP_URL + "/callback"
+SECRET_KEY    = _cfg.SECRET_KEY
 
 _SUPPORTED_UI  = {"de", "en"}
 _SUPPORTED_X2FA = {"de", "en", "fr", "es", "pt", "it", "nl", "pl",
                    "ru", "zh", "ja", "ko", "ar", "tr", "sv", "cs", "hu"}
 
 app = Flask(__name__)
-app.secret_key = "testapp-not-for-production"
+app.secret_key = SECRET_KEY
 app.config["BABEL_DEFAULT_LOCALE"]          = "en"
 app.config["BABEL_TRANSLATION_DIRECTORIES"] = os.path.join(
     os.path.dirname(__file__), "testapp_translations"
@@ -158,9 +168,9 @@ def callback():
     state = request.args.get("state", "")
 
     if not code:
-        return redirect(url_for("index", error="No authorization code received."))
+        return redirect(url_for("index", error=_("No authorization code received.")))
     if state != session.get("state"):
-        return redirect(url_for("index", error="State mismatch — possible CSRF attack."))
+        return redirect(url_for("index", error=_("State mismatch — possible CSRF attack.")))
 
     # Exchange authorization code for tokens
     body = urllib.parse.urlencode({
@@ -182,7 +192,7 @@ def callback():
             token_response = json.loads(resp.read())
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode(errors="replace")
-        return redirect(url_for("index", error=f"Token exchange failed ({exc.code}): {detail}"))
+        return redirect(url_for("index", error=_("Token exchange failed (%(code)s): %(detail)s", code=exc.code, detail=detail)))
 
     claims = _decode_jwt_payload(token_response.get("id_token", ""))
 
@@ -293,8 +303,8 @@ _TEMPLATE = """\
 
 <div class="card meta">
   <strong>{{ _("Client config") }}</strong><br>
-  Client ID: <code>{{ client_id }}</code> &nbsp;&bull;&nbsp;
-  Callback: <code>{{ redirect_uri }}</code> &nbsp;&bull;&nbsp;
+  {{ _("Client ID") }}: <code>{{ client_id }}</code> &nbsp;&bull;&nbsp;
+  {{ _("Callback") }}: <code>{{ redirect_uri }}</code> &nbsp;&bull;&nbsp;
   X2FA: <code>{{ x2fa_url }}</code>
   <br><br>
   <strong>{{ _("First-time setup") }}</strong> ({{ _("run once in the X2FA directory") }}):<br>

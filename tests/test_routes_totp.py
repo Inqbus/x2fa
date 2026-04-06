@@ -14,7 +14,7 @@ def _setup_totp(client, user_id: str = "user_test") -> str:
     with client.app_context():
         crypto = CryptoService(current_app.config["X2FA_SECRET"])
         secret_encrypted = crypto.encrypt(secret)
-        totp_record = TOTPSecret.query.get(user_id)
+        totp_record = db.session.get(TOTPSecret, user_id)
         if totp_record:
             totp_record.secret_encrypted = secret_encrypted
             totp_record.verified = True
@@ -48,12 +48,12 @@ def test_totp_setup_get_no_session(client):
 
 
 def test_totp_setup_get_stores_secret(client):
-    from app.models import TOTPSecret
+    from app.models import TOTPSecret, db
 
     client.set_session(setup_mode=True)
     client.get("/totp/setup")
     with client.app_context():
-        rec = TOTPSecret.query.get("user_test")
+        rec = db.session.get(TOTPSecret, "user_test")
     assert rec is not None
     assert rec.verified is False
 
@@ -64,14 +64,14 @@ def test_totp_setup_get_stores_secret(client):
 
 def test_totp_setup_verify_correct_code(client):
     from app.services.crypto import CryptoService
-    from app.models import TOTPSecret
+    from app.models import TOTPSecret, db
 
     client.set_session(setup_mode=True)
     client.get("/totp/setup")
 
     with client.app_context():
         from flask import current_app
-        rec = TOTPSecret.query.get("user_test")
+        rec = db.session.get(TOTPSecret, "user_test")
         crypto = CryptoService(current_app.config["X2FA_SECRET"])
         secret = crypto.decrypt(bytes(rec.secret_encrypted))
     code = pyotp.TOTP(secret).now()
@@ -83,7 +83,7 @@ def test_totp_setup_verify_correct_code(client):
     assert "error" not in headers.get("Location", "")
 
     with client.app_context():
-        rec = TOTPSecret.query.get("user_test")
+        rec = db.session.get(TOTPSecret, "user_test")
     assert rec.verified is True
 
 
@@ -120,7 +120,7 @@ def test_totp_verify_get_unverified_secret(client):
         from flask import current_app
         crypto = CryptoService(current_app.config["X2FA_SECRET"])
         secret_encrypted = crypto.encrypt(generate_secret())
-        totp_record = TOTPSecret.query.get("user_test")
+        totp_record = db.session.get(TOTPSecret, "user_test")
         if totp_record:
             totp_record.secret_encrypted = secret_encrypted
             totp_record.verified = False
@@ -176,7 +176,7 @@ def test_totp_verify_replay(client):
 
     secret = _setup_totp(client)
     with client.app_context():
-        rec = TOTPSecret.query.get("user_test")
+        rec = db.session.get(TOTPSecret, "user_test")
         rec.last_used_at = datetime.now(timezone.utc)
         db.session.commit()
 

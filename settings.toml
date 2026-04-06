@@ -28,3 +28,8 @@ SECRET_KEY = "e2e-secret-key"
 DOMAIN = "localhost"
 PORT = 5098
 HOST = "127.0.0.1"
+
+[testapp]
+# Override with env vars TESTAPP_SECRET_KEY / TESTAPP_CLIENT_SECRET in production.
+SECRET_KEY = "change-me-testapp-secret"
+CLIENT_SECRET = "change-me-client-secret"

@@ -2,10 +2,11 @@
 
 import os
 import secrets
+from http import HTTPStatus
 
 from flask import Flask, g, render_template, request
 
-from app.config import Config, ProductionConfig, TestingConfig
+from app.config import Config, E2ETestingConfig, ProductionConfig, TestingConfig
 from app.extensions import babel, db, limiter, migrate
 from app.oidc import oauth
 from app.oidc.grants import (
@@ -22,25 +23,26 @@ def create_app(config_name: str = "production") -> Flask:
 
     # Load configuration
     _configs = {
-        "production": ProductionConfig,
-        "testing":    TestingConfig,
+        "production":  ProductionConfig,
+        "testing":     TestingConfig,
+        "e2e":         E2ETestingConfig,
         "development": Config,
     }
     app.config.from_object(_configs.get(config_name, Config))
 
     # Disable Authlib HTTPS requirement for development/testing
-    if config_name in ("development", "testing"):
+    if config_name in ("development", "testing", "e2e"):
         import os as _os
         _os.environ.setdefault("AUTHLIB_INSECURE_TRANSPORT", "1")
 
     # Startup checks
     if not app.config.get("SECRET_KEY"):
         raise RuntimeError(
-            "FLASK_SECRET_KEY oder X2FA_SECRET muss gesetzt sein!"
+            "FLASK_SECRET_KEY or X2FA_SECRET must be set!"
         )
     if config_name == "production" and not app.config.get("RATELIMIT_STORAGE_URI"):
         raise RuntimeError(
-            "REDIS_URL muss in Production gesetzt sein (Distributed Rate-Limiting)."
+            "REDIS_URL must be set in production (distributed rate-limiting)."
         )
 
     # Derive X2FA_ORIGIN if not explicitly set
@@ -100,8 +102,13 @@ def create_app(config_name: str = "production") -> Flask:
     from app.cli import register_commands
     register_commands(app)
 
+    # Test-only blueprint for session injection (E2E Playwright tests)
+    if config_name in ("testing", "e2e"):
+        from app.routes.test_helpers import test_bp
+        app.register_blueprint(test_bp)
+
     # Create database tables (development/testing)
-    if config_name in ("development", "testing"):
+    if config_name in ("development", "testing", "e2e"):
         with app.app_context():
             db.create_all()
 
@@ -131,52 +138,52 @@ def create_app(config_name: str = "production") -> Flask:
         return response
 
     # Error pages
-    @app.errorhandler(400)
+    @app.errorhandler(HTTPStatus.BAD_REQUEST)
     def _e400(err):
         from flask_babel import gettext as _
         return render_template("error.html",
-                               status_code="400",
+                               status_code=str(HTTPStatus.BAD_REQUEST.value),
                                title=_("Invalid request"),
-                               message=str(err.description)), 400
+                               message=str(err.description)), HTTPStatus.BAD_REQUEST
 
-    @app.errorhandler(401)
+    @app.errorhandler(HTTPStatus.UNAUTHORIZED)
     def _e401(err):
         from flask_babel import gettext as _
         return render_template("error.html",
-                               status_code="401",
+                               status_code=str(HTTPStatus.UNAUTHORIZED.value),
                                title=_("Unauthorized"),
-                               message=_("Please sign in again.")), 401
+                               message=_("Please sign in again.")), HTTPStatus.UNAUTHORIZED
 
-    @app.errorhandler(403)
+    @app.errorhandler(HTTPStatus.FORBIDDEN)
     def _e403(err):
         from flask_babel import gettext as _
         return render_template("error.html",
-                               status_code="403",
+                               status_code=str(HTTPStatus.FORBIDDEN.value),
                                title=_("Access denied"),
-                               message=_("You do not have permission to access this page.")), 403
+                               message=_("You do not have permission to access this page.")), HTTPStatus.FORBIDDEN
 
-    @app.errorhandler(404)
+    @app.errorhandler(HTTPStatus.NOT_FOUND)
     def _e404(err):
         from flask_babel import gettext as _
         return render_template("error.html",
-                               status_code="404",
+                               status_code=str(HTTPStatus.NOT_FOUND.value),
                                title=_("Not found"),
-                               message=_("The requested page does not exist.")), 404
+                               message=_("The requested page does not exist.")), HTTPStatus.NOT_FOUND
 
-    @app.errorhandler(429)
+    @app.errorhandler(HTTPStatus.TOO_MANY_REQUESTS)
     def _e429(err):
         from flask_babel import gettext as _
         return render_template("error.html",
-                               status_code="429",
+                               status_code=str(HTTPStatus.TOO_MANY_REQUESTS.value),
                                title=_("Too many requests"),
-                               message=_("Please wait a moment.")), 429
+                               message=_("Please wait a moment.")), HTTPStatus.TOO_MANY_REQUESTS
 
-    @app.errorhandler(500)
+    @app.errorhandler(HTTPStatus.INTERNAL_SERVER_ERROR)
     def _e500(err):
         from flask_babel import gettext as _
         return render_template("error.html",
-                               status_code="500",
+                               status_code=str(HTTPStatus.INTERNAL_SERVER_ERROR.value),
                                title=_("Internal error"),
-                               message=_("An unexpected error has occurred.")), 500
+                               message=_("An unexpected error has occurred.")), HTTPStatus.INTERNAL_SERVER_ERROR
 
     return app

@@ -2,11 +2,13 @@
 
 import time
 from collections import defaultdict
+from http import HTTPStatus
 
 from flask import (
     Blueprint, abort, g, redirect, render_template,
     request, session, url_for,
 )
+from flask_babel import gettext as _
 
 from app.extensions import db, limiter
 from app.models import BackupCode
@@ -31,7 +33,7 @@ def _rate_limit_ok(ip_hash: str, max_attempts: int = 3, window: int = 60) -> boo
 
 def _require_session():
     if not session.get("oidc_request") or not session.get("user_id"):
-        abort(400, "Keine aktive Sitzung. Bitte starte den Login-Prozess neu.")
+        abort(HTTPStatus.BAD_REQUEST, _("No active session. Please restart the login process."))
 
 
 # ---------------------------------------------------------------------------
@@ -55,7 +57,7 @@ def backup_verify_get():
 @backup_bp.route("/backup/verify", methods=["POST"])
 def backup_verify_post():
     if not session.get("oidc_request") or not session.get("user_id"):
-        abort(400, "Keine aktive Sitzung.")
+        abort(HTTPStatus.BAD_REQUEST, _("No active session."))
 
     user_id = session["user_id"]
     code = request.form.get("code", "").strip().upper()
@@ -70,7 +72,7 @@ def backup_verify_post():
         audit_log(ACTION_FAIL, METHOD_BACKUP, user_id)
         return redirect(url_for(
             "backup.backup_verify_get",
-            error="Zu viele Versuche. Bitte 1 Minute warten."
+            error=_("Too many attempts. Please wait a moment.")
         ))
 
     valid_codes = (
@@ -89,11 +91,11 @@ def backup_verify_post():
 
     if matched_hash is None:
         audit_log(ACTION_FAIL, METHOD_BACKUP, user_id)
-        return redirect(url_for("backup.backup_verify_get", error="Ungültiger Backup-Code."))
+        return redirect(url_for("backup.backup_verify_get", error=_("Invalid backup code.")))
 
     # Mark code as used
     from datetime import datetime, timezone
-    record = BackupCode.query.get(matched_hash)
+    record = db.session.get(BackupCode, matched_hash)
     record.used_at = datetime.now(timezone.utc)
     db.session.commit()
 

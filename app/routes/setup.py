@@ -4,11 +4,13 @@ import json
 import secrets
 import uuid
 from datetime import datetime, timezone, timedelta
+from http import HTTPStatus
 
 from flask import (
     Blueprint, abort, current_app, g, jsonify, redirect,
     render_template, request, session, url_for,
 )
+from flask_babel import gettext as _
 
 from app.extensions import db, limiter
 from app.models import BackupCode, Challenge, Credential
@@ -22,7 +24,7 @@ setup_bp = Blueprint("setup", __name__)
 def _require_session():
     """Aborts with 400 if no active OIDC session is present."""
     if not session.get("oidc_request") or not session.get("user_id"):
-        abort(400, "No active session. Please restart the login process.")
+        abort(HTTPStatus.BAD_REQUEST, _("No active session. Please restart the login process."))
 
 
 # ---------------------------------------------------------------------------
@@ -75,25 +77,25 @@ def setup_webauthn_get():
 @limiter.limit("5 per minute")
 def setup_complete():
     if not session.get("oidc_request") or not session.get("user_id"):
-        return jsonify({"error": "No active session."}), 401
+        return jsonify({"error": _("No active session.")}), HTTPStatus.UNAUTHORIZED
 
     data = request.get_json()
     if not data:
-        return jsonify({"error": "Missing JSON body."}), 400
+        return jsonify({"error": _("Missing JSON body.")}), HTTPStatus.BAD_REQUEST
 
     user_id      = session["user_id"]
     challenge_id = data.get("challenge_id", "")
 
     # Consume the challenge (single-use, TTL check)
-    ch = Challenge.query.get(challenge_id)
+    ch = db.session.get(Challenge, challenge_id)
     if not ch or ch.user_id != user_id or ch.used:
-        return jsonify({"error": "Invalid challenge."}), 400
+        return jsonify({"error": _("Invalid challenge.")}), HTTPStatus.BAD_REQUEST
 
     exp = ch.expires_at
     if exp.tzinfo is None:
         exp = exp.replace(tzinfo=timezone.utc)
     if datetime.now(timezone.utc) > exp:
-        return jsonify({"error": "Challenge expired."}), 400
+        return jsonify({"error": _("Challenge expired.")}), HTTPStatus.BAD_REQUEST
 
     ch.used = True
     db.session.commit()
@@ -113,7 +115,7 @@ def setup_complete():
         reg = webauthn_helpers.verify_registration(challenge_bytes, credential_json)
     except ValueError as exc:
         audit_log(ACTION_SETUP, METHOD_WEBAUTHN_ROAMING, user_id)
-        return jsonify({"error": str(exc)}), 400
+        return jsonify({"error": str(exc)}), HTTPStatus.BAD_REQUEST
 
     auth_type = reg.get("authenticator_type", "roaming")
     method    = (
@@ -156,7 +158,7 @@ def setup_complete():
 def setup_done():
     backup_codes = session.pop("backup_codes", [])
     if not backup_codes and not session.get("2fa_verified"):
-        return redirect(url_for("auth.authorize"))
+        abort(HTTPStatus.BAD_REQUEST, _("No active setup session. Please restart the login process."))
 
     # Reconstruct the /authorize URL to continue the OIDC flow
     from app.routes.auth import _authorize_continue_url

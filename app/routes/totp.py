@@ -1,9 +1,12 @@
 """TOTP routes: setup and verification."""
 
+from http import HTTPStatus
+
 from flask import (
     Blueprint, abort, g, redirect, render_template,
     request, session, url_for,
 )
+from flask_babel import gettext as _
 
 from app.extensions import db, limiter
 from app.models import TOTPSecret
@@ -14,7 +17,7 @@ totp_bp = Blueprint("totp", __name__)
 
 def _require_session():
     if not session.get("oidc_request") or not session.get("user_id"):
-        abort(400, "Keine aktive Sitzung. Bitte starte den Login-Prozess neu.")
+        abort(HTTPStatus.BAD_REQUEST, _("No active session. Please restart the login process."))
 
 
 # ---------------------------------------------------------------------------
@@ -39,7 +42,7 @@ def totp_setup_get():
     qr_data_uri = totp_helpers.generate_qr_data_uri(provisioning_uri)
 
     # Persist (unverified until the code is confirmed)
-    existing = TOTPSecret.query.get(user_id)
+    existing = db.session.get(TOTPSecret, user_id)
     if existing:
         existing.secret_encrypted = secret_encrypted
         existing.verified = False
@@ -68,14 +71,14 @@ def totp_setup_get():
 @limiter.limit("5 per minute; 20 per hour")
 def totp_setup_verify():
     if not session.get("oidc_request") or not session.get("user_id"):
-        abort(400, "Keine aktive Sitzung.")
+        abort(HTTPStatus.BAD_REQUEST, _("No active session."))
 
     user_id = session["user_id"]
     code = request.form.get("code", "").strip()
 
-    totp_record = TOTPSecret.query.get(user_id)
+    totp_record = db.session.get(TOTPSecret, user_id)
     if totp_record is None:
-        abort(400, "Kein TOTP-Secret gefunden. Bitte Setup erneut starten.")
+        abort(HTTPStatus.BAD_REQUEST, _("No TOTP secret found. Please restart setup."))
 
     from app.services.crypto import CryptoService
     from flask import current_app
@@ -86,7 +89,7 @@ def totp_setup_verify():
 
     if not totp_helpers.verify_code(secret, code):
         audit_log(ACTION_FAIL, METHOD_TOTP, user_id)
-        return redirect(url_for("totp.totp_setup_get", error="Falscher Code. Bitte erneut versuchen."))
+        return redirect(url_for("totp.totp_setup_get", error=_("Wrong code. Please try again.")))
 
     totp_record.verified = True
     db.session.commit()
@@ -107,7 +110,7 @@ def totp_verify_get():
     _require_session()
     user_id = session["user_id"]
 
-    totp_record = TOTPSecret.query.get(user_id)
+    totp_record = db.session.get(TOTPSecret, user_id)
     if totp_record is None or not totp_record.verified:
         from app.routes.auth import _oidc_error_redirect
         return _oidc_error_redirect("access_denied")
@@ -127,18 +130,18 @@ def totp_verify_get():
 @limiter.limit("5 per minute; 20 per hour")
 def totp_verify_post():
     if not session.get("oidc_request") or not session.get("user_id"):
-        abort(400, "Keine aktive Sitzung.")
+        abort(HTTPStatus.BAD_REQUEST, _("No active session."))
 
     user_id = session["user_id"]
     code = request.form.get("code", "").strip()
 
-    totp_record = TOTPSecret.query.get(user_id)
+    totp_record = db.session.get(TOTPSecret, user_id)
     if totp_record is None or not totp_record.verified:
         # Treat missing TOTP identically to a wrong code — no state leak
         audit_log(ACTION_FAIL, METHOD_TOTP, user_id)
         return redirect(url_for(
             "totp.totp_verify_get",
-            error="Falscher oder bereits verwendeter Code."
+            error=_("Wrong or already used code.")
         ))
 
     from app.services.crypto import CryptoService
@@ -152,7 +155,7 @@ def totp_verify_post():
         audit_log(ACTION_FAIL, METHOD_TOTP, user_id)
         return redirect(url_for(
             "totp.totp_verify_get",
-            error="Falscher oder bereits verwendeter Code."
+            error=_("Wrong or already used code.")
         ))
 
     from datetime import datetime, timezone

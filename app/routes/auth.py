@@ -1,12 +1,14 @@
 """OIDC endpoints: /authorize, /token, /.well-known/*, /jwks, /done demo callback."""
 
 import json
+from http import HTTPStatus
 from urllib.parse import urlencode
 
 from flask import (
     Blueprint, abort, current_app, g, jsonify, redirect,
     render_template, request, session, url_for,
 )
+from flask_babel import gettext as _
 
 from app.extensions import db, limiter
 from app.models import AuthorizationCode, OIDCClient, SigningKey
@@ -116,19 +118,19 @@ def authorize():
     login_hint            = request.args.get("login_hint", "").strip()
 
     if not all([client_id, redirect_uri, code_challenge, login_hint]):
-        abort(400, "client_id, redirect_uri, code_challenge, and login_hint are required.")
+        abort(HTTPStatus.BAD_REQUEST, _("client_id, redirect_uri, code_challenge, and login_hint are required."))
 
     # Enforce PKCE S256 — plain is never accepted
     if code_challenge_method != "S256":
-        abort(400, "Only code_challenge_method=S256 is supported.")
+        abort(HTTPStatus.BAD_REQUEST, _("Only code_challenge_method=S256 is supported."))
 
     client = OIDCClient.query.filter_by(client_id=client_id, active=True).first()
     if not client:
-        abort(400, "Unknown client_id.")
+        abort(HTTPStatus.BAD_REQUEST, _("Unknown client_id."))
     if not client.check_redirect_uri(redirect_uri):
-        abort(400, "Invalid redirect_uri.")
+        abort(HTTPStatus.BAD_REQUEST, _("Invalid redirect_uri."))
     if "openid" not in scope:
-        abort(400, "scope must include 'openid'.")
+        abort(HTTPStatus.BAD_REQUEST, _("scope must include 'openid'."))
 
     ui_locales = request.args.get("ui_locales", "").strip()
 
@@ -180,7 +182,7 @@ def _oidc_error_redirect(error: str, description: str = ""):
         session.pop(key, None)
 
     if not redirect_uri:
-        abort(400, "Authentication not possible.")
+        abort(HTTPStatus.BAD_REQUEST, _("Authentication not possible."))
 
     params = {"error": error}
     if description:
@@ -219,9 +221,9 @@ def demo_done():
 
     if error:
         return render_template("error.html",
-                               status_code="400",
+                               status_code=str(HTTPStatus.BAD_REQUEST.value),
                                title="Error from OIDC server",
-                               message=error), 400
+                               message=error), HTTPStatus.BAD_REQUEST
 
     return f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8">

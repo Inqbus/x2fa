@@ -14,7 +14,7 @@ def _setup_totp(client, user_id: str = "user_test") -> str:
     with client.app_context():
         crypto = CryptoService(current_app.config["X2FA_SECRET"])
         secret_encrypted = crypto.encrypt(secret)
-        totp_record = TOTPSecret.query.get(user_id)
+        totp_record = db.session.get(TOTPSecret, user_id)
         if totp_record:
             totp_record.secret_encrypted = secret_encrypted
             totp_record.verified = True

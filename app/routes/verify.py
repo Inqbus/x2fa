@@ -4,11 +4,13 @@ import json
 import secrets
 import uuid
 from datetime import datetime, timezone, timedelta
+from http import HTTPStatus
 
 from flask import (
     Blueprint, abort, g, jsonify, redirect,
     render_template, request, session, url_for,
 )
+from flask_babel import gettext as _
 
 from app.extensions import db, limiter
 from app.models import Challenge, Credential
@@ -24,7 +26,7 @@ verify_bp = Blueprint("verify", __name__)
 def _require_session():
     """Aborts with 400 if no active OIDC session is present."""
     if not session.get("oidc_request") or not session.get("user_id"):
-        abort(400, "No active session. Please restart the login process.")
+        abort(HTTPStatus.BAD_REQUEST, _("No active session. Please restart the login process."))
 
 
 # ---------------------------------------------------------------------------
@@ -40,7 +42,7 @@ def verify_get():
     if not credentials:
         # No WebAuthn credentials — check for TOTP as fallback
         from app.models import TOTPSecret
-        totp_record = TOTPSecret.query.get(user_id)
+        totp_record = db.session.get(TOTPSecret, user_id)
         if totp_record and totp_record.verified:
             return redirect(url_for("totp.totp_verify_get"))
         # No 2FA method registered at all — return OIDC error to the RP
@@ -87,25 +89,25 @@ def verify_get():
 @limiter.limit("10 per minute; 30 per hour")
 def verify_complete():
     if not session.get("oidc_request") or not session.get("user_id"):
-        return jsonify({"error": "No active session."}), 401
+        return jsonify({"error": _("No active session.")}), HTTPStatus.UNAUTHORIZED
 
     data = request.get_json()
     if not data:
-        return jsonify({"error": "Missing JSON body."}), 400
+        return jsonify({"error": _("Missing JSON body.")}), HTTPStatus.BAD_REQUEST
 
     user_id      = session["user_id"]
     challenge_id = data.get("challenge_id", "")
 
     # Consume the challenge (single-use, TTL check)
-    ch = Challenge.query.get(challenge_id)
+    ch = db.session.get(Challenge, challenge_id)
     if not ch or ch.user_id != user_id or ch.used:
-        return jsonify({"error": "Invalid challenge."}), 400
+        return jsonify({"error": _("Invalid challenge.")}), HTTPStatus.BAD_REQUEST
 
     exp = ch.expires_at
     if exp.tzinfo is None:
         exp = exp.replace(tzinfo=timezone.utc)
     if datetime.now(timezone.utc) > exp:
-        return jsonify({"error": "Challenge expired."}), 400
+        return jsonify({"error": _("Challenge expired.")}), HTTPStatus.BAD_REQUEST
 
     ch.used = True
     db.session.commit()
@@ -116,11 +118,11 @@ def verify_complete():
     try:
         raw_id = base64url_to_bytes(data.get("rawId", ""))
     except Exception:
-        return jsonify({"error": "Invalid credential ID."}), 400
+        return jsonify({"error": _("Invalid credential ID.")}), HTTPStatus.BAD_REQUEST
 
-    cred = Credential.query.get(raw_id)
+    cred = db.session.get(Credential, raw_id)
     if cred is None or cred.user_id != user_id:
-        return jsonify({"error": "Credential not found."}), 404
+        return jsonify({"error": _("Credential not found.")}), HTTPStatus.NOT_FOUND
 
     credential_json = json.dumps({
         "id":       data.get("id"),
@@ -139,7 +141,7 @@ def verify_complete():
         )
     except ValueError as exc:
         audit_log(ACTION_FAIL, METHOD_WEBAUTHN_ROAMING, user_id)
-        return jsonify({"error": str(exc)}), 400
+        return jsonify({"error": str(exc)}), HTTPStatus.BAD_REQUEST
 
     # Update sign count — regression would indicate a cloned authenticator
     cred.sign_count = new_sign_count
