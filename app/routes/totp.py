@@ -9,7 +9,7 @@ from flask import (
 from flask_babel import gettext as _
 
 from app.extensions import db, limiter
-from app.models import TOTPSecret
+from app.models import BackupCode, TOTPSecret
 from app.routes import ACTION_FAIL, ACTION_SETUP, ACTION_VERIFY, METHOD_TOTP, audit_log
 
 totp_bp = Blueprint("totp", __name__)
@@ -91,14 +91,22 @@ def totp_setup_verify():
         audit_log(ACTION_FAIL, METHOD_TOTP, user_id)
         return redirect(url_for("totp.totp_setup_get", error=_("Wrong code. Please try again.")))
 
+    from datetime import datetime, timezone
     totp_record.verified = True
+    totp_record.last_used_at = datetime.now(timezone.utc)
+
+    # Generate backup codes (same as WebAuthn setup flow)
+    from app.services.crypto import CryptoService
+    codes = CryptoService.generate_backup_codes(10)
+    for code_hash in [CryptoService.hash_backup_code(c) for c in codes]:
+        db.session.add(BackupCode(code_hash=code_hash, user_id=user_id))
+
     db.session.commit()
     audit_log(ACTION_SETUP, METHOD_TOTP, user_id)
 
-    # 2FA successful — redirect back to /authorize
+    session["backup_codes"] = codes
     session["2fa_verified"] = True
-    from app.routes.auth import _authorize_continue_url
-    return redirect(_authorize_continue_url())
+    return redirect(url_for("setup.setup_done"))
 
 
 # ---------------------------------------------------------------------------

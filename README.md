@@ -447,7 +447,7 @@ export X2FA_ENV=development
 
 uv run flask db upgrade
 uv run flask init-keys
-uv run flask add-client testapp http://localhost:8080/callback --secret testsecret
+uv run flask add-client demo-rp http://localhost:8080/callback --secret testsecret
 uv run flask run --port 5000
 ```
 

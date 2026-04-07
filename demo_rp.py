@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
 """
-X2FA Test Application — simulates an OIDC relying party for manual testing.
+X2FA Demo RP — simulates an OIDC relying party for manual testing.
 
 Prerequisites (run once after starting X2FA for the first time):
-    flask add-client testapp https://x2fa-testapp.dev.inqbus.de/callback --secret testsecret
+    flask add-client demo-rp https://x2fa-demo-rp.dev.inqbus.de/callback --secret testsecret
 
 Usage:
     # Terminal 1 — X2FA
     X2FA_ENV=development FLASK_APP=wsgi:app uv run flask run --port 5000
 
-    # Terminal 2 — this test app
-    uv run python testapp.py
+    # Terminal 2 — this demo RP
+    uv run python demo_rp.py
 
 Then open http://localhost:5001
 
 Updating translations:
-    uv run pybabel extract -F testapp_babel.cfg -o testapp_translations/messages.pot testapp.py
-    uv run pybabel update -i testapp_translations/messages.pot -d testapp_translations
+    uv run pybabel extract -F demo_rp_babel.cfg -o demo_rp_translations/messages.pot demo_rp.py
+    uv run pybabel update -i demo_rp_translations/messages.pot -d demo_rp_translations
     # edit .po files, then:
-    uv run pybabel compile -d testapp_translations
+    uv run pybabel compile -d demo_rp_translations
 """
 
 import base64
@@ -37,9 +37,9 @@ from flask_babel import Babel, gettext as _
 _cfg = Dynaconf(
     settings_files=["settings.toml"],
     environments=True,
-    env="testapp",
+    env="demo_rp",
     load_dotenv=True,
-    envvar_prefix="TESTAPP",
+    envvar_prefix="DEMO_RP",
 )
 
 # ---------------------------------------------------------------------------
@@ -47,10 +47,10 @@ _cfg = Dynaconf(
 # ---------------------------------------------------------------------------
 
 X2FA_URL      = "https://x2fa.dev.inqbus.de"
-TESTAPP_URL   = "https://x2fa-testapp.dev.inqbus.de"
-CLIENT_ID     = "testapp"
+DEMO_RP_URL   = "https://x2fa-demo-rp.dev.inqbus.de"
+CLIENT_ID     = "demo-rp"
 CLIENT_SECRET = _cfg.CLIENT_SECRET
-REDIRECT_URI  = TESTAPP_URL + "/callback"
+REDIRECT_URI  = DEMO_RP_URL + "/callback"
 SECRET_KEY    = _cfg.SECRET_KEY
 
 _SUPPORTED_UI  = {"de", "en"}
@@ -61,7 +61,7 @@ app = Flask(__name__)
 app.secret_key = SECRET_KEY
 app.config["BABEL_DEFAULT_LOCALE"]          = "en"
 app.config["BABEL_TRANSLATION_DIRECTORIES"] = os.path.join(
-    os.path.dirname(__file__), "testapp_translations"
+    os.path.dirname(__file__), "demo_rp_translations"
 )
 
 babel = Babel()
@@ -308,7 +308,7 @@ _TEMPLATE = """\
   X2FA: <code>{{ x2fa_url }}</code>
   <br><br>
   <strong>{{ _("First-time setup") }}</strong> ({{ _("run once in the X2FA directory") }}):<br>
-  <code>flask add-client testapp http://localhost:5001/callback --secret testsecret</code>
+  <code>flask add-client demo-rp http://localhost:5001/callback --secret testsecret</code>
 </div>
 
 </body>
@@ -317,7 +317,7 @@ _TEMPLATE = """\
 
 if __name__ == "__main__":
     print("=" * 55)
-    print(f"  X2FA Test App  →  {TESTAPP_URL}")
+    print(f"  X2FA Demo RP   →  {DEMO_RP_URL}")
     print(f"  X2FA expected  →  {X2FA_URL}")
     print("=" * 55)
     app.run(port=5001, debug=True)

@@ -13,7 +13,7 @@ from playwright.sync_api import Page, expect
 
 
 class TestTOTPSetup:
-    def test_page_renders(self, page: Page, goto_with_session, live_server):
+    def test_page_renders(self, page: Page, goto_with_session, x2fa_server):
         """Setup page shows QR code, plaintext secret, and the code entry form."""
         goto_with_session("/totp/setup", setup_mode=True)
 
@@ -22,7 +22,7 @@ class TestTOTPSetup:
         expect(page.locator("#code")).to_be_visible()
         expect(page.locator("button[type='submit']")).to_be_visible()
 
-    def test_wrong_code_shows_error(self, page: Page, goto_with_session, live_server):
+    def test_wrong_code_shows_error(self, page: Page, goto_with_session, x2fa_server):
         """A wrong confirmation code stays on the page and shows an error."""
         goto_with_session("/totp/setup", setup_mode=True)
 
@@ -34,17 +34,23 @@ class TestTOTPSetup:
         expect(page.locator(".error")).not_to_be_empty()
 
     def test_correct_code_redirects_to_callback(
-        self, page: Page, goto_with_session, capture_callback, live_server
+        self, page: Page, goto_with_session, capture_callback, x2fa_server
     ):
-        """A correct confirmation code completes setup and redirects to the RP callback."""
+        """A correct confirmation code shows backup codes and then redirects to the RP callback."""
         goto_with_session("/totp/setup", setup_mode=True, user_id="e2e-totp-setup-ok")
 
         secret = page.locator(".secret").inner_text().strip()
         code = pyotp.TOTP(secret).now()
 
         page.fill("#code", code)
-        url = capture_callback(lambda: page.click("button[type='submit']"))
+        page.click("button[type='submit']")
 
+        # After setup, /setup/done shows 10 backup codes
+        expect(page.locator(".codes")).to_be_visible()
+        expect(page.locator(".code")).to_have_count(10)
+
+        # Click Continue to finish the OIDC flow
+        url = capture_callback(lambda: page.locator("a.btn").click())
         assert "code=" in url
 
 
@@ -55,7 +61,7 @@ class TestTOTPSetup:
 
 class TestTOTPVerify:
     def test_page_renders(
-        self, page: Page, goto_with_session, create_totp, live_server
+        self, page: Page, goto_with_session, create_totp, x2fa_server
     ):
         """Verify page shows the code input and the backup-code link."""
         create_totp("e2e-totp-render")
@@ -66,7 +72,7 @@ class TestTOTPVerify:
         expect(page.locator("a[href='/backup/verify']")).to_be_visible()
 
     def test_wrong_code_shows_error(
-        self, page: Page, goto_with_session, create_totp, live_server
+        self, page: Page, goto_with_session, create_totp, x2fa_server
     ):
         """A wrong code shows the error message without leaving the page."""
         create_totp("e2e-totp-wrong")
@@ -78,7 +84,7 @@ class TestTOTPVerify:
         expect(page.locator(".error")).to_be_visible()
 
     def test_correct_code_redirects_to_callback(
-        self, page: Page, goto_with_session, create_totp, capture_callback, live_server
+        self, page: Page, goto_with_session, create_totp, capture_callback, x2fa_server
     ):
         """A correct TOTP code completes verification and redirects to the RP callback."""
         secret = create_totp("e2e-totp-ok")
@@ -91,7 +97,7 @@ class TestTOTPVerify:
         assert "code=" in url
 
     def test_replay_rejected(
-        self, page: Page, goto_with_session, create_totp, capture_callback, live_server
+        self, page: Page, goto_with_session, create_totp, capture_callback, x2fa_server
     ):
         """Using the same TOTP code a second time within the same window is rejected."""
         secret = create_totp("e2e-totp-replay")

@@ -1,7 +1,5 @@
 """Backup code verification."""
 
-import time
-from collections import defaultdict
 from http import HTTPStatus
 
 from flask import (
@@ -12,23 +10,9 @@ from flask_babel import gettext as _
 
 from app.extensions import db, limiter
 from app.models import BackupCode
-from app.routes import ACTION_FAIL, ACTION_VERIFY, METHOD_BACKUP, audit_log, client_ip
+from app.routes import ACTION_FAIL, ACTION_VERIFY, METHOD_BACKUP, audit_log
 
 backup_bp = Blueprint("backup", __name__)
-
-# In-memory rate limit (IP hash → [timestamps])
-_backup_attempts: dict[str, list[float]] = defaultdict(list)
-
-
-def _rate_limit_ok(ip_hash: str, max_attempts: int = 3, window: int = 60) -> bool:
-    now = time.monotonic()
-    attempts = [t for t in _backup_attempts[ip_hash] if now - t < window]
-    if len(attempts) >= max_attempts:
-        _backup_attempts[ip_hash] = attempts
-        return False
-    attempts.append(now)
-    _backup_attempts[ip_hash] = attempts
-    return True
 
 
 def _require_session():
@@ -55,25 +39,13 @@ def backup_verify_get():
 # ---------------------------------------------------------------------------
 
 @backup_bp.route("/backup/verify", methods=["POST"])
+@limiter.limit("3 per minute; 10 per hour")
 def backup_verify_post():
     if not session.get("oidc_request") or not session.get("user_id"):
         abort(HTTPStatus.BAD_REQUEST, _("No active session."))
 
     user_id = session["user_id"]
     code = request.form.get("code", "").strip().upper()
-
-    import hashlib
-    from flask import current_app
-    ip = client_ip()
-    salt = current_app.config.get("X2FA_SECRET", "")
-    ip_hash = hashlib.sha256((ip + salt).encode()).hexdigest()
-
-    if not _rate_limit_ok(ip_hash):
-        audit_log(ACTION_FAIL, METHOD_BACKUP, user_id)
-        return redirect(url_for(
-            "backup.backup_verify_get",
-            error=_("Too many attempts. Please wait a moment.")
-        ))
 
     valid_codes = (
         BackupCode.query

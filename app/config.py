@@ -76,6 +76,8 @@ class E2ETestingConfig(TestingConfig):
 
     Uses StaticPool so that the fixture thread and the werkzeug server thread
     share the same in-memory SQLite connection (required for in-process tests).
+    Rate limiting is disabled because all E2E requests share the same IP and
+    limit behaviour is already covered by unit tests.
     """
 
     from sqlalchemy.pool import StaticPool
@@ -84,6 +86,7 @@ class E2ETestingConfig(TestingConfig):
         "connect_args": {"check_same_thread": False},
         "poolclass": StaticPool,
     }
+    RATELIMIT_ENABLED = False
 
 
 class ProductionConfig(Config):

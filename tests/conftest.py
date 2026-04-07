@@ -86,6 +86,4 @@ class TestClient:
 def client():
     from app import create_app
     flask_app = create_app("testing")
-    import app.routes.backup
-    app.routes.backup._backup_attempts.clear()
     return TestClient(flask_app)

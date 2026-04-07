@@ -116,7 +116,7 @@ def x2fa_app():
 
 
 @pytest.fixture(scope="session")
-def live_server(x2fa_app):
+def x2fa_server(x2fa_app):
     """Starts the X2FA Flask app on _PORT in a background thread."""
     from werkzeug.serving import make_server
 
@@ -137,7 +137,7 @@ def _encode(data: dict) -> str:
 
 
 @pytest.fixture
-def goto_with_session(page: Page, live_server: str):
+def goto_with_session(page: Page, x2fa_server: str):
     """Navigate to a URL with a valid OIDC session already injected.
 
     Usage:
@@ -172,7 +172,7 @@ def goto_with_session(page: Page, live_server: str):
         }
         encoded = _encode(session_data)
         next_enc = urllib.parse.quote(path, safe="/?=&")
-        page.goto(f"{live_server}/test/session?d={encoded}&next={next_enc}")
+        page.goto(f"{x2fa_server}/test/session?d={encoded}&next={next_enc}")
 
     return _goto
 

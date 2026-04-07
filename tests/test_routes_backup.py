@@ -97,13 +97,12 @@ def test_backup_verify_marks_code_as_used(client):
 
 
 def test_backup_verify_rate_limit(client):
-    """After 3 failed attempts the IP is blocked."""
+    """After 3 failed attempts within a minute the endpoint returns 429."""
     _create_backup_codes(client)
     for _ in range(3):
         client.set_session()
         client.post_form("/backup/verify", {"code": "00000000"})
     # 4th attempt → rate limit
     client.set_session()
-    status, headers, _ = client.post_form("/backup/verify", {"code": "00000000"})
-    assert status.startswith("302")
-    assert "wait" in headers.get("Location", "").lower()
+    status, _, _ = client.post_form("/backup/verify", {"code": "00000000"})
+    assert status.startswith("429")

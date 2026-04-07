@@ -29,7 +29,7 @@ DOMAIN = "localhost"
 PORT = 5098
 HOST = "127.0.0.1"
 
-[testapp]
-# Override with env vars TESTAPP_SECRET_KEY / TESTAPP_CLIENT_SECRET in production.
-SECRET_KEY = "change-me-testapp-secret"
+[demo_rp]
+# Override with env vars DEMO_RP_SECRET_KEY / DEMO_RP_CLIENT_SECRET in production.
+SECRET_KEY = "change-me-demo-rp-secret"
 CLIENT_SECRET = "testsecret"

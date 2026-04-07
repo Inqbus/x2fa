@@ -79,12 +79,34 @@ def test_totp_setup_verify_correct_code(client):
     # Session persists after GET — POST directly without calling set_session() again
     status, headers, _ = client.post_form("/totp/setup/verify", {"code": code})
     assert status.startswith("302")
-    assert "/authorize" in headers.get("Location", "")
+    assert "/setup/done" in headers.get("Location", "")
     assert "error" not in headers.get("Location", "")
 
     with client.app_context():
         rec = db.session.get(TOTPSecret, "user_test")
     assert rec.verified is True
+
+
+def test_totp_setup_verify_generates_backup_codes(client):
+    from app.services.crypto import CryptoService
+    from app.models import BackupCode, TOTPSecret, db
+
+    client.set_session(setup_mode=True)
+    client.get("/totp/setup")
+
+    with client.app_context():
+        from flask import current_app
+        rec = db.session.get(TOTPSecret, "user_test")
+        crypto = CryptoService(current_app.config["X2FA_SECRET"])
+        secret = crypto.decrypt(bytes(rec.secret_encrypted))
+    code = pyotp.TOTP(secret).now()
+
+    client.post_form("/totp/setup/verify", {"code": code})
+
+    with client.app_context():
+        codes = BackupCode.query.filter_by(user_id="user_test").all()
+    assert len(codes) == 10
+    assert all(c.used_at is None for c in codes)
 
 
 def test_totp_setup_verify_wrong_code(client):
