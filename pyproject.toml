@@ -21,6 +21,7 @@ dependencies = [
     "pyjwt>=2.12.1",
     "flask-babel>=4.0.0",
     "litellm[proxy]>=1.83.3",
+    "dynaconf",
 ]
 
 [project.optional-dependencies]

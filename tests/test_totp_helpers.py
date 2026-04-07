@@ -5,6 +5,8 @@ from unittest.mock import patch
 
 import pyotp
 
+from app.constants import NEVER_USED
+
 
 def test_generate_secret():
     from totp_helpers import generate_secret
@@ -34,13 +36,13 @@ def test_verify_code_valid():
     from totp_helpers import verify_code
     secret = pyotp.random_base32()
     code = pyotp.TOTP(secret).now()
-    assert verify_code(secret, code) is True
+    assert verify_code(secret, code, last_used_at=NEVER_USED) is True
 
 
 def test_verify_code_invalid():
     from totp_helpers import verify_code
     secret = pyotp.random_base32()
-    assert verify_code(secret, "000000") is False
+    assert verify_code(secret, "000000", last_used_at=NEVER_USED) is False
 
 
 def test_verify_code_replay_protection():

@@ -12,7 +12,7 @@ from flask_babel import gettext as _
 
 from app.extensions import db, limiter
 from app.models import BackupCode, TOTPSecret
-from app.constants import ACTION_FAIL, ACTION_SETUP, ACTION_VERIFY, BACKUP_CODES_COUNT, METHOD_TOTP
+from app.constants import ACTION_FAIL, ACTION_SETUP, ACTION_VERIFY, BACKUP_CODES_COUNT, METHOD_TOTP, NEVER_USED
 from app.routes import audit_log
 from app.services.crypto import CryptoService
 
@@ -82,7 +82,7 @@ def totp_setup_verify():
         bytes(totp_record.secret_encrypted)
     )
 
-    if not totp_helpers.verify_code(secret, code):
+    if not totp_helpers.verify_code(secret, code, last_used_at=NEVER_USED):
         audit_log(ACTION_FAIL, METHOD_TOTP, user_id)
         return redirect(url_for("totp.totp_setup_get", error=_("Wrong code. Please try again.")))
 

@@ -27,23 +27,24 @@ def generate_qr_data_uri(provisioning_uri: str) -> str:
     return f"data:image/png;base64,{b64}"
 
 
-def verify_code(secret: str, code: str, last_used_at: datetime | None = None) -> bool:
+def verify_code(secret: str, code: str, last_used_at: datetime) -> bool:
     """Validates a TOTP code with replay protection.
 
     Returns False if:
     - Code is invalid
     - Code has already been used within the current 30-second window (replay)
+
+    Pass constants.NEVER_USED as last_used_at for first-time verification (setup);
+    the resulting delta is always >> 30 s, so the replay check never triggers.
     """
     totp = pyotp.TOTP(secret)
     if not totp.verify(code, valid_window=1):
         return False
 
-    # Replay protection: last_used_at must not fall within the same 30-second window
-    if last_used_at is not None:
-        now = datetime.now(tz=timezone.utc)
-        last = last_used_at.replace(tzinfo=timezone.utc) if last_used_at.tzinfo is None else last_used_at
-        delta = (now - last).total_seconds()
-        if delta < 30:
-            return False
+    # Replay protection: last_used_at must not fall within the same 30-second window.
+    now  = datetime.now(tz=timezone.utc)
+    last = last_used_at.replace(tzinfo=timezone.utc) if last_used_at.tzinfo is None else last_used_at
+    if (now - last).total_seconds() < 30:
+        return False
 
     return True

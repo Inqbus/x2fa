@@ -1,3 +1,20 @@
+from datetime import datetime
+
+# Sentinel datetimes — used instead of None to make intent explicit in DB columns.
+#
+# Both are timezone-naive because SQLAlchemy's DateTime column (without timezone=True)
+# stores and retrieves naive datetimes in both SQLite and PostgreSQL (TIMESTAMP WITHOUT
+# TIME ZONE). Using timezone-aware sentinels would cause equality checks to fail after
+# a DB round-trip.
+#
+# "never used": far enough in the past that any delta-based check
+# (e.g. TOTP replay window of 30 s) always passes.  totp_helpers.verify_code()
+# treats naive datetimes as UTC via .replace(tzinfo=timezone.utc).
+NEVER_USED    = datetime(1970, 1, 1)
+# "never expires": satisfies "> datetime.now()" automatically so no special-casing
+# is needed at query sites.
+NEVER_EXPIRES = datetime(9999, 12, 31, 23, 59, 59)
+
 # Audit action strings
 ACTION_SETUP  = "setup"
 ACTION_VERIFY = "verify"

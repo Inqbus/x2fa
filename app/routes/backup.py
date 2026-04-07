@@ -10,7 +10,7 @@ from flask_babel import gettext as _
 
 from app.extensions import db, limiter
 from app.models import BackupCode
-from app.constants import ACTION_FAIL, ACTION_VERIFY, METHOD_BACKUP
+from app.constants import ACTION_FAIL, ACTION_VERIFY, METHOD_BACKUP, NEVER_USED
 from app.routes import audit_log
 
 backup_bp = Blueprint("backup", __name__)
@@ -49,7 +49,7 @@ def backup_verify_post():
     valid_codes = (
         BackupCode.query
         .filter_by(user_id=user_id)
-        .filter(BackupCode.used_at.is_(None))
+        .filter(BackupCode.used_at == NEVER_USED)
         .all()
     )
 

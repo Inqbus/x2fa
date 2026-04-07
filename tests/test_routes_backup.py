@@ -88,10 +88,11 @@ def test_backup_verify_marks_code_as_used(client):
     client.set_session()
     client.post_form("/backup/verify", {"code": codes[0]})
 
+    from app.constants import NEVER_USED
     with client.app_context():
         used = [
             r for r in BackupCode.query.filter_by(user_id="user_test").all()
-            if r.used_at is not None
+            if r.used_at != NEVER_USED
         ]
     assert len(used) == 1
 

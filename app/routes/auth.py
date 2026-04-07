@@ -57,10 +57,7 @@ def jwks():
         SigningKey.query
         .filter(
             SigningKey.active == True,
-            db.or_(
-                SigningKey.expires_at == None,
-                SigningKey.expires_at > datetime.now(timezone.utc),
-            ),
+            SigningKey.expires_at > datetime.now(timezone.utc),
         )
         .all()
     )

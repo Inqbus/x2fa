@@ -1,6 +1,7 @@
 import secrets
 from datetime import datetime, timezone, timedelta
 
+from app.constants import NEVER_EXPIRES, NEVER_USED
 from app.extensions import db
 
 
@@ -17,11 +18,15 @@ class Credential(db.Model):
     sign_count         = db.Column(db.Integer, nullable=False, default=0)
     authenticator_type = db.Column(db.String(20), nullable=False)   # platform / roaming
     device_type        = db.Column(db.String(20), nullable=False, default="single_device")  # single_device / multi_device
-    transport          = db.Column(db.String(50), nullable=True)    # usb / nfc / ble / hybrid / internal
+    # WebAuthn spec §5.8.4: transport hints are OPTIONAL. Platform authenticators
+    # (Touch ID, Windows Hello, Android biometrics) communicate internally and have
+    # no physical transport to report. Empty string = "not reported by authenticator".
+    transport          = db.Column(db.String(50), nullable=False, default="")  # usb / nfc / ble / hybrid / internal / "" = unknown
     is_passkey         = db.Column(db.Boolean, nullable=False, default=False)
     created_at         = db.Column(db.DateTime, nullable=False,
                                    default=lambda: datetime.now(timezone.utc))
-    last_used_at       = db.Column(db.DateTime, nullable=True)
+    # NEVER_USED sentinel: set at registration; replaced on first successful assertion.
+    last_used_at       = db.Column(db.DateTime, nullable=False, default=NEVER_USED)
 
     __table_args__ = (
         db.Index("idx_cred_user_created", "user_id", "created_at"),
@@ -47,7 +52,11 @@ class TOTPSecret(db.Model):
     verified         = db.Column(db.Boolean, nullable=False, default=False)
     created_at       = db.Column(db.DateTime, nullable=False,
                                  default=lambda: datetime.now(timezone.utc))
-    last_used_at     = db.Column(db.DateTime, nullable=True)
+    # NEVER_USED sentinel: set when the row is created (QR-code scanned, verified=False).
+    # Replaced with the actual timestamp after the first successful code check.
+    # The anti-replay check in totp_helpers.verify_code() always computes the delta;
+    # NEVER_USED is far enough in the past that the 30-second window never triggers.
+    last_used_at     = db.Column(db.DateTime, nullable=False, default=NEVER_USED)
 
 
 class BackupCode(db.Model):
@@ -55,7 +64,9 @@ class BackupCode(db.Model):
 
     code_hash  = db.Column(db.String(255), primary_key=True)
     user_id    = db.Column(db.String(255), nullable=False, index=True)
-    used_at    = db.Column(db.DateTime, nullable=True)
+    # NEVER_USED sentinel: set at creation; replaced with the redemption timestamp
+    # when the code is consumed. Active codes: used_at == NEVER_USED.
+    used_at    = db.Column(db.DateTime, nullable=False, default=NEVER_USED)
     created_at = db.Column(db.DateTime, nullable=False,
                            default=lambda: datetime.now(timezone.utc))
 
@@ -139,9 +150,16 @@ class AuthorizationCode(db.Model):
     user_id               = db.Column(db.String(255), nullable=False)
     redirect_uri          = db.Column(db.Text, nullable=False)
     scope                 = db.Column(db.String(255), nullable=False)
+    # nullable: OIDC Core §3.1.2.1 declares nonce OPTIONAL in the code flow.
+    # None here is not "forgotten state" — it means the RP did not send a nonce.
+    # Authlib's get_nonce() must return None (not "") to suppress the nonce claim
+    # in the ID token; _authorize_continue_url() filters None values from the URL.
+    # A sentinel string would break both of these invariants.
     nonce                 = db.Column(db.String(255), nullable=True)
-    code_challenge        = db.Column(db.String(255), nullable=True)
-    code_challenge_method = db.Column(db.String(10), nullable=True)
+    # /authorize enforces PKCE S256 as mandatory (aborts if code_challenge is absent).
+    # These columns are therefore always set when a code is issued.
+    code_challenge        = db.Column(db.String(255), nullable=False)
+    code_challenge_method = db.Column(db.String(10),  nullable=False)
     auth_time             = db.Column(db.Integer, nullable=False)  # Unix timestamp
     expires_at            = db.Column(db.DateTime, nullable=False, index=True)
     used                  = db.Column(db.Boolean, nullable=False, default=False)
@@ -185,7 +203,10 @@ class SigningKey(db.Model):
     active                = db.Column(db.Boolean, nullable=False, default=True)
     created_at            = db.Column(db.DateTime, nullable=False,
                                       default=lambda: datetime.now(timezone.utc))
-    expires_at            = db.Column(db.DateTime, nullable=True)
+    # NEVER_EXPIRES sentinel: set at key creation for keys with no planned expiry.
+    # Because NEVER_EXPIRES > any real datetime, the query "expires_at > now" works
+    # uniformly for both expiring and non-expiring keys — no special-casing needed.
+    expires_at            = db.Column(db.DateTime, nullable=False, default=NEVER_EXPIRES)
 
     def get_private_key(self, fernet):
         """Decrypts and returns the EC private key object."""

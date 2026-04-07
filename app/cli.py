@@ -6,6 +6,7 @@ from flask import current_app
 from flask.cli import with_appcontext
 
 from app.extensions import db
+from app.constants import NEVER_USED
 from app.models import (
     AuditLog, BackupCode, Credential, OIDCClient,
     SigningKey, TOTPSecret,
@@ -129,7 +130,7 @@ def stats():
 
     click.echo(f"\nCredentials:  {Credential.query.count()}")
     click.echo(f"TOTP secrets: {TOTPSecret.query.count()}")
-    click.echo(f"Backup codes: {BackupCode.query.filter(BackupCode.used_at.is_(None)).count()} remaining")
+    click.echo(f"Backup codes: {BackupCode.query.filter(BackupCode.used_at == NEVER_USED).count()} remaining")
 
 
 @click.command("cleanup-codes")

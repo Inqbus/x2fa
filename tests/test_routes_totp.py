@@ -106,7 +106,8 @@ def test_totp_setup_verify_generates_backup_codes(client):
     with client.app_context():
         codes = BackupCode.query.filter_by(user_id="user_test").all()
     assert len(codes) == 10
-    assert all(c.used_at is None for c in codes)
+    from app.constants import NEVER_USED
+    assert all(c.used_at == NEVER_USED for c in codes)
 
 
 def test_totp_setup_verify_wrong_code(client):

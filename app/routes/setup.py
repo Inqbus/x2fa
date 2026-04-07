@@ -132,7 +132,7 @@ def setup_complete():
         sign_count=reg["sign_count"],
         authenticator_type=auth_type,
         device_type=reg.get("device_type", "single_device"),
-        transport=reg.get("transport"),
+        transport=reg.get("transport") or "",
         is_passkey=reg["is_passkey"],
     ))
 
