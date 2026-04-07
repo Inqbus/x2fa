@@ -5,14 +5,28 @@ from http import HTTPStatus
 
 import totp_helpers
 from flask import (
-    Blueprint, abort, current_app, g, redirect, render_template,
-    request, session, url_for,
+    Blueprint,
+    abort,
+    current_app,
+    g,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
 )
 from flask_babel import gettext as _
 
 from app.extensions import db, limiter
 from app.models import BackupCode, TOTPSecret
-from app.constants import ACTION_FAIL, ACTION_SETUP, ACTION_VERIFY, BACKUP_CODES_COUNT, METHOD_TOTP, NEVER_USED
+from app.constants import (
+    ACTION_FAIL,
+    ACTION_SETUP,
+    ACTION_VERIFY,
+    BACKUP_CODES_COUNT,
+    METHOD_TOTP,
+    NEVER_USED,
+)
 from app.routes import audit_log
 from app.services.crypto import CryptoService
 
@@ -21,12 +35,16 @@ totp_bp = Blueprint("totp", __name__)
 
 def _require_session():
     if not session.get("oidc_request") or not session.get("user_id"):
-        abort(HTTPStatus.BAD_REQUEST, _("No active session. Please restart the login process."))
+        abort(
+            HTTPStatus.BAD_REQUEST,
+            _("No active session. Please restart the login process."),
+        )
 
 
 # ---------------------------------------------------------------------------
 # GET /totp/setup
 # ---------------------------------------------------------------------------
+
 
 @totp_bp.route("/totp/setup")
 def totp_setup_get():
@@ -46,12 +64,15 @@ def totp_setup_get():
     if existing:
         existing.secret_encrypted = secret_encrypted
         existing.verified = False
-        existing.last_used_at = None
+        existing.last_used_at = NEVER_USED
     else:
-        db.session.add(TOTPSecret(
-            user_id=user_id,
-            secret_encrypted=secret_encrypted,
-        ))
+        db.session.add(
+            TOTPSecret(
+                user_id=user_id,
+                secret_encrypted=secret_encrypted,
+                last_used_at=NEVER_USED,
+            )
+        )
     db.session.commit()
 
     return render_template(
@@ -66,6 +87,7 @@ def totp_setup_get():
 # ---------------------------------------------------------------------------
 # POST /totp/setup/verify
 # ---------------------------------------------------------------------------
+
 
 @totp_bp.route("/totp/setup/verify", methods=["POST"])
 @limiter.limit(lambda: current_app.config["RATE_LIMIT_TOTP_SETUP"])
@@ -84,7 +106,9 @@ def totp_setup_verify():
 
     if not totp_helpers.verify_code(secret, code, last_used_at=NEVER_USED):
         audit_log(ACTION_FAIL, METHOD_TOTP, user_id)
-        return redirect(url_for("totp.totp_setup_get", error=_("Wrong code. Please try again.")))
+        return redirect(
+            url_for("totp.totp_setup_get", error=_("Wrong code. Please try again."))
+        )
 
     totp_record.verified = True
     totp_record.last_used_at = datetime.now(timezone.utc)
@@ -106,6 +130,7 @@ def totp_setup_verify():
 # GET /totp/verify
 # ---------------------------------------------------------------------------
 
+
 @totp_bp.route("/totp/verify")
 def totp_verify_get():
     _require_session()
@@ -114,6 +139,7 @@ def totp_verify_get():
     totp_record = db.session.get(TOTPSecret, user_id)
     if totp_record is None or not totp_record.verified:
         from app.routes.auth import _oidc_error_redirect
+
         return _oidc_error_redirect("access_denied")
 
     return render_template(
@@ -127,6 +153,7 @@ def totp_verify_get():
 # POST /totp/verify
 # ---------------------------------------------------------------------------
 
+
 @totp_bp.route("/totp/verify", methods=["POST"])
 @limiter.limit(lambda: current_app.config["RATE_LIMIT_TOTP_VERIFY"])
 def totp_verify_post():
@@ -138,21 +165,21 @@ def totp_verify_post():
     if totp_record is None or not totp_record.verified:
         # Treat missing TOTP identically to a wrong code — no state leak
         audit_log(ACTION_FAIL, METHOD_TOTP, user_id)
-        return redirect(url_for(
-            "totp.totp_verify_get",
-            error=_("Wrong or already used code.")
-        ))
+        return redirect(
+            url_for("totp.totp_verify_get", error=_("Wrong or already used code."))
+        )
 
     secret = CryptoService(current_app.config["X2FA_SECRET"]).decrypt(
         bytes(totp_record.secret_encrypted)
     )
 
-    if not totp_helpers.verify_code(secret, code, last_used_at=totp_record.last_used_at):
+    if not totp_helpers.verify_code(
+        secret, code, last_used_at=totp_record.last_used_at
+    ):
         audit_log(ACTION_FAIL, METHOD_TOTP, user_id)
-        return redirect(url_for(
-            "totp.totp_verify_get",
-            error=_("Wrong or already used code.")
-        ))
+        return redirect(
+            url_for("totp.totp_verify_get", error=_("Wrong or already used code."))
+        )
 
     totp_record.last_used_at = datetime.now(timezone.utc)
     db.session.commit()
@@ -160,4 +187,5 @@ def totp_verify_post():
 
     session["2fa_verified"] = True
     from app.routes.auth import _authorize_continue_url
+
     return redirect(_authorize_continue_url())
