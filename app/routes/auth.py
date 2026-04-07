@@ -81,7 +81,7 @@ def jwks():
 # ---------------------------------------------------------------------------
 
 @auth_bp.route("/authorize")
-@limiter.limit("10 per minute; 100 per hour")
+@limiter.limit(lambda: current_app.config["RATE_LIMIT_AUTHORIZE"])
 def authorize():
     """
     OIDC Authorization Endpoint — two-phase flow:
@@ -198,7 +198,7 @@ def _oidc_error_redirect(error: str, description: str = ""):
 # ---------------------------------------------------------------------------
 
 @auth_bp.route("/token", methods=["POST"])
-@limiter.limit("20 per minute")
+@limiter.limit(lambda: current_app.config["RATE_LIMIT_TOKEN"])
 def token():
     """OIDC Token Endpoint — exchanges an authorization code for tokens."""
     return oauth.create_token_response()

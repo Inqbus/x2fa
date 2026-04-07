@@ -12,9 +12,8 @@ from playwright.sync_api import Browser
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-_DEMO_RP_HOST = "127.0.0.1"
-_DEMO_RP_PORT = 5099
-_AUTHORIZE_RE = re.compile(r"/authorize")
+from demo_rp import cfg as demo_rp_cfg  # noqa: E402
+AUTHORIZE_RE = re.compile(r"/authorize")
 
 
 @pytest.fixture(scope="module")
@@ -28,11 +27,10 @@ def demo_rp_base_url():
     spec.loader.exec_module(mod)
 
     from werkzeug.serving import make_server
-    server = make_server(_DEMO_RP_HOST, _DEMO_RP_PORT, mod.app)
-    t = threading.Thread(target=server.serve_forever, daemon=True)
-    t.start()
+    server = make_server(demo_rp_cfg.HOST, demo_rp_cfg.PORT, mod.app)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
 
-    yield f"http://{_DEMO_RP_HOST}:{_DEMO_RP_PORT}"
+    yield f"http://{demo_rp_cfg.HOST}:{demo_rp_cfg.PORT}"
 
     server.shutdown()
 
@@ -46,17 +44,16 @@ def _get_authorize_url(browser: Browser, base_url: str, locale: str,
 
     # Abort requests to /authorize so Playwright doesn't actually reach X2FA,
     # but still captures the request URL.
-    page.route(_AUTHORIZE_RE, lambda route: route.abort())
+    page.route(AUTHORIZE_RE, lambda route: route.abort())
 
     page.goto(base_url)
     page.select_option("select[name='ui_locales']", value=ui_locales_value)
 
-    with page.expect_request(_AUTHORIZE_RE, timeout=5_000) as req_ctx:
+    with page.expect_request(AUTHORIZE_RE, timeout=5_000) as req_ctx:
         page.click("button[value='verify']")
 
-    url = req_ctx.value.url
     context.close()
-    return url
+    return req_ctx.value.url
 
 
 @pytest.mark.parametrize("locale,expected_lang", [

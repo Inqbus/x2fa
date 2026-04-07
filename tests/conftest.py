@@ -13,7 +13,7 @@ TEST_SECRET = "a" * 32
 TEST_DOMAIN = "test.example.com"
 
 # Default OIDC session for tests (verification flow)
-_OIDC_REQUEST_VERIFY = {
+OIDC_REQUEST_VERIFY = {
     "client_id":             "test_client",
     "redirect_uri":          "https://app/cb",
     "scope":                 "openid",
@@ -54,7 +54,7 @@ class TestClient:
     def set_session(self, user_id: str = "user_test", setup_mode: bool = False,
                     ui_locales: str = ""):
         """Sets a valid OIDC session before the next request."""
-        oidc_req = _OIDC_REQUEST_VERIFY.copy()
+        oidc_req = OIDC_REQUEST_VERIFY.copy()
         oidc_req["login_hint"] = user_id
         oidc_req["ui_locales"] = ui_locales
         if setup_mode:
@@ -66,14 +66,10 @@ class TestClient:
             sess["setup_mode"] = setup_mode
 
     def _extract(self, response):
-        status  = response.status          # e.g. "200 OK" or "302 FOUND"
-        headers = dict(response.headers)
-        body    = response.data
-        return status, headers, body
+        return response.status, dict(response.headers), response.data
 
     def get(self, path: str, query: str = ""):
-        url = f"{path}?{query}" if query else path
-        return self._extract(self._client.get(url))
+        return self._extract(self._client.get(f"{path}?{query}" if query else path))
 
     def post_form(self, path: str, data: dict):
         return self._extract(self._client.post(path, data=data))

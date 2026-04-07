@@ -12,11 +12,15 @@ from flask import (
 )
 from flask_babel import gettext as _
 
+import webauthn_helpers
 from app.extensions import db, limiter
 from app.models import BackupCode, Challenge, Credential
-from app.routes import (
-    ACTION_SETUP, METHOD_WEBAUTHN_PLATFORM, METHOD_WEBAUTHN_ROAMING, audit_log,
+from app.constants import (
+    ACTION_SETUP, BACKUP_CODES_COUNT, CHALLENGE_BYTES,
+    METHOD_WEBAUTHN_PLATFORM, METHOD_WEBAUTHN_ROAMING,
 )
+from app.routes import audit_log
+from app.services.crypto import CryptoService
 
 setup_bp = Blueprint("setup", __name__)
 
@@ -46,9 +50,9 @@ def setup_webauthn_get():
     _require_session()
     user_id = session["user_id"]
 
-    challenge_bytes = secrets.token_bytes(32)
+    challenge_bytes = secrets.token_bytes(CHALLENGE_BYTES)
     challenge_id    = str(uuid.uuid4())
-    expires_at      = datetime.now(timezone.utc) + timedelta(minutes=5)
+    expires_at      = datetime.now(timezone.utc) + timedelta(minutes=current_app.config["CHALLENGE_TTL_MINUTES"])
 
     db.session.add(Challenge(
         challenge_id=challenge_id,
@@ -58,7 +62,6 @@ def setup_webauthn_get():
     ))
     db.session.commit()
 
-    import webauthn_helpers
     options_json = webauthn_helpers.build_registration_options_json(user_id, challenge_bytes)
 
     return render_template(
@@ -74,7 +77,7 @@ def setup_webauthn_get():
 # ---------------------------------------------------------------------------
 
 @setup_bp.route("/setup/complete", methods=["POST"])
-@limiter.limit("5 per minute")
+@limiter.limit(lambda: current_app.config["RATE_LIMIT_SETUP_COMPLETE"])
 def setup_complete():
     if not session.get("oidc_request") or not session.get("user_id"):
         return jsonify({"error": _("No active session.")}), HTTPStatus.UNAUTHORIZED
@@ -110,7 +113,6 @@ def setup_complete():
         "response":   data.get("response", {}),
     })
 
-    import webauthn_helpers
     try:
         reg = webauthn_helpers.verify_registration(challenge_bytes, credential_json)
     except ValueError as exc:
@@ -134,9 +136,8 @@ def setup_complete():
         is_passkey=reg["is_passkey"],
     ))
 
-    # Generate 10 single-use backup codes and store their bcrypt hashes
-    from app.services.crypto import CryptoService
-    codes = CryptoService.generate_backup_codes(10)
+    # Generate single-use backup codes and store their bcrypt hashes
+    codes = CryptoService.generate_backup_codes(BACKUP_CODES_COUNT)
     for code_hash in [CryptoService.hash_backup_code(c) for c in codes]:
         db.session.add(BackupCode(code_hash=code_hash, user_id=user_id))
 

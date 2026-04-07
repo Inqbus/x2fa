@@ -7,18 +7,19 @@ from datetime import datetime, timezone, timedelta
 from http import HTTPStatus
 
 from flask import (
-    Blueprint, abort, g, jsonify, redirect,
+    Blueprint, abort, current_app, g, jsonify, redirect,
     render_template, request, session, url_for,
 )
 from flask_babel import gettext as _
 
+import webauthn_helpers
 from app.extensions import db, limiter
 from app.models import Challenge, Credential
-from app.routes import (
-    ACTION_FAIL, ACTION_VERIFY,
+from app.constants import (
+    ACTION_FAIL, ACTION_VERIFY, CHALLENGE_BYTES,
     METHOD_WEBAUTHN_PLATFORM, METHOD_WEBAUTHN_ROAMING,
-    audit_log,
 )
+from app.routes import audit_log
 
 verify_bp = Blueprint("verify", __name__)
 
@@ -50,9 +51,9 @@ def verify_get():
         from app.routes.auth import _oidc_error_redirect
         return _oidc_error_redirect("access_denied")
 
-    challenge_bytes = secrets.token_bytes(32)
+    challenge_bytes = secrets.token_bytes(CHALLENGE_BYTES)
     challenge_id    = str(uuid.uuid4())
-    expires_at      = datetime.now(timezone.utc) + timedelta(minutes=5)
+    expires_at      = datetime.now(timezone.utc) + timedelta(minutes=current_app.config["CHALLENGE_TTL_MINUTES"])
 
     db.session.add(Challenge(
         challenge_id=challenge_id,
@@ -68,7 +69,6 @@ def verify_get():
         for c in credentials
     ]
 
-    import webauthn_helpers
     options_json = webauthn_helpers.build_authentication_options_json(
         challenge_bytes, credential_ids, transports=transports_list
     )
@@ -86,7 +86,7 @@ def verify_get():
 # ---------------------------------------------------------------------------
 
 @verify_bp.route("/verify/complete", methods=["POST"])
-@limiter.limit("10 per minute; 30 per hour")
+@limiter.limit(lambda: current_app.config["RATE_LIMIT_WEBAUTHN_VERIFY"])
 def verify_complete():
     if not session.get("oidc_request") or not session.get("user_id"):
         return jsonify({"error": _("No active session.")}), HTTPStatus.UNAUTHORIZED
@@ -131,7 +131,6 @@ def verify_complete():
         "response": data.get("response", {}),
     })
 
-    import webauthn_helpers
     try:
         new_sign_count = webauthn_helpers.verify_authentication(
             challenge=challenge_bytes,

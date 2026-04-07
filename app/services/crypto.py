@@ -5,6 +5,8 @@ import secrets
 import bcrypt
 from cryptography.fernet import Fernet
 
+from app.constants import BCRYPT_ROUNDS
+
 
 class CryptoService:
     """Cryptography service: Fernet encryption + bcrypt hashing."""
@@ -25,7 +27,7 @@ class CryptoService:
 
     @staticmethod
     def hash_backup_code(code: str) -> str:
-        return bcrypt.hashpw(code.encode(), bcrypt.gensalt(rounds=12)).decode()
+        return bcrypt.hashpw(code.encode(), bcrypt.gensalt(rounds=BCRYPT_ROUNDS)).decode()
 
     @staticmethod
     def verify_backup_code(code: str, code_hash: str) -> bool:

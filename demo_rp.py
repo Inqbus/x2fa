@@ -34,10 +34,8 @@ from dynaconf import Dynaconf
 from flask import Flask, redirect, render_template_string, request, session, url_for
 from flask_babel import Babel, gettext as _
 
-_cfg = Dynaconf(
-    settings_files=["settings.toml"],
-    environments=True,
-    env="demo_rp",
+cfg = Dynaconf(
+    settings_files=["demo_rp_settings.toml"],
     load_dotenv=True,
     envvar_prefix="DEMO_RP",
 )
@@ -46,15 +44,15 @@ _cfg = Dynaconf(
 # Configuration — must match the registered OIDC client in X2FA
 # ---------------------------------------------------------------------------
 
-X2FA_URL      = "https://x2fa.dev.inqbus.de"
-DEMO_RP_URL   = "https://x2fa-demo-rp.dev.inqbus.de"
+X2FA_URL      = cfg.X2FA_URL
+DEMO_RP_URL   = cfg.DEMO_RP_URL
 CLIENT_ID     = "demo-rp"
-CLIENT_SECRET = _cfg.CLIENT_SECRET
+CLIENT_SECRET = cfg.CLIENT_SECRET
 REDIRECT_URI  = DEMO_RP_URL + "/callback"
-SECRET_KEY    = _cfg.SECRET_KEY
+SECRET_KEY    = cfg.SECRET_KEY
 
-_SUPPORTED_UI  = {"de", "en"}
-_SUPPORTED_X2FA = {"de", "en", "fr", "es", "pt", "it", "nl", "pl",
+SUPPORTED_UI  = {"de", "en"}
+SUPPORTED_X2FA = {"de", "en", "fr", "es", "pt", "it", "nl", "pl",
                    "ru", "zh", "ja", "ko", "ar", "tr", "sv", "cs", "hu"}
 
 app = Flask(__name__)
@@ -68,7 +66,7 @@ babel = Babel()
 
 
 def _get_locale() -> str:
-    return request.accept_languages.best_match(_SUPPORTED_UI, default="en")
+    return request.accept_languages.best_match(SUPPORTED_UI, default="en")
 
 
 babel.init_app(app, locale_selector=_get_locale)
@@ -107,7 +105,7 @@ def _decode_jwt_payload(token: str) -> dict:
 @app.route("/")
 def index():
     return render_template_string(
-        _TEMPLATE,
+        TEMPLATE,
         user=session.get("user"),
         claims=session.get("claims"),
         error=request.args.get("error", ""),
@@ -127,7 +125,7 @@ def login():
     # If no explicit language was chosen, forward the browser's Accept-Language
     # so X2FA can honour it (best match against the supported set).
     if not ui_locales:
-        best = request.accept_languages.best_match(_SUPPORTED_X2FA)
+        best = request.accept_languages.best_match(SUPPORTED_X2FA)
         if best:
             ui_locales = best
 
@@ -214,7 +212,7 @@ def logout():
 # Template
 # ---------------------------------------------------------------------------
 
-_TEMPLATE = """\
+TEMPLATE = """\
 <!DOCTYPE html>
 <html lang="{{ get_locale() }}">
 <head>

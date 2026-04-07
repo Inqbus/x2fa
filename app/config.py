@@ -37,6 +37,18 @@ class Config:
     RATELIMIT_STRATEGY = "moving-window"  # prevents burst attacks at window boundaries
     RATELIMIT_HEADERS_ENABLED = True
 
+    # Rate limits (Flask-Limiter format)
+    RATE_LIMIT_AUTHORIZE        = "10 per minute; 100 per hour"
+    RATE_LIMIT_TOKEN            = "20 per minute"
+    RATE_LIMIT_SETUP_COMPLETE   = "5 per minute"
+    RATE_LIMIT_TOTP_SETUP       = "5 per minute; 20 per hour"
+    RATE_LIMIT_TOTP_VERIFY      = "5 per minute; 20 per hour"
+    RATE_LIMIT_WEBAUTHN_VERIFY  = "10 per minute; 30 per hour"
+    RATE_LIMIT_BACKUP_VERIFY    = "3 per minute; 10 per hour"
+
+    # Security parameters
+    CHALLENGE_TTL_MINUTES = 5
+
     BABEL_DEFAULT_LOCALE = "de"
     BABEL_TRANSLATION_DIRECTORIES = "../translations"
     BABEL_SUPPORTED_LOCALES = [

@@ -14,39 +14,36 @@ import urllib.parse
 import pytest
 from playwright.sync_api import Page
 
+# Must be set before app.config is imported so Dynaconf loads the [e2e] section.
+os.environ.setdefault("ENV_FOR_DYNACONF", "e2e")
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "vendor"))
 
+from app.config import settings as x2fa_settings  # noqa: E402
+
 # ---------------------------------------------------------------------------
-# Constants
+# Constants — read from settings.toml [e2e] section via x2fa_settings
 # ---------------------------------------------------------------------------
 
-# Use environment variables or default values
-_HOST = os.environ.get("E2E_HOST", "127.0.0.1")
-_PORT = int(os.environ.get("E2E_PORT", "5098"))
-_TEST_SECRET = "a" * 32
-_CLIENT_ID = "e2e-client"
-_CLIENT_SECRET = "e2e-secret"
+REDIRECT_URI = f"http://{x2fa_settings.HOST}:{x2fa_settings.CALLBACK_PORT}/callback"
 
-# Dynamically determine callback port
-_CALLBACK_PORT = int(os.environ.get("E2E_CALLBACK_PORT", "19999"))
-_REDIRECT_URI = f"http://{_HOST}:{_CALLBACK_PORT}/callback"
-
-# Pre-computed PKCE pair (verifier only needed at /token, which we don't call)
-_CODE_VERIFIER = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
-_CODE_CHALLENGE = (
-    base64.urlsafe_b64encode(hashlib.sha256(_CODE_VERIFIER.encode()).digest())
+# Pre-computed PKCE challenge (verifier only needed at /token, which we don't call)
+CODE_CHALLENGE = (
+    base64.urlsafe_b64encode(
+        hashlib.sha256("E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM".encode()).digest()
+    )
     .rstrip(b"=")
     .decode()
 )
 
-_BASE_OIDC_REQUEST = {
-    "client_id": _CLIENT_ID,
-    "redirect_uri": _REDIRECT_URI,
+BASE_OIDC_REQUEST = {
+    "client_id": x2fa_settings.CLIENT_ID,
+    "redirect_uri": REDIRECT_URI,
     "scope": "openid",
     "state": "e2estate",
     "nonce": "e2enonce",
-    "code_challenge": _CODE_CHALLENGE,
+    "code_challenge": CODE_CHALLENGE,
     "code_challenge_method": "S256",
     "response_type": "code",
     "login_hint": "e2e-user",
@@ -62,8 +59,8 @@ _BASE_OIDC_REQUEST = {
 @pytest.fixture(scope="session")
 def x2fa_app():
     """Flask app in 'e2e' mode with StaticPool DB, a signing key, and a test client."""
-    os.environ["X2FA_SECRET"] = _TEST_SECRET
-    os.environ["X2FA_DOMAIN"] = "localhost"
+    os.environ["X2FA_SECRET"] = "a" * 32
+    os.environ["X2FA_DOMAIN"] = x2fa_settings.DOMAIN
 
     from app import create_app
     from app.extensions import db
@@ -82,20 +79,16 @@ def x2fa_app():
             PublicFormat,
         )
 
-        crypto = CryptoService(flask_app.config["X2FA_SECRET"])
         priv = ec.generate_private_key(ec.SECP256R1())
-        priv_pem = priv.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption())
-        pub_pem = (
-            priv.public_key()
-            .public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo)
-            .decode()
-        )
-
         db.session.add(
             SigningKey(
                 kid=secrets.token_hex(8),
-                private_key_encrypted=crypto.get_fernet().encrypt(priv_pem),
-                public_key_pem=pub_pem,
+                private_key_encrypted=CryptoService(flask_app.config["X2FA_SECRET"])
+                    .get_fernet()
+                    .encrypt(priv.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption())),
+                public_key_pem=priv.public_key()
+                    .public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo)
+                    .decode(),
                 algorithm="ES256",
                 active=True,
             )
@@ -104,9 +97,9 @@ def x2fa_app():
         # OIDC test client
         db.session.add(
             OIDCClient(
-                client_id=_CLIENT_ID,
-                client_secret=_CLIENT_SECRET,
-                redirect_uris=_REDIRECT_URI,
+                client_id=x2fa_settings.CLIENT_ID,
+                client_secret=x2fa_settings.CLIENT_SECRET,
+                redirect_uris=REDIRECT_URI,
                 allowed_scopes="openid x2fa:setup",
             )
         )
@@ -117,13 +110,12 @@ def x2fa_app():
 
 @pytest.fixture(scope="session")
 def x2fa_server(x2fa_app):
-    """Starts the X2FA Flask app on _PORT in a background thread."""
+    """Starts the X2FA Flask app on x2fa_settings.PORT in a background thread."""
     from werkzeug.serving import make_server
 
-    server = make_server(_HOST, _PORT, x2fa_app)
-    t = threading.Thread(target=server.serve_forever, daemon=True)
-    t.start()
-    yield f"http://{_HOST}:{_PORT}"
+    server = make_server(x2fa_settings.HOST, x2fa_settings.PORT, x2fa_app)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    yield f"http://{x2fa_settings.HOST}:{x2fa_settings.PORT}"
     server.shutdown()
 
 
@@ -155,24 +147,19 @@ def goto_with_session(page: Page, x2fa_server: str):
     ):
         # Use a unique nonce per call to prevent AuthorizationCode replay conflicts
         # between tests that all share the same in-memory DB.
-        unique_nonce = secrets.token_urlsafe(12)
         oidc_req = {
-            **_BASE_OIDC_REQUEST,
+            **BASE_OIDC_REQUEST,
             "login_hint": user_id,
             "ui_locales": ui_locales,
-            "nonce": unique_nonce,
+            "nonce": secrets.token_urlsafe(12),
         }
         if setup_mode:
             oidc_req["scope"] = "openid x2fa:setup"
-        session_data = {
-            "oidc_request": oidc_req,
-            "user_id": user_id,
-            "2fa_verified": False,
-            "setup_mode": setup_mode,
-        }
-        encoded = _encode(session_data)
-        next_enc = urllib.parse.quote(path, safe="/?=&")
-        page.goto(f"{x2fa_server}/test/session?d={encoded}&next={next_enc}")
+        page.goto(
+            f"{x2fa_server}/test/session"
+            f"?d={_encode({'oidc_request': oidc_req, 'user_id': user_id, '2fa_verified': False, 'setup_mode': setup_mode})}"
+            f"&next={urllib.parse.quote(path, safe='/?=&')}"
+        )
 
     return _goto
 
@@ -259,7 +246,7 @@ def callback_server():
 
     class _Handler(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
-            _queue.put(f"http://{_HOST}:{_CALLBACK_PORT}{self.path}")
+            _queue.put(f"http://{x2fa_settings.HOST}:{x2fa_settings.CALLBACK_PORT}{self.path}")
             self.send_response(200)
             self.end_headers()
             self.wfile.write(b"OK")
@@ -267,9 +254,8 @@ def callback_server():
         def log_message(self, *_):
             pass  # silence access log
 
-    srv = http.server.HTTPServer((_HOST, _CALLBACK_PORT), _Handler)
-    t = threading.Thread(target=srv.serve_forever, daemon=True)
-    t.start()
+    srv = http.server.HTTPServer((x2fa_settings.HOST, x2fa_settings.CALLBACK_PORT), _Handler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
 
     class _Capture:
         def capture(self, timeout: float = 6.0) -> str:
@@ -277,7 +263,7 @@ def callback_server():
                 return _queue.get(timeout=timeout)
             except queue.Empty:
                 raise AssertionError(
-                    f"No OIDC callback received on port {_CALLBACK_PORT} within {timeout} s"
+                    f"No OIDC callback received on port {x2fa_settings.CALLBACK_PORT} within {timeout} s"
                 )
 
     yield _Capture()

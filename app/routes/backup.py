@@ -3,14 +3,15 @@
 from http import HTTPStatus
 
 from flask import (
-    Blueprint, abort, g, redirect, render_template,
+    Blueprint, abort, current_app, g, redirect, render_template,
     request, session, url_for,
 )
 from flask_babel import gettext as _
 
 from app.extensions import db, limiter
 from app.models import BackupCode
-from app.routes import ACTION_FAIL, ACTION_VERIFY, METHOD_BACKUP, audit_log
+from app.constants import ACTION_FAIL, ACTION_VERIFY, METHOD_BACKUP
+from app.routes import audit_log
 
 backup_bp = Blueprint("backup", __name__)
 
@@ -39,11 +40,9 @@ def backup_verify_get():
 # ---------------------------------------------------------------------------
 
 @backup_bp.route("/backup/verify", methods=["POST"])
-@limiter.limit("3 per minute; 10 per hour")
+@limiter.limit(lambda: current_app.config["RATE_LIMIT_BACKUP_VERIFY"])
 def backup_verify_post():
-    if not session.get("oidc_request") or not session.get("user_id"):
-        abort(HTTPStatus.BAD_REQUEST, _("No active session."))
-
+    _require_session()
     user_id = session["user_id"]
     code = request.form.get("code", "").strip().upper()
 

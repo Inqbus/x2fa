@@ -2,19 +2,12 @@ import hashlib
 
 from flask import current_app, request
 
+from app.constants import (
+    ACTION_FAIL, ACTION_SETUP, ACTION_VERIFY,
+    METHOD_BACKUP, METHOD_TOTP, METHOD_WEBAUTHN_PLATFORM, METHOD_WEBAUTHN_ROAMING,
+)
 from app.extensions import db
 from app.models import AuditLog
-
-# Audit action constants
-ACTION_SETUP  = "setup"
-ACTION_VERIFY = "verify"
-ACTION_FAIL   = "fail"
-
-# Audit method constants
-METHOD_WEBAUTHN_PLATFORM = "webauthn_platform"
-METHOD_WEBAUTHN_ROAMING  = "webauthn_roaming"
-METHOD_TOTP              = "totp"
-METHOD_BACKUP            = "backup"
 
 
 def client_ip() -> str:

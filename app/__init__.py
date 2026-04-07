@@ -22,18 +22,16 @@ def create_app(config_name: str = "production") -> Flask:
     )
 
     # Load configuration
-    _configs = {
+    app.config.from_object({
         "production":  ProductionConfig,
         "testing":     TestingConfig,
         "e2e":         E2ETestingConfig,
         "development": Config,
-    }
-    app.config.from_object(_configs.get(config_name, Config))
+    }.get(config_name, Config))
 
     # Disable Authlib HTTPS requirement for development/testing
     if config_name in ("development", "testing", "e2e"):
-        import os as _os
-        _os.environ.setdefault("AUTHLIB_INSECURE_TRANSPORT", "1")
+        os.environ.setdefault("AUTHLIB_INSECURE_TRANSPORT", "1")
 
     # Startup checks
     if not app.config.get("SECRET_KEY"):
@@ -57,17 +55,17 @@ def create_app(config_name: str = "production") -> Flask:
 
     # Internationalization: language preference comes from ui_locales in the
     # OIDC request (set by the RP), with Accept-Language as fallback.
-    _SUPPORTED = {"de", "en", "fr", "es", "pt", "it", "nl", "pl",
-                  "ru", "zh", "ja", "ko", "ar", "tr", "sv", "cs", "hu"}
+    SUPPORTED = {"de", "en", "fr", "es", "pt", "it", "nl", "pl",
+                 "ru", "zh", "ja", "ko", "ar", "tr", "sv", "cs", "hu"}
 
     def _get_locale():
         from flask import request, session
         ui_locales = session.get("oidc_request", {}).get("ui_locales", "")
         for tag in ui_locales.split():
             lang = tag.split("-")[0].lower()
-            if lang in _SUPPORTED:
+            if lang in SUPPORTED:
                 return lang
-        return request.accept_languages.best_match(_SUPPORTED, default="de")
+        return request.accept_languages.best_match(SUPPORTED, default="de")
 
     babel.init_app(app, locale_selector=_get_locale)
 
@@ -120,12 +118,6 @@ def create_app(config_name: str = "production") -> Flask:
     # In test/e2e mode, allow localhost HTTP callbacks so Chromium follows OIDC
     # redirect chains through form submissions (Chrome enforces form-action on
     # the full redirect chain, blocking non-self http: targets otherwise).
-    _extra_form_action = (
-        " http://127.0.0.1:*"
-        if config_name in ("testing", "e2e")
-        else ""
-    )
-
     @app.after_request
     def _security_headers(response):
         nonce = getattr(g, "nonce", "")
@@ -136,7 +128,7 @@ def create_app(config_name: str = "production") -> Flask:
             "style-src 'unsafe-inline'",
             "img-src data:",          # for TOTP QR code
             "connect-src 'self'",
-            f"form-action 'self' https:{_extra_form_action}",
+            f"form-action 'self' https:{'  http://127.0.0.1:*' if config_name in ('testing', 'e2e') else ''}",
             "base-uri 'none'",
             "frame-ancestors 'none'",
         ]

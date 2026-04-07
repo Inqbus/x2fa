@@ -19,5 +19,5 @@ class TestSetupChoose:
 
         page.click("a[href='/totp/setup']")
 
-        expect(page).to_have_url(f"http://127.0.0.1:5098/totp/setup")
+        expect(page).to_have_url(f"{x2fa_server}/totp/setup")
         expect(page.locator("img[alt='TOTP QR-Code']")).to_be_visible()

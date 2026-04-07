@@ -1,0 +1,7 @@
+# Demo RP configuration — override via env vars DEMO_RP_SECRET_KEY / DEMO_RP_CLIENT_SECRET
+SECRET_KEY     = "change-me-demo-rp-secret"
+CLIENT_SECRET  = "testsecret"
+HOST           = "127.0.0.1"
+PORT           = 5099
+X2FA_URL       = "https://x2fa.dev.inqbus.de"
+DEMO_RP_URL    = "https://x2fa-demo-rp.dev.inqbus.de"
