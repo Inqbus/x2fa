@@ -5,12 +5,13 @@ from authlib.oauth2.rfc6749.grants import AuthorizationCodeGrant
 from authlib.oauth2.rfc7636 import CodeChallenge
 from authlib.oidc.core.grants import OpenIDCode
 
-from app.extensions import db
-from app.models import AuthorizationCode, OIDCClient, SigningKey
+from x2fa.extensions import db
+from x2fa.models import AuthorizationCode, OIDCClient, SigningKey
 
 
 class S256OnlyCodeChallenge(CodeChallenge):
     """Restricts PKCE to S256 only — 'plain' is explicitly rejected."""
+
     SUPPORTED_CODE_CHALLENGE_METHOD = ["S256"]
 
 
@@ -23,6 +24,7 @@ class X2FAAuthorizationCodeGrant(AuthorizationCodeGrant):
       2. /token      → query_authorization_code → delete_authorization_code
                        → authenticate_user
     """
+
     TOKEN_ENDPOINT_AUTH_METHODS = ["client_secret_post", "client_secret_basic"]
 
     def save_authorization_code(self, code, request):
@@ -84,12 +86,11 @@ class X2FAOpenIDCode(OpenIDCode):
     def get_jwt_config(self, grant, client=None):
         """Returns the JWT signing configuration for the ID token."""
         from flask import current_app
-        from app.services.crypto import CryptoService
+        from x2fa.services.crypto import CryptoService
 
         crypto = CryptoService(current_app.config["X2FA_SECRET"])
         signing_key = (
-            SigningKey.query
-            .filter(
+            SigningKey.query.filter(
                 SigningKey.active == True,
                 SigningKey.expires_at > datetime.now(timezone.utc),
             )
@@ -106,7 +107,7 @@ class X2FAOpenIDCode(OpenIDCode):
             "key": private_key,
             "alg": signing_key.algorithm,
             "iss": f"https://{domain}",
-            "exp": 60,          # ID token lifetime in seconds
+            "exp": 60,  # ID token lifetime in seconds
             "kid": signing_key.kid,
         }
 

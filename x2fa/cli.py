@@ -5,11 +5,15 @@ import click
 from flask import current_app
 from flask.cli import with_appcontext
 
-from app.extensions import db
-from app.constants import NEVER_USED
-from app.models import (
-    AuditLog, BackupCode, Credential, OIDCClient,
-    SigningKey, TOTPSecret,
+from x2fa.extensions import db
+from x2fa.constants import NEVER_USED
+from x2fa.models import (
+    AuditLog,
+    BackupCode,
+    Credential,
+    OIDCClient,
+    SigningKey,
+    TOTPSecret,
 )
 
 
@@ -19,14 +23,17 @@ def init_keys():
     """Generates an EC P-256 signing key for ID tokens (ES256)."""
     from cryptography.hazmat.primitives.asymmetric import ec
     from cryptography.hazmat.primitives.serialization import (
-        Encoding, NoEncryption, PublicFormat, PrivateFormat,
+        Encoding,
+        NoEncryption,
+        PublicFormat,
+        PrivateFormat,
     )
-    from app.services.crypto import CryptoService
+    from x2fa.services.crypto import CryptoService
 
     crypto = CryptoService(current_app.config["X2FA_SECRET"])
 
     private_key = ec.generate_private_key(ec.SECP256R1())
-    public_key  = private_key.public_key()
+    public_key = private_key.public_key()
 
     private_pem = private_key.private_bytes(
         encoding=Encoding.PEM,
@@ -44,13 +51,15 @@ def init_keys():
     # Deactivate all existing keys
     SigningKey.query.update({"active": False})
 
-    db.session.add(SigningKey(
-        kid=kid,
-        private_key_encrypted=private_encrypted,
-        public_key_pem=public_pem,
-        algorithm="ES256",
-        active=True,
-    ))
+    db.session.add(
+        SigningKey(
+            kid=kid,
+            private_key_encrypted=private_encrypted,
+            public_key_pem=public_pem,
+            algorithm="ES256",
+            active=True,
+        )
+    )
     db.session.commit()
     click.echo(f"Signing key generated: kid={kid}")
 
@@ -58,7 +67,9 @@ def init_keys():
 @click.command("add-client")
 @click.argument("client_id")
 @click.argument("redirect_uri")
-@click.option("--secret", default=None, help="Client secret (generated automatically if empty)")
+@click.option(
+    "--secret", default=None, help="Client secret (generated automatically if empty)"
+)
 @click.option("--scopes", default="openid x2fa:setup", show_default=True)
 @with_appcontext
 def add_client(client_id, redirect_uri, secret, scopes):
@@ -68,17 +79,23 @@ def add_client(client_id, redirect_uri, secret, scopes):
 
     existing = db.session.get(OIDCClient, client_id)
     if existing:
-        click.echo(f"Client '{client_id}' already exists. Updating configuration.", err=True)
-        existing.redirect_uris  = redirect_uri
+        click.echo(
+            f"Client '{client_id}' already exists. Updating configuration.", err=True
+        )
+        existing.redirect_uris = redirect_uri
         existing.allowed_scopes = scopes
-        existing.client_secret  = secret  # always update (new random or explicitly given)
+        existing.client_secret = (
+            secret  # always update (new random or explicitly given)
+        )
     else:
-        db.session.add(OIDCClient(
-            client_id=client_id,
-            client_secret=secret,
-            redirect_uris=redirect_uri,
-            allowed_scopes=scopes,
-        ))
+        db.session.add(
+            OIDCClient(
+                client_id=client_id,
+                client_secret=secret,
+                redirect_uris=redirect_uri,
+                allowed_scopes=scopes,
+            )
+        )
 
     db.session.commit()
     click.echo(f"Client ID:     {client_id}")
@@ -119,6 +136,7 @@ def revoke_client(client_id):
 def stats():
     """Shows usage statistics."""
     from sqlalchemy import func
+
     rows = (
         db.session.query(AuditLog.action, AuditLog.method, func.count())
         .group_by(AuditLog.action, AuditLog.method)
@@ -130,7 +148,9 @@ def stats():
 
     click.echo(f"\nCredentials:  {Credential.query.count()}")
     click.echo(f"TOTP secrets: {TOTPSecret.query.count()}")
-    click.echo(f"Backup codes: {BackupCode.query.filter(BackupCode.used_at == NEVER_USED).count()} remaining")
+    click.echo(
+        f"Backup codes: {BackupCode.query.filter(BackupCode.used_at == NEVER_USED).count()} remaining"
+    )
 
 
 @click.command("cleanup-codes")

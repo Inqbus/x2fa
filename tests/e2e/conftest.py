@@ -20,7 +20,7 @@ os.environ.setdefault("ENV_FOR_DYNACONF", "e2e")
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "vendor"))
 
-from app.config import settings as x2fa_settings  # noqa: E402
+from x2fa.config import settings as x2fa_settings  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Constants — read from settings.toml [e2e] section via x2fa_settings
@@ -62,10 +62,10 @@ def x2fa_app():
     os.environ["X2FA_SECRET"] = "a" * 32
     os.environ["X2FA_DOMAIN"] = x2fa_settings.DOMAIN
 
-    from app import create_app
-    from app.extensions import db
-    from app.models import OIDCClient, SigningKey
-    from app.services.crypto import CryptoService
+    from x2fa import create_app
+    from x2fa.extensions import db
+    from x2fa.models import OIDCClient, SigningKey
+    from x2fa.services.crypto import CryptoService
 
     flask_app = create_app("e2e")
 
@@ -84,11 +84,15 @@ def x2fa_app():
             SigningKey(
                 kid=secrets.token_hex(8),
                 private_key_encrypted=CryptoService(flask_app.config["X2FA_SECRET"])
-                    .get_fernet()
-                    .encrypt(priv.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption())),
+                .get_fernet()
+                .encrypt(
+                    priv.private_bytes(
+                        Encoding.PEM, PrivateFormat.PKCS8, NoEncryption()
+                    )
+                ),
                 public_key_pem=priv.public_key()
-                    .public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo)
-                    .decode(),
+                .public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo)
+                .decode(),
                 algorithm="ES256",
                 active=True,
             )
@@ -175,9 +179,9 @@ def create_totp(x2fa_app):
 
     def _create(user_id: str, totp_secret: str | None = None) -> str:
         import pyotp
-        from app.extensions import db
-        from app.models import TOTPSecret
-        from app.services.crypto import CryptoService
+        from x2fa.extensions import db
+        from x2fa.models import TOTPSecret
+        from x2fa.services.crypto import CryptoService
 
         if totp_secret is None:
             totp_secret = pyotp.random_base32()
@@ -207,9 +211,9 @@ def create_backup_codes(x2fa_app):
     """Create backup codes for a user_id. Returns the list of plaintext codes."""
 
     def _create(user_id: str, codes: list[str] | None = None) -> list[str]:
-        from app.extensions import db
-        from app.models import BackupCode
-        from app.services.crypto import CryptoService
+        from x2fa.extensions import db
+        from x2fa.models import BackupCode
+        from x2fa.services.crypto import CryptoService
 
         if codes is None:
             codes = [secrets.token_hex(4).upper() for _ in range(10)]
@@ -246,7 +250,9 @@ def callback_server():
 
     class _Handler(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
-            _queue.put(f"http://{x2fa_settings.HOST}:{x2fa_settings.CALLBACK_PORT}{self.path}")
+            _queue.put(
+                f"http://{x2fa_settings.HOST}:{x2fa_settings.CALLBACK_PORT}{self.path}"
+            )
             self.send_response(200)
             self.end_headers()
             self.wfile.write(b"OK")
@@ -254,7 +260,9 @@ def callback_server():
         def log_message(self, *_):
             pass  # silence access log
 
-    srv = http.server.HTTPServer((x2fa_settings.HOST, x2fa_settings.CALLBACK_PORT), _Handler)
+    srv = http.server.HTTPServer(
+        (x2fa_settings.HOST, x2fa_settings.CALLBACK_PORT), _Handler
+    )
     threading.Thread(target=srv.serve_forever, daemon=True).start()
 
     class _Capture:

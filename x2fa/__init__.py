@@ -6,10 +6,10 @@ from http import HTTPStatus
 
 from flask import Flask, g, render_template
 
-from app.config import Config, E2ETestingConfig, ProductionConfig, TestingConfig
-from app.extensions import babel, db, limiter, migrate
-from app.oidc import oauth
-from app.oidc.grants import (
+from x2fa.config import Config, E2ETestingConfig, ProductionConfig, TestingConfig
+from x2fa.extensions import babel, db, limiter, migrate
+from x2fa.oidc import oauth
+from x2fa.oidc.grants import (
     S256OnlyCodeChallenge,
     X2FAAuthorizationCodeGrant,
     X2FAOpenIDCode,
@@ -104,16 +104,16 @@ def create_app(config_name: str = "production") -> Flask:
     )
 
     # Initialize WebAuthn
-    import webauthn_helpers
+    from x2fa import webauthn_helpers
 
     webauthn_helpers.init_webauthn(app.config["X2FA_DOMAIN"])
 
     # Register blueprints
-    from app.routes.auth import auth_bp
-    from app.routes.setup import setup_bp
-    from app.routes.verify import verify_bp
-    from app.routes.totp import totp_bp
-    from app.routes.backup import backup_bp
+    from x2fa.routes.auth import auth_bp
+    from x2fa.routes.setup import setup_bp
+    from x2fa.routes.verify import verify_bp
+    from x2fa.routes.totp import totp_bp
+    from x2fa.routes.backup import backup_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(setup_bp)
@@ -122,13 +122,13 @@ def create_app(config_name: str = "production") -> Flask:
     app.register_blueprint(backup_bp)
 
     # Register CLI commands
-    from app.cli import register_commands
+    from x2fa.cli import register_commands
 
     register_commands(app)
 
     # Test-only blueprint for session injection (E2E Playwright tests)
     if config_name in ("testing", "e2e"):
-        from app.routes.test_helpers import test_bp
+        from x2fa.routes.test_helpers import test_bp
 
         app.register_blueprint(test_bp)
 

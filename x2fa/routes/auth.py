@@ -16,9 +16,9 @@ from flask import (
 )
 from flask_babel import gettext as _
 
-from app.extensions import db, limiter
-from app.models import AuthorizationCode, OIDCClient, SigningKey
-from app.oidc import oauth
+from x2fa.extensions import db, limiter
+from x2fa.models import AuthorizationCode, OIDCClient, SigningKey
+from x2fa.oidc import oauth
 
 auth_bp = Blueprint("auth", __name__)
 

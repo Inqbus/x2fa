@@ -6,9 +6,9 @@ import pyotp
 def _setup_totp(client, user_id: str = "user_test") -> str:
     """Creates a verified TOTP secret in the DB and returns the plaintext value."""
     from flask import current_app
-    from totp_helpers import generate_secret
-    from app.services.crypto import CryptoService
-    from app.models import TOTPSecret, db
+    from x2fa.totp_helpers import generate_secret
+    from x2fa.services.crypto import CryptoService
+    from x2fa.models import TOTPSecret, db
 
     secret = generate_secret()
     with client.app_context():
@@ -20,11 +20,13 @@ def _setup_totp(client, user_id: str = "user_test") -> str:
             totp_record.verified = True
             totp_record.last_used_at = None
         else:
-            db.session.add(TOTPSecret(
-                user_id=user_id,
-                secret_encrypted=secret_encrypted,
-                verified=True,
-            ))
+            db.session.add(
+                TOTPSecret(
+                    user_id=user_id,
+                    secret_encrypted=secret_encrypted,
+                    verified=True,
+                )
+            )
         db.session.commit()
     return secret
 
@@ -33,12 +35,13 @@ def _setup_totp(client, user_id: str = "user_test") -> str:
 # GET /totp/setup
 # ---------------------------------------------------------------------------
 
+
 def test_totp_setup_get_valid(client):
     client.set_session(setup_mode=True)
     status, headers, body = client.get("/totp/setup")
     assert status.startswith("200")
     assert b"data:image/png;base64" in body
-    assert b"otpauth" not in body          # provisioning URI must not appear in plaintext
+    assert b"otpauth" not in body  # provisioning URI must not appear in plaintext
     assert "Content-Security-Policy" in headers
 
 
@@ -48,7 +51,7 @@ def test_totp_setup_get_no_session(client):
 
 
 def test_totp_setup_get_stores_secret(client):
-    from app.models import TOTPSecret, db
+    from x2fa.models import TOTPSecret, db
 
     client.set_session(setup_mode=True)
     client.get("/totp/setup")
@@ -62,15 +65,17 @@ def test_totp_setup_get_stores_secret(client):
 # POST /totp/setup/verify
 # ---------------------------------------------------------------------------
 
+
 def test_totp_setup_verify_correct_code(client):
-    from app.services.crypto import CryptoService
-    from app.models import TOTPSecret, db
+    from x2fa.services.crypto import CryptoService
+    from x2fa.models import TOTPSecret, db
 
     client.set_session(setup_mode=True)
     client.get("/totp/setup")
 
     with client.app_context():
         from flask import current_app
+
         rec = db.session.get(TOTPSecret, "user_test")
         crypto = CryptoService(current_app.config["X2FA_SECRET"])
         secret = crypto.decrypt(bytes(rec.secret_encrypted))
@@ -88,14 +93,15 @@ def test_totp_setup_verify_correct_code(client):
 
 
 def test_totp_setup_verify_generates_backup_codes(client):
-    from app.services.crypto import CryptoService
-    from app.models import BackupCode, TOTPSecret, db
+    from x2fa.services.crypto import CryptoService
+    from x2fa.models import BackupCode, TOTPSecret, db
 
     client.set_session(setup_mode=True)
     client.get("/totp/setup")
 
     with client.app_context():
         from flask import current_app
+
         rec = db.session.get(TOTPSecret, "user_test")
         crypto = CryptoService(current_app.config["X2FA_SECRET"])
         secret = crypto.decrypt(bytes(rec.secret_encrypted))
@@ -106,7 +112,8 @@ def test_totp_setup_verify_generates_backup_codes(client):
     with client.app_context():
         codes = BackupCode.query.filter_by(user_id="user_test").all()
     assert len(codes) == 10
-    from app.constants import NEVER_USED
+    from x2fa.constants import NEVER_USED
+
     assert all(c.used_at == NEVER_USED for c in codes)
 
 
@@ -127,6 +134,7 @@ def test_totp_setup_verify_no_session(client):
 # GET /totp/verify
 # ---------------------------------------------------------------------------
 
+
 def test_totp_verify_get_no_secret(client):
     client.set_session()
     status, headers, _ = client.get("/totp/verify")
@@ -135,12 +143,13 @@ def test_totp_verify_get_no_secret(client):
 
 
 def test_totp_verify_get_unverified_secret(client):
-    from totp_helpers import generate_secret
-    from app.services.crypto import CryptoService
-    from app.models import TOTPSecret, db
+    from x2fa.totp_helpers import generate_secret
+    from x2fa.services.crypto import CryptoService
+    from x2fa.models import TOTPSecret, db
 
     with client.app_context():
         from flask import current_app
+
         crypto = CryptoService(current_app.config["X2FA_SECRET"])
         secret_encrypted = crypto.encrypt(generate_secret())
         totp_record = db.session.get(TOTPSecret, "user_test")
@@ -148,11 +157,13 @@ def test_totp_verify_get_unverified_secret(client):
             totp_record.secret_encrypted = secret_encrypted
             totp_record.verified = False
         else:
-            db.session.add(TOTPSecret(
-                user_id="user_test",
-                secret_encrypted=secret_encrypted,
-                verified=False,
-            ))
+            db.session.add(
+                TOTPSecret(
+                    user_id="user_test",
+                    secret_encrypted=secret_encrypted,
+                    verified=False,
+                )
+            )
         db.session.commit()
 
     client.set_session()
@@ -172,6 +183,7 @@ def test_totp_verify_get_valid(client):
 # ---------------------------------------------------------------------------
 # POST /totp/verify
 # ---------------------------------------------------------------------------
+
 
 def test_totp_verify_correct_code(client):
     secret = _setup_totp(client)
@@ -194,7 +206,7 @@ def test_totp_verify_wrong_code(client):
 
 def test_totp_verify_replay(client):
     """The same code within 30 s must be rejected (replay protection)."""
-    from app.models import TOTPSecret, db
+    from x2fa.models import TOTPSecret, db
     from datetime import datetime, timezone
 
     secret = _setup_totp(client)

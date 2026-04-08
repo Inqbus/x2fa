@@ -14,27 +14,29 @@ TEST_DOMAIN = "test.example.com"
 
 # Default OIDC session for tests (verification flow)
 OIDC_REQUEST_VERIFY = {
-    "client_id":             "test_client",
-    "redirect_uri":          "https://app/cb",
-    "scope":                 "openid",
-    "state":                 "teststate",
-    "nonce":                 "testnonce",
-    "code_challenge":        "e3b0c44298fc1c149afbf4c8996fb924",
+    "client_id": "test_client",
+    "redirect_uri": "https://app/cb",
+    "scope": "openid",
+    "state": "teststate",
+    "nonce": "testnonce",
+    "code_challenge": "e3b0c44298fc1c149afbf4c8996fb924",
     "code_challenge_method": "S256",
-    "response_type":         "code",
-    "login_hint":            "user_test",
+    "response_type": "code",
+    "login_hint": "user_test",
 }
 
 
 @pytest.fixture(scope="session", autouse=True)
 def init_services():
     """Initializes Crypto and WebAuthn once per test session."""
+    import os
+
     os.environ["X2FA_SECRET"] = TEST_SECRET
     os.environ["X2FA_DOMAIN"] = TEST_DOMAIN
     os.environ["X2FA_DATABASE_URL"] = "sqlite:///:memory:"
 
-    from app.services.crypto import CryptoService
-    from webauthn_helpers import init_webauthn
+    from x2fa.services.crypto import CryptoService
+    from x2fa.webauthn_helpers import init_webauthn
 
     CryptoService(TEST_SECRET)
     init_webauthn(TEST_DOMAIN)
@@ -51,8 +53,9 @@ class TestClient:
         """App context for DB operations outside of requests."""
         return self._app.app_context()
 
-    def set_session(self, user_id: str = "user_test", setup_mode: bool = False,
-                    ui_locales: str = ""):
+    def set_session(
+        self, user_id: str = "user_test", setup_mode: bool = False, ui_locales: str = ""
+    ):
         """Sets a valid OIDC session before the next request."""
         oidc_req = OIDC_REQUEST_VERIFY.copy()
         oidc_req["login_hint"] = user_id
@@ -80,6 +83,7 @@ class TestClient:
 
 @pytest.fixture
 def client():
-    from app import create_app
+    from x2fa import create_app
+
     flask_app = create_app("testing")
     return TestClient(flask_app)

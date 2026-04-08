@@ -7,20 +7,31 @@ from datetime import datetime, timezone, timedelta
 from http import HTTPStatus
 
 from flask import (
-    Blueprint, abort, current_app, g, jsonify, redirect,
-    render_template, request, session, url_for,
+    Blueprint,
+    abort,
+    current_app,
+    g,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
 )
 from flask_babel import gettext as _
 
-import webauthn_helpers
-from app.extensions import db, limiter
-from app.models import BackupCode, Challenge, Credential
-from app.constants import (
-    ACTION_SETUP, BACKUP_CODES_COUNT, CHALLENGE_BYTES,
-    METHOD_WEBAUTHN_PLATFORM, METHOD_WEBAUTHN_ROAMING,
+from x2fa import webauthn_helpers
+from x2fa.extensions import db, limiter
+from x2fa.models import BackupCode, Challenge, Credential
+from x2fa.constants import (
+    ACTION_SETUP,
+    BACKUP_CODES_COUNT,
+    CHALLENGE_BYTES,
+    METHOD_WEBAUTHN_PLATFORM,
+    METHOD_WEBAUTHN_ROAMING,
 )
-from app.routes import audit_log
-from app.services.crypto import CryptoService
+from x2fa.routes import audit_log
+from x2fa.services.crypto import CryptoService
 
 setup_bp = Blueprint("setup", __name__)
 
@@ -28,12 +39,16 @@ setup_bp = Blueprint("setup", __name__)
 def _require_session():
     """Aborts with 400 if no active OIDC session is present."""
     if not session.get("oidc_request") or not session.get("user_id"):
-        abort(HTTPStatus.BAD_REQUEST, _("No active session. Please restart the login process."))
+        abort(
+            HTTPStatus.BAD_REQUEST,
+            _("No active session. Please restart the login process."),
+        )
 
 
 # ---------------------------------------------------------------------------
 # GET /setup  —  method selection screen
 # ---------------------------------------------------------------------------
+
 
 @setup_bp.route("/setup")
 def setup_choose():
@@ -45,24 +60,31 @@ def setup_choose():
 # GET /setup/webauthn  —  WebAuthn registration UI
 # ---------------------------------------------------------------------------
 
+
 @setup_bp.route("/setup/webauthn")
 def setup_webauthn_get():
     _require_session()
     user_id = session["user_id"]
 
     challenge_bytes = secrets.token_bytes(CHALLENGE_BYTES)
-    challenge_id    = str(uuid.uuid4())
-    expires_at      = datetime.now(timezone.utc) + timedelta(minutes=current_app.config["CHALLENGE_TTL_MINUTES"])
+    challenge_id = str(uuid.uuid4())
+    expires_at = datetime.now(timezone.utc) + timedelta(
+        minutes=current_app.config["CHALLENGE_TTL_MINUTES"]
+    )
 
-    db.session.add(Challenge(
-        challenge_id=challenge_id,
-        user_id=user_id,
-        challenge=challenge_bytes,
-        expires_at=expires_at,
-    ))
+    db.session.add(
+        Challenge(
+            challenge_id=challenge_id,
+            user_id=user_id,
+            challenge=challenge_bytes,
+            expires_at=expires_at,
+        )
+    )
     db.session.commit()
 
-    options_json = webauthn_helpers.build_registration_options_json(user_id, challenge_bytes)
+    options_json = webauthn_helpers.build_registration_options_json(
+        user_id, challenge_bytes
+    )
 
     return render_template(
         "setup.html",
@@ -76,6 +98,7 @@ def setup_webauthn_get():
 # POST /setup/complete  —  process WebAuthn registration response
 # ---------------------------------------------------------------------------
 
+
 @setup_bp.route("/setup/complete", methods=["POST"])
 @limiter.limit(lambda: current_app.config["RATE_LIMIT_SETUP_COMPLETE"])
 def setup_complete():
@@ -86,7 +109,7 @@ def setup_complete():
     if not data:
         return jsonify({"error": _("Missing JSON body.")}), HTTPStatus.BAD_REQUEST
 
-    user_id      = session["user_id"]
+    user_id = session["user_id"]
     challenge_id = data.get("challenge_id", "")
 
     # Consume the challenge (single-use, TTL check)
@@ -105,13 +128,15 @@ def setup_complete():
     challenge_bytes = bytes(ch.challenge)
 
     # Build the credential JSON structure expected by py_webauthn
-    credential_json = json.dumps({
-        "id":         data.get("id"),
-        "rawId":      data.get("rawId"),
-        "type":       data.get("type"),
-        "transports": data.get("transports", []),
-        "response":   data.get("response", {}),
-    })
+    credential_json = json.dumps(
+        {
+            "id": data.get("id"),
+            "rawId": data.get("rawId"),
+            "type": data.get("type"),
+            "transports": data.get("transports", []),
+            "response": data.get("response", {}),
+        }
+    )
 
     try:
         reg = webauthn_helpers.verify_registration(challenge_bytes, credential_json)
@@ -120,21 +145,22 @@ def setup_complete():
         return jsonify({"error": str(exc)}), HTTPStatus.BAD_REQUEST
 
     auth_type = reg.get("authenticator_type", "roaming")
-    method    = (
-        METHOD_WEBAUTHN_PLATFORM if auth_type == "platform"
-        else METHOD_WEBAUTHN_ROAMING
+    method = (
+        METHOD_WEBAUTHN_PLATFORM if auth_type == "platform" else METHOD_WEBAUTHN_ROAMING
     )
 
-    db.session.add(Credential(
-        credential_id=reg["credential_id"],
-        user_id=user_id,
-        public_key=reg["public_key"],
-        sign_count=reg["sign_count"],
-        authenticator_type=auth_type,
-        device_type=reg.get("device_type", "single_device"),
-        transport=reg.get("transport") or "",
-        is_passkey=reg["is_passkey"],
-    ))
+    db.session.add(
+        Credential(
+            credential_id=reg["credential_id"],
+            user_id=user_id,
+            public_key=reg["public_key"],
+            sign_count=reg["sign_count"],
+            authenticator_type=auth_type,
+            device_type=reg.get("device_type", "single_device"),
+            transport=reg.get("transport") or "",
+            is_passkey=reg["is_passkey"],
+        )
+    )
 
     # Generate single-use backup codes and store their bcrypt hashes
     codes = CryptoService.generate_backup_codes(BACKUP_CODES_COUNT)
@@ -155,14 +181,19 @@ def setup_complete():
 # GET /setup/done  —  one-time backup code display
 # ---------------------------------------------------------------------------
 
+
 @setup_bp.route("/setup/done")
 def setup_done():
     backup_codes = session.pop("backup_codes", [])
     if not backup_codes and not session.get("2fa_verified"):
-        abort(HTTPStatus.BAD_REQUEST, _("No active setup session. Please restart the login process."))
+        abort(
+            HTTPStatus.BAD_REQUEST,
+            _("No active setup session. Please restart the login process."),
+        )
 
     # Reconstruct the /authorize URL to continue the OIDC flow
-    from app.routes.auth import _authorize_continue_url
+    from x2fa.routes.auth import _authorize_continue_url
+
     continue_url = _authorize_continue_url()
 
     return render_template(

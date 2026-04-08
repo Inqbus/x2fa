@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 from http import HTTPStatus
 
-import totp_helpers
+from x2fa import totp_helpers
 from flask import (
     Blueprint,
     abort,
@@ -17,9 +17,9 @@ from flask import (
 )
 from flask_babel import gettext as _
 
-from app.extensions import db, limiter
-from app.models import BackupCode, TOTPSecret
-from app.constants import (
+from x2fa.extensions import db, limiter
+from x2fa.models import BackupCode, TOTPSecret
+from x2fa.constants import (
     ACTION_FAIL,
     ACTION_SETUP,
     ACTION_VERIFY,
@@ -27,8 +27,8 @@ from app.constants import (
     METHOD_TOTP,
     NEVER_USED,
 )
-from app.routes import audit_log
-from app.services.crypto import CryptoService
+from x2fa.routes import audit_log
+from x2fa.services.crypto import CryptoService
 
 totp_bp = Blueprint("totp", __name__)
 
@@ -138,7 +138,7 @@ def totp_verify_get():
 
     totp_record = db.session.get(TOTPSecret, user_id)
     if totp_record is None or not totp_record.verified:
-        from app.routes.auth import _oidc_error_redirect
+        from x2fa.routes.auth import _oidc_error_redirect
 
         return _oidc_error_redirect("access_denied")
 
@@ -186,6 +186,6 @@ def totp_verify_post():
     audit_log(ACTION_VERIFY, METHOD_TOTP, user_id)
 
     session["2fa_verified"] = True
-    from app.routes.auth import _authorize_continue_url
+    from x2fa.routes.auth import _authorize_continue_url
 
     return redirect(_authorize_continue_url())

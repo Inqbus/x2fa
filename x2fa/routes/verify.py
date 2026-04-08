@@ -7,19 +7,30 @@ from datetime import datetime, timezone, timedelta
 from http import HTTPStatus
 
 from flask import (
-    Blueprint, abort, current_app, g, jsonify, redirect,
-    render_template, request, session, url_for,
+    Blueprint,
+    abort,
+    current_app,
+    g,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
 )
 from flask_babel import gettext as _
 
-import webauthn_helpers
-from app.extensions import db, limiter
-from app.models import Challenge, Credential
-from app.constants import (
-    ACTION_FAIL, ACTION_VERIFY, CHALLENGE_BYTES,
-    METHOD_WEBAUTHN_PLATFORM, METHOD_WEBAUTHN_ROAMING,
+from x2fa import webauthn_helpers
+from x2fa.extensions import db, limiter
+from x2fa.models import Challenge, Credential
+from x2fa.constants import (
+    ACTION_FAIL,
+    ACTION_VERIFY,
+    CHALLENGE_BYTES,
+    METHOD_WEBAUTHN_PLATFORM,
+    METHOD_WEBAUTHN_ROAMING,
 )
-from app.routes import audit_log
+from x2fa.routes import audit_log
 
 verify_bp = Blueprint("verify", __name__)
 
@@ -27,12 +38,16 @@ verify_bp = Blueprint("verify", __name__)
 def _require_session():
     """Aborts with 400 if no active OIDC session is present."""
     if not session.get("oidc_request") or not session.get("user_id"):
-        abort(HTTPStatus.BAD_REQUEST, _("No active session. Please restart the login process."))
+        abort(
+            HTTPStatus.BAD_REQUEST,
+            _("No active session. Please restart the login process."),
+        )
 
 
 # ---------------------------------------------------------------------------
 # GET /verify
 # ---------------------------------------------------------------------------
+
 
 @verify_bp.route("/verify")
 def verify_get():
@@ -42,31 +57,36 @@ def verify_get():
     credentials = Credential.query.filter_by(user_id=user_id).all()
     if not credentials:
         # No WebAuthn credentials — check for TOTP as fallback
-        from app.models import TOTPSecret
+        from x2fa.models import TOTPSecret
+
         totp_record = db.session.get(TOTPSecret, user_id)
         if totp_record and totp_record.verified:
             return redirect(url_for("totp.totp_verify_get"))
         # No 2FA method registered at all — return OIDC error to the RP
         # without revealing any user-specific state in the browser
-        from app.routes.auth import _oidc_error_redirect
+        from x2fa.routes.auth import _oidc_error_redirect
+
         return _oidc_error_redirect("access_denied")
 
     challenge_bytes = secrets.token_bytes(CHALLENGE_BYTES)
-    challenge_id    = str(uuid.uuid4())
-    expires_at      = datetime.now(timezone.utc) + timedelta(minutes=current_app.config["CHALLENGE_TTL_MINUTES"])
+    challenge_id = str(uuid.uuid4())
+    expires_at = datetime.now(timezone.utc) + timedelta(
+        minutes=current_app.config["CHALLENGE_TTL_MINUTES"]
+    )
 
-    db.session.add(Challenge(
-        challenge_id=challenge_id,
-        user_id=user_id,
-        challenge=challenge_bytes,
-        expires_at=expires_at,
-    ))
+    db.session.add(
+        Challenge(
+            challenge_id=challenge_id,
+            user_id=user_id,
+            challenge=challenge_bytes,
+            expires_at=expires_at,
+        )
+    )
     db.session.commit()
 
-    credential_ids   = [bytes(c.credential_id) for c in credentials]
-    transports_list  = [
-        c.transport.split(",") if c.transport else []
-        for c in credentials
+    credential_ids = [bytes(c.credential_id) for c in credentials]
+    transports_list = [
+        c.transport.split(",") if c.transport else [] for c in credentials
     ]
 
     options_json = webauthn_helpers.build_authentication_options_json(
@@ -85,6 +105,7 @@ def verify_get():
 # POST /verify/complete
 # ---------------------------------------------------------------------------
 
+
 @verify_bp.route("/verify/complete", methods=["POST"])
 @limiter.limit(lambda: current_app.config["RATE_LIMIT_WEBAUTHN_VERIFY"])
 def verify_complete():
@@ -95,7 +116,7 @@ def verify_complete():
     if not data:
         return jsonify({"error": _("Missing JSON body.")}), HTTPStatus.BAD_REQUEST
 
-    user_id      = session["user_id"]
+    user_id = session["user_id"]
     challenge_id = data.get("challenge_id", "")
 
     # Consume the challenge (single-use, TTL check)
@@ -115,6 +136,7 @@ def verify_complete():
 
     # Decode rawId to look up the stored credential
     from webauthn import base64url_to_bytes
+
     try:
         raw_id = base64url_to_bytes(data.get("rawId", ""))
     except Exception:
@@ -124,12 +146,14 @@ def verify_complete():
     if cred is None or cred.user_id != user_id:
         return jsonify({"error": _("Credential not found.")}), HTTPStatus.NOT_FOUND
 
-    credential_json = json.dumps({
-        "id":       data.get("id"),
-        "rawId":    data.get("rawId"),
-        "type":     data.get("type"),
-        "response": data.get("response", {}),
-    })
+    credential_json = json.dumps(
+        {
+            "id": data.get("id"),
+            "rawId": data.get("rawId"),
+            "type": data.get("type"),
+            "response": data.get("response", {}),
+        }
+    )
 
     try:
         new_sign_count = webauthn_helpers.verify_authentication(
@@ -148,12 +172,14 @@ def verify_complete():
     db.session.commit()
 
     method = (
-        METHOD_WEBAUTHN_PLATFORM if cred.authenticator_type == "platform"
+        METHOD_WEBAUTHN_PLATFORM
+        if cred.authenticator_type == "platform"
         else METHOD_WEBAUTHN_ROAMING
     )
     audit_log(ACTION_VERIFY, method, user_id)
 
     # Mark 2FA as complete and redirect back to the authorization endpoint
     session["2fa_verified"] = True
-    from app.routes.auth import _authorize_continue_url
+    from x2fa.routes.auth import _authorize_continue_url
+
     return jsonify({"redirect_url": _authorize_continue_url()})
