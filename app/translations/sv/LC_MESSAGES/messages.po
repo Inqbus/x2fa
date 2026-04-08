@@ -1,0 +1,230 @@
+# Swedish translations for X2FA.
+msgid ""
+msgstr ""
+"Project-Id-Version: app 2.0\n"
+"Language: sv\n"
+"Language-Team: sv\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Invalid request"
+msgstr "Ogiltig begäran"
+
+msgid "Unauthorized"
+msgstr "Ej behörig"
+
+msgid "Please sign in again."
+msgstr "Vänligen logga in igen."
+
+msgid "Access denied"
+msgstr "Åtkomst nekad"
+
+msgid "You do not have permission to access this page."
+msgstr "Du har inte behörighet att komma åt den här sidan."
+
+msgid "Not found"
+msgstr "Hittades inte"
+
+msgid "The requested page does not exist."
+msgstr "Den begärda sidan finns inte."
+
+msgid "Too many requests"
+msgstr "För många begäranden"
+
+msgid "Please wait a moment."
+msgstr "Vänta ett ögonblick."
+
+msgid "Internal error"
+msgstr "Internt fel"
+
+msgid "An unexpected error has occurred."
+msgstr "Ett oväntat fel har inträffat."
+
+msgid "Backup code"
+msgstr "Säkerhetskod"
+
+msgid "Use backup code"
+msgstr "Använd säkerhetskod"
+
+msgid "Each code can only be used once."
+msgstr "Varje kod kan bara användas en gång."
+
+msgid "After login, a new 2FA setup will be required."
+msgstr "Efter inloggning krävs en ny 2FA-inställning."
+
+msgid "8-digit backup code"
+msgstr "8-siffrig säkerhetskod"
+
+msgid "Sign in"
+msgstr "Logga in"
+
+msgid "Set up 2FA"
+msgstr "Konfigurera 2FA"
+
+msgid "Set up security key"
+msgstr "Konfigurera säkerhetsnyckel"
+
+msgid "Use FaceID, TouchID, Windows Hello or a security key."
+msgstr "Använd FaceID, TouchID, Windows Hello eller en säkerhetsnyckel."
+
+msgid "Set up now"
+msgstr "Konfigurera nu"
+
+msgid "Cancel"
+msgstr "Avbryt"
+
+msgid "Choose a different method?"
+msgstr "Välj en annan metod?"
+
+msgid "Back to selection"
+msgstr "Åter till val"
+
+msgid "Waiting for authenticator…"
+msgstr "Väntar på autentiserare…"
+
+msgid "Try again"
+msgstr "Försök igen"
+
+msgid "Setup failed."
+msgstr "Konfigurationen misslyckades."
+
+msgid "Set up device as security key"
+msgstr "Konfigurera enhet som säkerhetsnyckel"
+
+msgid "Use FaceID, TouchID or Windows Hello to register this device."
+msgstr "Använd FaceID, TouchID eller Windows Hello för att registrera den här enheten."
+
+msgid "You can use:"
+msgstr "Du kan använda:"
+
+msgid "Phone"
+msgstr "Telefon"
+
+msgid "click Set up, choose Smartphone or Tablet in the browser dialog"
+msgstr "klicka på Konfigurera, välj Smartphone eller Surfplatta i webbläsardialogrutan"
+
+msgid "USB key"
+msgstr "USB-nyckel"
+
+msgid "plug in YubiKey etc. and click"
+msgstr "anslut YubiKey osv. och klicka"
+
+msgid "Set up two-factor authentication"
+msgstr "Konfigurera tvåfaktorsautentisering"
+
+msgid "Choose the method you want to use."
+msgstr "Välj den metod du vill använda."
+
+msgid "Passkey or security key"
+msgstr "Lösennyckel eller säkerhetsnyckel"
+
+msgid "Phone, YubiKey, Windows Hello, FaceID, TouchID"
+msgstr "Telefon, YubiKey, Windows Hello, FaceID, TouchID"
+
+msgid "Authenticator app (TOTP)"
+msgstr "Autentiseringsapp (TOTP)"
+
+msgid "Google Authenticator, Authy, FreeOTP and others"
+msgstr "Google Authenticator, Authy, FreeOTP med flera"
+
+msgid "2FA set up"
+msgstr "2FA konfigurerad"
+
+msgid "2FA successfully set up"
+msgstr "2FA har konfigurerats"
+
+msgid "Save backup codes"
+msgstr "Spara säkerhetskoder"
+
+msgid "Important:"
+msgstr "Viktigt:"
+
+msgid "Write down these 10 backup codes now. They are shown only once and can be used if you lose your device. Each code is valid only once."
+msgstr "Skriv ner dessa 10 säkerhetskoder nu. De visas bara en gång och kan användas om du förlorar din enhet. Varje kod är giltig bara en gång."
+
+msgid "Have you saved all codes? Then click Continue."
+msgstr "Har du sparat alla koder? Klicka sedan på Fortsätt."
+
+msgid "Continue"
+msgstr "Fortsätt"
+
+msgid "Set up TOTP"
+msgstr "Konfigurera TOTP"
+
+msgid "Set up authenticator app"
+msgstr "Konfigurera autentiseringsapp"
+
+msgid "Scan the QR code with Google Authenticator, Aegis or another TOTP app."
+msgstr "Skanna QR-koden med Google Authenticator, Aegis eller en annan TOTP-app."
+
+msgid "Step 1:"
+msgstr "Steg 1:"
+
+msgid "Scan QR code"
+msgstr "Skanna QR-kod"
+
+msgid "Step 2:"
+msgstr "Steg 2:"
+
+msgid "Or enter secret manually"
+msgstr "Eller ange hemligheten manuellt"
+
+msgid "Step 3:"
+msgstr "Steg 3:"
+
+msgid "Enter the 6-digit code from the app"
+msgstr "Ange den 6-siffriga koden från appen"
+
+msgid "Confirmation code"
+msgstr "Bekräftelsekod"
+
+msgid "Complete setup"
+msgstr "Slutför konfiguration"
+
+msgid "Enter 2FA code"
+msgstr "Ange 2FA-kod"
+
+msgid "Enter authenticator code"
+msgstr "Ange autentiseringskod"
+
+msgid "Open your authenticator app and enter the current 6-digit code."
+msgstr "Öppna din autentiseringsapp och ange den aktuella 6-siffriga koden."
+
+msgid "One-time code"
+msgstr "Engångskod"
+
+msgid "Confirm"
+msgstr "Bekräfta"
+
+msgid "No access to the app?"
+msgstr "Ingen åtkomst till appen?"
+
+msgid "2FA confirm"
+msgstr "Bekräfta 2FA"
+
+msgid "Confirm identity"
+msgstr "Bekräfta identitet"
+
+msgid "Problems?"
+msgstr "Problem?"
+
+msgid "Enter TOTP code"
+msgstr "Ange TOTP-kod"
+
+msgid "Confirmation failed."
+msgstr "Bekräftelsen misslyckades."
+
+msgid "Confirm with device"
+msgstr "Bekräfta med enhet"
+
+msgid "Confirm your identity with FaceID, TouchID or Windows Hello."
+msgstr "Bekräfta din identitet med FaceID, TouchID eller Windows Hello."
+
+msgid "Confirm with the device you used during setup:"
+msgstr "Bekräfta med enheten du använde vid konfigureringen:"
+
+msgid "click Confirm, choose Smartphone or Tablet"
+msgstr "klicka på Bekräfta, välj Smartphone eller Surfplatta"
+

@@ -4,7 +4,7 @@ import pytest
 
 
 def test_fernet_roundtrip():
-    from x2fa.services.crypto import CryptoService
+    from app.src.x2fa.app.services.crypto import CryptoService
 
     cs = CryptoService("test-secret")
     plaintext = "JBSWY3DPEHPK3PXP"
@@ -13,7 +13,7 @@ def test_fernet_roundtrip():
 
 def test_fernet_different_ciphertexts():
     """Each encryption produces a different ciphertext (IV)."""
-    from x2fa.services.crypto import CryptoService
+    from app.src.x2fa.app.services.crypto import CryptoService
 
     cs = CryptoService("test-secret")
     secret = "JBSWY3DPEHPK3PXP"
@@ -22,7 +22,7 @@ def test_fernet_different_ciphertexts():
 
 def test_fernet_wrong_key_fails():
     """Decryption with the wrong key fails."""
-    from x2fa.services.crypto import CryptoService
+    from app.src.x2fa.app.services.crypto import CryptoService
     from cryptography.fernet import InvalidToken
 
     cs1 = CryptoService("secret-one")
@@ -33,7 +33,7 @@ def test_fernet_wrong_key_fails():
 
 
 def test_bcrypt_verify():
-    from x2fa.services.crypto import CryptoService
+    from app.src.x2fa.app.services.crypto import CryptoService
 
     code = "A1B2C3D4"
     h = CryptoService.hash_backup_code(code)
@@ -42,7 +42,7 @@ def test_bcrypt_verify():
 
 
 def test_backup_code_generation():
-    from x2fa.services.crypto import CryptoService
+    from app.src.x2fa.app.services.crypto import CryptoService
 
     codes = CryptoService.generate_backup_codes(10)
     assert len(codes) == 10

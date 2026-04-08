@@ -96,7 +96,7 @@ x2fa/
 
 ```bash
 git clone <repo>
-cd x2fa
+cd app
 
 # Install dependencies
 uv sync
@@ -421,7 +421,7 @@ Deletes authorization codes older than 1 hour from the database. Safe to run as 
 
 ```bash
 # Example cron: every 2 hours
-0 */2 * * * cd /opt/x2fa && flask cleanup-codes
+0 */2 * * * cd /opt/app && flask cleanup-codes
 ```
 
 ### `flask db upgrade`
@@ -545,7 +545,7 @@ WantedBy=multi-user.target
 X2FA_SECRET=<openssl rand -hex 32>
 X2FA_DOMAIN=2fa.example.com
 X2FA_ENV=production
-DATABASE_URL=postgresql://x2fa:password@localhost/x2fa
+DATABASE_URL=postgresql://app:password@localhost/app
 REDIS_URL=redis://localhost:6379/0
 ```
 

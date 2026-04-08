@@ -12,7 +12,7 @@ from playwright.sync_api import Browser
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from demo_rp import cfg as demo_rp_cfg  # noqa: E402
+from demo_rp.src.x2fa.demo_rp.demo_rp import cfg as demo_rp_cfg  # noqa: E402
 AUTHORIZE_RE = re.compile(r"/authorize")
 
 

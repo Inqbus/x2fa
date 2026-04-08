@@ -35,8 +35,8 @@ def init_services():
     os.environ["X2FA_DOMAIN"] = TEST_DOMAIN
     os.environ["X2FA_DATABASE_URL"] = "sqlite:///:memory:"
 
-    from x2fa.services.crypto import CryptoService
-    from x2fa.webauthn_helpers import init_webauthn
+    from app.src.x2fa.app.services.crypto import CryptoService
+    from app.src.x2fa.app import init_webauthn
 
     CryptoService(TEST_SECRET)
     init_webauthn(TEST_DOMAIN)
@@ -61,7 +61,7 @@ class TestClient:
         oidc_req["login_hint"] = user_id
         oidc_req["ui_locales"] = ui_locales
         if setup_mode:
-            oidc_req["scope"] = "openid x2fa:setup"
+            oidc_req["scope"] = "openid app:setup"
         with self._client.session_transaction() as sess:
             sess["oidc_request"] = oidc_req
             sess["user_id"] = user_id
@@ -83,7 +83,7 @@ class TestClient:
 
 @pytest.fixture
 def client():
-    from x2fa import create_app
+    from app.src.x2fa.app import create_app
 
     flask_app = create_app("testing")
     return TestClient(flask_app)

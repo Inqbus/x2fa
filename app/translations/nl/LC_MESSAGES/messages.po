@@ -1,0 +1,230 @@
+# Dutch translations for X2FA.
+msgid ""
+msgstr ""
+"Project-Id-Version: app 2.0\n"
+"Language: nl\n"
+"Language-Team: nl\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Invalid request"
+msgstr "Ongeldig verzoek"
+
+msgid "Unauthorized"
+msgstr "Niet gemachtigd"
+
+msgid "Please sign in again."
+msgstr "Meld u opnieuw aan."
+
+msgid "Access denied"
+msgstr "Toegang geweigerd"
+
+msgid "You do not have permission to access this page."
+msgstr "U heeft geen toestemming om deze pagina te bekijken."
+
+msgid "Not found"
+msgstr "Niet gevonden"
+
+msgid "The requested page does not exist."
+msgstr "De gevraagde pagina bestaat niet."
+
+msgid "Too many requests"
+msgstr "Te veel verzoeken"
+
+msgid "Please wait a moment."
+msgstr "Wacht even."
+
+msgid "Internal error"
+msgstr "Interne fout"
+
+msgid "An unexpected error has occurred."
+msgstr "Er is een onverwachte fout opgetreden."
+
+msgid "Backup code"
+msgstr "Backupcode"
+
+msgid "Use backup code"
+msgstr "Backupcode gebruiken"
+
+msgid "Each code can only be used once."
+msgstr "Elke code kan slechts één keer worden gebruikt."
+
+msgid "After login, a new 2FA setup will be required."
+msgstr "Na het inloggen is een nieuwe 2FA-instelling vereist."
+
+msgid "8-digit backup code"
+msgstr "8-cijferige backupcode"
+
+msgid "Sign in"
+msgstr "Aanmelden"
+
+msgid "Set up 2FA"
+msgstr "2FA instellen"
+
+msgid "Set up security key"
+msgstr "Beveiligingssleutel instellen"
+
+msgid "Use FaceID, TouchID, Windows Hello or a security key."
+msgstr "Gebruik FaceID, TouchID, Windows Hello of een beveiligingssleutel."
+
+msgid "Set up now"
+msgstr "Nu instellen"
+
+msgid "Cancel"
+msgstr "Annuleren"
+
+msgid "Choose a different method?"
+msgstr "Een andere methode kiezen?"
+
+msgid "Back to selection"
+msgstr "Terug naar selectie"
+
+msgid "Waiting for authenticator…"
+msgstr "Wachten op authenticator…"
+
+msgid "Try again"
+msgstr "Opnieuw proberen"
+
+msgid "Setup failed."
+msgstr "Instelling mislukt."
+
+msgid "Set up device as security key"
+msgstr "Apparaat instellen als beveiligingssleutel"
+
+msgid "Use FaceID, TouchID or Windows Hello to register this device."
+msgstr "Gebruik FaceID, TouchID of Windows Hello om dit apparaat te registreren."
+
+msgid "You can use:"
+msgstr "U kunt gebruiken:"
+
+msgid "Phone"
+msgstr "Telefoon"
+
+msgid "click Set up, choose Smartphone or Tablet in the browser dialog"
+msgstr "klik op Instellen, kies Smartphone of Tablet in het browservenster"
+
+msgid "USB key"
+msgstr "USB-sleutel"
+
+msgid "plug in YubiKey etc. and click"
+msgstr "YubiKey enz. aansluiten en klikken"
+
+msgid "Set up two-factor authentication"
+msgstr "Tweefactorauthenticatie instellen"
+
+msgid "Choose the method you want to use."
+msgstr "Kies de methode die u wilt gebruiken."
+
+msgid "Passkey or security key"
+msgstr "Passkey of beveiligingssleutel"
+
+msgid "Phone, YubiKey, Windows Hello, FaceID, TouchID"
+msgstr "Telefoon, YubiKey, Windows Hello, FaceID, TouchID"
+
+msgid "Authenticator app (TOTP)"
+msgstr "Authenticator-app (TOTP)"
+
+msgid "Google Authenticator, Authy, FreeOTP and others"
+msgstr "Google Authenticator, Authy, FreeOTP en anderen"
+
+msgid "2FA set up"
+msgstr "2FA ingesteld"
+
+msgid "2FA successfully set up"
+msgstr "2FA succesvol ingesteld"
+
+msgid "Save backup codes"
+msgstr "Backcupcodes opslaan"
+
+msgid "Important:"
+msgstr "Belangrijk:"
+
+msgid "Write down these 10 backup codes now. They are shown only once and can be used if you lose your device. Each code is valid only once."
+msgstr "Noteer deze 10 backcupcodes nu. Ze worden slechts één keer weergegeven en kunnen worden gebruikt als u uw apparaat kwijtraakt. Elke code is slechts één keer geldig."
+
+msgid "Have you saved all codes? Then click Continue."
+msgstr "Hebt u alle codes opgeslagen? Klik dan op Doorgaan."
+
+msgid "Continue"
+msgstr "Doorgaan"
+
+msgid "Set up TOTP"
+msgstr "TOTP instellen"
+
+msgid "Set up authenticator app"
+msgstr "Authenticator-app instellen"
+
+msgid "Scan the QR code with Google Authenticator, Aegis or another TOTP app."
+msgstr "Scan de QR-code met Google Authenticator, Aegis of een andere TOTP-app."
+
+msgid "Step 1:"
+msgstr "Stap 1:"
+
+msgid "Scan QR code"
+msgstr "QR-code scannen"
+
+msgid "Step 2:"
+msgstr "Stap 2:"
+
+msgid "Or enter secret manually"
+msgstr "Of voer het geheim handmatig in"
+
+msgid "Step 3:"
+msgstr "Stap 3:"
+
+msgid "Enter the 6-digit code from the app"
+msgstr "Voer de 6-cijferige code van de app in"
+
+msgid "Confirmation code"
+msgstr "Bevestigingscode"
+
+msgid "Complete setup"
+msgstr "Instelling voltooien"
+
+msgid "Enter 2FA code"
+msgstr "2FA-code invoeren"
+
+msgid "Enter authenticator code"
+msgstr "Authenticatorcode invoeren"
+
+msgid "Open your authenticator app and enter the current 6-digit code."
+msgstr "Open uw authenticator-app en voer de huidige 6-cijferige code in."
+
+msgid "One-time code"
+msgstr "Eenmalige code"
+
+msgid "Confirm"
+msgstr "Bevestigen"
+
+msgid "No access to the app?"
+msgstr "Geen toegang tot de app?"
+
+msgid "2FA confirm"
+msgstr "2FA bevestigen"
+
+msgid "Confirm identity"
+msgstr "Identiteit bevestigen"
+
+msgid "Problems?"
+msgstr "Problemen?"
+
+msgid "Enter TOTP code"
+msgstr "TOTP-code invoeren"
+
+msgid "Confirmation failed."
+msgstr "Bevestiging mislukt."
+
+msgid "Confirm with device"
+msgstr "Bevestigen met apparaat"
+
+msgid "Confirm your identity with FaceID, TouchID or Windows Hello."
+msgstr "Bevestig uw identiteit met FaceID, TouchID of Windows Hello."
+
+msgid "Confirm with the device you used during setup:"
+msgstr "Bevestig met het apparaat dat u tijdens de instelling hebt gebruikt:"
+
+msgid "click Confirm, choose Smartphone or Tablet"
+msgstr "klik op Bevestigen, kies Smartphone of Tablet"
+

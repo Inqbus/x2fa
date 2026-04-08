@@ -6,9 +6,9 @@ import pyotp
 def _setup_totp(client, user_id: str = "user_test") -> str:
     """Creates a verified TOTP secret in the DB and returns the plaintext value."""
     from flask import current_app
-    from x2fa.totp_helpers import generate_secret
-    from x2fa.services.crypto import CryptoService
-    from x2fa.models import TOTPSecret, db
+    from app.src.x2fa.app import generate_secret
+    from app.src.x2fa.app.services.crypto import CryptoService
+    from app.src.x2fa.app.models import TOTPSecret, db
 
     secret = generate_secret()
     with client.app_context():
@@ -51,7 +51,7 @@ def test_totp_setup_get_no_session(client):
 
 
 def test_totp_setup_get_stores_secret(client):
-    from x2fa.models import TOTPSecret, db
+    from app.src.x2fa.app.models import TOTPSecret, db
 
     client.set_session(setup_mode=True)
     client.get("/totp/setup")
@@ -67,8 +67,8 @@ def test_totp_setup_get_stores_secret(client):
 
 
 def test_totp_setup_verify_correct_code(client):
-    from x2fa.services.crypto import CryptoService
-    from x2fa.models import TOTPSecret, db
+    from app.src.x2fa.app.services.crypto import CryptoService
+    from app.src.x2fa.app.models import TOTPSecret, db
 
     client.set_session(setup_mode=True)
     client.get("/totp/setup")
@@ -93,8 +93,8 @@ def test_totp_setup_verify_correct_code(client):
 
 
 def test_totp_setup_verify_generates_backup_codes(client):
-    from x2fa.services.crypto import CryptoService
-    from x2fa.models import BackupCode, TOTPSecret, db
+    from app.src.x2fa.app.services.crypto import CryptoService
+    from app.src.x2fa.app.models import BackupCode, TOTPSecret, db
 
     client.set_session(setup_mode=True)
     client.get("/totp/setup")
@@ -112,7 +112,7 @@ def test_totp_setup_verify_generates_backup_codes(client):
     with client.app_context():
         codes = BackupCode.query.filter_by(user_id="user_test").all()
     assert len(codes) == 10
-    from x2fa.constants import NEVER_USED
+    from app.src.x2fa.app import NEVER_USED
 
     assert all(c.used_at == NEVER_USED for c in codes)
 
@@ -143,9 +143,9 @@ def test_totp_verify_get_no_secret(client):
 
 
 def test_totp_verify_get_unverified_secret(client):
-    from x2fa.totp_helpers import generate_secret
-    from x2fa.services.crypto import CryptoService
-    from x2fa.models import TOTPSecret, db
+    from app.src.x2fa.app import generate_secret
+    from app.src.x2fa.app.services.crypto import CryptoService
+    from app.src.x2fa.app.models import TOTPSecret, db
 
     with client.app_context():
         from flask import current_app
@@ -206,7 +206,7 @@ def test_totp_verify_wrong_code(client):
 
 def test_totp_verify_replay(client):
     """The same code within 30 s must be rejected (replay protection)."""
-    from x2fa.models import TOTPSecret, db
+    from app.src.x2fa.app.models import TOTPSecret, db
     from datetime import datetime, timezone
 
     secret = _setup_totp(client)

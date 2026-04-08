@@ -1,0 +1,230 @@
+# Arabic translations for X2FA.
+msgid ""
+msgstr ""
+"Project-Id-Version: app 2.0\n"
+"Language: ar\n"
+"Language-Team: ar\n"
+"Plural-Forms: nplurals=6; plural=(n==0?0:n==1?1:n==2?2:n%100>=3&&n%100<=10?3:n%100>=11?4:5);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Invalid request"
+msgstr "طلب غير صالح"
+
+msgid "Unauthorized"
+msgstr "غير مصرح له"
+
+msgid "Please sign in again."
+msgstr "يرجى تسجيل الدخول مرة أخرى."
+
+msgid "Access denied"
+msgstr "تم رفض الوصول"
+
+msgid "You do not have permission to access this page."
+msgstr "ليس لديك صلاحية الوصول إلى هذه الصفحة."
+
+msgid "Not found"
+msgstr "غير موجود"
+
+msgid "The requested page does not exist."
+msgstr "الصفحة المطلوبة غير موجودة."
+
+msgid "Too many requests"
+msgstr "طلبات كثيرة جداً"
+
+msgid "Please wait a moment."
+msgstr "يرجى الانتظار لحظة."
+
+msgid "Internal error"
+msgstr "خطأ داخلي"
+
+msgid "An unexpected error has occurred."
+msgstr "حدث خطأ غير متوقع."
+
+msgid "Backup code"
+msgstr "رمز احتياطي"
+
+msgid "Use backup code"
+msgstr "استخدام رمز احتياطي"
+
+msgid "Each code can only be used once."
+msgstr "كل رمز صالح للاستخدام مرة واحدة فقط."
+
+msgid "After login, a new 2FA setup will be required."
+msgstr "بعد تسجيل الدخول، ستحتاج إلى إعداد 2FA جديد."
+
+msgid "8-digit backup code"
+msgstr "رمز احتياطي من 8 أرقام"
+
+msgid "Sign in"
+msgstr "تسجيل الدخول"
+
+msgid "Set up 2FA"
+msgstr "إعداد 2FA"
+
+msgid "Set up security key"
+msgstr "إعداد مفتاح الأمان"
+
+msgid "Use FaceID, TouchID, Windows Hello or a security key."
+msgstr "استخدم FaceID أو TouchID أو Windows Hello أو مفتاح أمان."
+
+msgid "Set up now"
+msgstr "إعداد الآن"
+
+msgid "Cancel"
+msgstr "إلغاء"
+
+msgid "Choose a different method?"
+msgstr "اختيار طريقة أخرى؟"
+
+msgid "Back to selection"
+msgstr "العودة إلى الاختيار"
+
+msgid "Waiting for authenticator…"
+msgstr "جاري انتظار جهاز المصادقة…"
+
+msgid "Try again"
+msgstr "حاول مرة أخرى"
+
+msgid "Setup failed."
+msgstr "فشل الإعداد."
+
+msgid "Set up device as security key"
+msgstr "إعداد الجهاز كمفتاح أمان"
+
+msgid "Use FaceID, TouchID or Windows Hello to register this device."
+msgstr "استخدم FaceID أو TouchID أو Windows Hello لتسجيل هذا الجهاز."
+
+msgid "You can use:"
+msgstr "يمكنك استخدام:"
+
+msgid "Phone"
+msgstr "هاتف"
+
+msgid "click Set up, choose Smartphone or Tablet in the browser dialog"
+msgstr "انقر إعداد، اختر هاتف ذكي أو جهاز لوحي في نافذة المتصفح"
+
+msgid "USB key"
+msgstr "مفتاح USB"
+
+msgid "plug in YubiKey etc. and click"
+msgstr "أدخل YubiKey ونحوه وانقر"
+
+msgid "Set up two-factor authentication"
+msgstr "إعداد المصادقة الثنائية"
+
+msgid "Choose the method you want to use."
+msgstr "اختر الطريقة التي تريد استخدامها."
+
+msgid "Passkey or security key"
+msgstr "مفتاح المرور أو مفتاح الأمان"
+
+msgid "Phone, YubiKey, Windows Hello, FaceID, TouchID"
+msgstr "هاتف، YubiKey، Windows Hello، FaceID، TouchID"
+
+msgid "Authenticator app (TOTP)"
+msgstr "تطبيق المصادقة (TOTP)"
+
+msgid "Google Authenticator, Authy, FreeOTP and others"
+msgstr "Google Authenticator، Authy، FreeOTP وغيرها"
+
+msgid "2FA set up"
+msgstr "تم إعداد 2FA"
+
+msgid "2FA successfully set up"
+msgstr "تم إعداد 2FA بنجاح"
+
+msgid "Save backup codes"
+msgstr "حفظ رموز الاحتياط"
+
+msgid "Important:"
+msgstr "مهم:"
+
+msgid "Write down these 10 backup codes now. They are shown only once and can be used if you lose your device. Each code is valid only once."
+msgstr "احتفظ بهذه الرموز العشرة الآن. تُعرض مرة واحدة فقط ويمكن استخدامها عند فقدان الجهاز. كل رمز صالح مرة واحدة فقط."
+
+msgid "Have you saved all codes? Then click Continue."
+msgstr "هل حفظت جميع الرموز؟ انقر متابعة."
+
+msgid "Continue"
+msgstr "متابعة"
+
+msgid "Set up TOTP"
+msgstr "إعداد TOTP"
+
+msgid "Set up authenticator app"
+msgstr "إعداد تطبيق المصادقة"
+
+msgid "Scan the QR code with Google Authenticator, Aegis or another TOTP app."
+msgstr "امسح رمز QR باستخدام Google Authenticator أو Aegis أو تطبيق TOTP آخر."
+
+msgid "Step 1:"
+msgstr "الخطوة 1:"
+
+msgid "Scan QR code"
+msgstr "مسح رمز QR"
+
+msgid "Step 2:"
+msgstr "الخطوة 2:"
+
+msgid "Or enter secret manually"
+msgstr "أو أدخل السر يدوياً"
+
+msgid "Step 3:"
+msgstr "الخطوة 3:"
+
+msgid "Enter the 6-digit code from the app"
+msgstr "أدخل الرمز المكون من 6 أرقام من التطبيق"
+
+msgid "Confirmation code"
+msgstr "رمز التأكيد"
+
+msgid "Complete setup"
+msgstr "إتمام الإعداد"
+
+msgid "Enter 2FA code"
+msgstr "أدخل رمز 2FA"
+
+msgid "Enter authenticator code"
+msgstr "أدخل رمز المصادقة"
+
+msgid "Open your authenticator app and enter the current 6-digit code."
+msgstr "افتح تطبيق المصادقة وأدخل الرمز الحالي المكون من 6 أرقام."
+
+msgid "One-time code"
+msgstr "رمز لمرة واحدة"
+
+msgid "Confirm"
+msgstr "تأكيد"
+
+msgid "No access to the app?"
+msgstr "لا يمكنك الوصول إلى التطبيق؟"
+
+msgid "2FA confirm"
+msgstr "تأكيد 2FA"
+
+msgid "Confirm identity"
+msgstr "تأكيد الهوية"
+
+msgid "Problems?"
+msgstr "هل تواجه مشكلة؟"
+
+msgid "Enter TOTP code"
+msgstr "أدخل رمز TOTP"
+
+msgid "Confirmation failed."
+msgstr "فشل التأكيد."
+
+msgid "Confirm with device"
+msgstr "التأكيد بالجهاز"
+
+msgid "Confirm your identity with FaceID, TouchID or Windows Hello."
+msgstr "أكد هويتك باستخدام FaceID أو TouchID أو Windows Hello."
+
+msgid "Confirm with the device you used during setup:"
+msgstr "أكد باستخدام الجهاز الذي استخدمته أثناء الإعداد:"
+
+msgid "click Confirm, choose Smartphone or Tablet"
+msgstr "انقر تأكيد، اختر هاتف ذكي أو جهاز لوحي"
+

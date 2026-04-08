@@ -20,7 +20,7 @@ def _create_credential(
     client, cred_id: bytes = b"cred1234", user_id: str = "user_test"
 ):
     """Creates a WebAuthn credential directly in the DB."""
-    from x2fa.models import Credential, db
+    from app.src.x2fa.app.models import Credential, db
 
     with client.app_context():
         db.session.add(
@@ -84,7 +84,7 @@ def test_setup_webauthn_get_valid(client):
 
 
 def test_setup_webauthn_creates_challenge(client):
-    from x2fa.models import Challenge
+    from app.src.x2fa.app.models import Challenge
 
     client.set_session(setup_mode=True)
     client.get("/setup/webauthn")
@@ -124,7 +124,7 @@ def test_setup_complete_success(client):
     challenge_id = _extract_challenge_id(body)
 
     with patch(
-        "x2fa.webauthn_helpers.verify_registration", return_value=_fake_reg_result()
+        "app.webauthn_helpers.verify_registration", return_value=_fake_reg_result()
     ):
         status, _, resp_body = client.post_json(
             "/setup/complete",
@@ -150,7 +150,7 @@ def test_setup_complete_webauthn_failure(client):
     challenge_id = _extract_challenge_id(body)
 
     with patch(
-        "x2fa.webauthn_helpers.verify_registration",
+        "app.webauthn_helpers.verify_registration",
         side_effect=ValueError("Attestation invalid"),
     ):
         status, _, resp_body = client.post_json(
@@ -184,7 +184,7 @@ def test_setup_complete_challenge_reuse(client):
     }
 
     with patch(
-        "x2fa.webauthn_helpers.verify_registration", return_value=_fake_reg_result()
+        "app.webauthn_helpers.verify_registration", return_value=_fake_reg_result()
     ):
         client.post_json("/setup/complete", payload)
         status, _, _ = client.post_json("/setup/complete", payload)
@@ -240,7 +240,7 @@ def test_verify_complete_success(client):
     _, _, body = client.get("/verify")
     challenge_id = _extract_challenge_id(body)
 
-    with patch("x2fa.webauthn_helpers.verify_authentication", return_value=1):
+    with patch("app.webauthn_helpers.verify_authentication", return_value=1):
         status, _, resp_body = client.post_json(
             "/verify/complete",
             {
@@ -275,7 +275,7 @@ def test_verify_complete_webauthn_failure(client):
     challenge_id = _extract_challenge_id(body)
 
     with patch(
-        "x2fa.webauthn_helpers.verify_authentication",
+        "app.webauthn_helpers.verify_authentication",
         side_effect=ValueError("bad signature"),
     ):
         status, _, _ = client.post_json(
