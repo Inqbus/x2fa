@@ -1,19 +1,142 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="daa875c1-080c-404a-8274-729c693c0610" name="Changes" comment="New sketch for true OIDC" />
+    <list default="true" id="c1798d1e-bb0e-40b4-8b11-08c80dd3f143" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/x2fa/config_files/babel_config.toml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/x2fa/config_files/db_config.toml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/x2fa/config_files/ratelimit_config.toml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/x2fa/config_files/security_config.toml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/x2fa/init_app/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/x2fa/init_app/babel.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/x2fa/init_app/config.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/x2fa/init_app/database.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/x2fa/init_app/errors.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/x2fa/init_app/limiter.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/x2fa/init_app/routes.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/x2fa/init_app/security.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/x2fa/services/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/x2fa.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/x2fa.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/babel.cfg" beforeDir="false" afterPath="$PROJECT_DIR$/babel.cfg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/migrations/README" beforeDir="false" afterPath="$PROJECT_DIR$/migrations/README" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/migrations/alembic.ini" beforeDir="false" afterPath="$PROJECT_DIR$/migrations/alembic.ini" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/migrations/env.py" beforeDir="false" afterPath="$PROJECT_DIR$/migrations/env.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/migrations/script.py.mako" beforeDir="false" afterPath="$PROJECT_DIR$/migrations/script.py.mako" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/settings.toml" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/config_files/x2fa_config.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/x2fa/app/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/x2fa/app/cli.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/cli.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/x2fa/app/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/config.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/x2fa/app/constants.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/constants.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/x2fa/app/extensions.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/extensions.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/x2fa/app/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/models.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/x2fa/app/oidc/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/oidc/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/x2fa/app/oidc/grants.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/oidc/grants.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/x2fa/app/routes/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/routes/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/x2fa/app/routes/auth.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/routes/auth.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/x2fa/app/routes/backup.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/routes/backup.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/x2fa/app/routes/setup.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/routes/setup.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/x2fa/app/routes/test_helpers.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/routes/test_helpers.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/x2fa/app/routes/totp.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/routes/totp.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/x2fa/app/routes/verify.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/routes/verify.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/x2fa/app/services/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/demo_rp/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/x2fa/app/services/crypto.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/services/crypto.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/x2fa/app/totp_helpers.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/totp_helpers.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/x2fa/app/webauthn_helpers.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/webauthn_helpers.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/x2fa/app/wsgi.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/wsgi.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/templates/backup_verify.html" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/templates/backup_verify.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/templates/error.html" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/templates/error.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/templates/setup.html" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/templates/setup.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/templates/setup_choose.html" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/templates/setup_choose.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/templates/setup_done.html" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/templates/setup_done.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/templates/totp_setup.html" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/templates/totp_setup.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/templates/totp_verify.html" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/templates/totp_verify.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/templates/verify.html" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/templates/verify.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/tools/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/tools/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/tools/generate_translations.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/tools/generate_translations.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/ar/LC_MESSAGES/messages.mo" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/ar/LC_MESSAGES/messages.mo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/ar/LC_MESSAGES/messages.po" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/ar/LC_MESSAGES/messages.po" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/cs/LC_MESSAGES/messages.mo" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/cs/LC_MESSAGES/messages.mo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/cs/LC_MESSAGES/messages.po" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/cs/LC_MESSAGES/messages.po" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/de/LC_MESSAGES/messages.mo" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/de/LC_MESSAGES/messages.mo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/de/LC_MESSAGES/messages.po" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/de/LC_MESSAGES/messages.po" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/en/LC_MESSAGES/messages.mo" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/en/LC_MESSAGES/messages.mo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/en/LC_MESSAGES/messages.po" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/en/LC_MESSAGES/messages.po" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/es/LC_MESSAGES/messages.mo" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/es/LC_MESSAGES/messages.mo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/es/LC_MESSAGES/messages.po" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/es/LC_MESSAGES/messages.po" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/fr/LC_MESSAGES/messages.mo" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/fr/LC_MESSAGES/messages.mo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/fr/LC_MESSAGES/messages.po" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/fr/LC_MESSAGES/messages.po" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/hu/LC_MESSAGES/messages.mo" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/hu/LC_MESSAGES/messages.mo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/hu/LC_MESSAGES/messages.po" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/hu/LC_MESSAGES/messages.po" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/it/LC_MESSAGES/messages.mo" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/it/LC_MESSAGES/messages.mo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/it/LC_MESSAGES/messages.po" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/it/LC_MESSAGES/messages.po" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/ja/LC_MESSAGES/messages.mo" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/ja/LC_MESSAGES/messages.mo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/ja/LC_MESSAGES/messages.po" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/ja/LC_MESSAGES/messages.po" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/ko/LC_MESSAGES/messages.mo" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/ko/LC_MESSAGES/messages.mo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/ko/LC_MESSAGES/messages.po" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/ko/LC_MESSAGES/messages.po" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/nl/LC_MESSAGES/messages.mo" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/nl/LC_MESSAGES/messages.mo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/nl/LC_MESSAGES/messages.po" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/nl/LC_MESSAGES/messages.po" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/pl/LC_MESSAGES/messages.mo" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/pl/LC_MESSAGES/messages.mo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/pl/LC_MESSAGES/messages.po" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/pl/LC_MESSAGES/messages.po" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/pt/LC_MESSAGES/messages.mo" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/pt/LC_MESSAGES/messages.mo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/pt/LC_MESSAGES/messages.po" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/pt/LC_MESSAGES/messages.po" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/ru/LC_MESSAGES/messages.mo" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/ru/LC_MESSAGES/messages.mo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/ru/LC_MESSAGES/messages.po" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/ru/LC_MESSAGES/messages.po" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/sv/LC_MESSAGES/messages.mo" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/sv/LC_MESSAGES/messages.mo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/sv/LC_MESSAGES/messages.po" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/sv/LC_MESSAGES/messages.po" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/tr/LC_MESSAGES/messages.mo" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/tr/LC_MESSAGES/messages.mo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/tr/LC_MESSAGES/messages.po" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/tr/LC_MESSAGES/messages.po" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/zh/LC_MESSAGES/messages.mo" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/zh/LC_MESSAGES/messages.mo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/translations/zh/LC_MESSAGES/messages.po" beforeDir="false" afterPath="$PROJECT_DIR$/src/translations/zh/LC_MESSAGES/messages.po" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo_rp/src/x2fa/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/app.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo_rp/src/x2fa/demo_rp/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/x2fa/helpers/attr_dict.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo_rp/src/x2fa/demo_rp/demo_rp.py" beforeDir="false" afterPath="$PROJECT_DIR$/demo_rp/app.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pyproject.toml" beforeDir="false" afterPath="$PROJECT_DIR$/pyproject.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/conftest.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/conftest.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/e2e/conftest.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/e2e/conftest.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_crypto.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_crypto.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_demo_rp_i18n.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_demo_rp_i18n.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_i18n.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_i18n.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_routes_backup.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_routes_backup.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_routes_fido2.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_routes_fido2.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_routes_totp.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_routes_totp.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_totp_helpers.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_totp_helpers.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/uv.lock" beforeDir="false" afterPath="$PROJECT_DIR$/uv.lock" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
+  </component>
+  <component name="FlaskConsoleOptions" custom-start-script="import sys; print('Python %s on %s' % (sys.version, sys.platform)); sys.path.extend([WORKING_DIR_AND_PYTHON_PATHS])&#10;from flask.cli import ScriptInfo, NoAppException&#10;for module in [&quot;main.py&quot;, &quot;wsgi.py&quot;, &quot;app.py&quot;]:&#10;    try: locals().update(ScriptInfo(app_import_path=module, create_app=None).load_app().make_shell_context()); print(&quot;\nFlask App: %s&quot; % app.import_name); break&#10;    except NoAppException: pass">
+    <envs>
+      <env key="FLASK_APP" value="app" />
+    </envs>
+    <option name="myCustomStartScript" value="import sys; print('Python %s on %s' % (sys.version, sys.platform)); sys.path.extend([WORKING_DIR_AND_PYTHON_PATHS])&#10;from flask.cli import ScriptInfo, NoAppException&#10;for module in [&quot;main.py&quot;, &quot;wsgi.py&quot;, &quot;app.py&quot;]:&#10;    try: locals().update(ScriptInfo(app_import_path=module, create_app=None).load_app().make_shell_context()); print(&quot;\nFlask App: %s&quot; % app.import_name); break&#10;    except NoAppException: pass" />
+    <option name="myEnvs">
+      <map>
+        <entry key="FLASK_APP" value="app" />
+      </map>
+    </option>
+  </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="ProjectColorInfo">{
+  &quot;customColor&quot;: &quot;&quot;,
   &quot;associatedIndex&quot;: 7
 }</component>
-  <component name="ProjectId" id="3BcSgfTpBtMgXLgACIQNKcIsVKQ" />
+  <component name="ProjectId" id="3C5tVGGAdZeB0tyWv9sPVQfaxQ2" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
@@ -21,16 +144,103 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Python tests.pytest in tests.executor": "Run",
+    "Python.app.executor": "Debug",
+    "Python.wsgi.executor": "Debug",
     "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "ai.playground.ignore.import.keys.banner.in.settings": "true",
     "git-widget-placeholder": "master",
-    "last_opened_file_path": "/home/volker/workspace/TEST/x2fa",
     "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "preferences.keymap",
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/src/x2fa" />
+      <recent name="$PROJECT_DIR$/src/x2fa/config" />
+    </key>
+  </component>
+  <component name="RunManager" selected="Python.app">
+    <configuration name="app" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="x2fa" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/src/sandbox" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="RUN_TOOL" value="" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/src/sandbox/app.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="wsgi" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="x2fa" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/src/x2fa" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="RUN_TOOL" value="" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/src/x2fa/wsgi.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="pytest in tests" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
+      <module name="x2fa" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="RUN_TOOL" value="" />
+      <option name="_new_keywords" value="&quot;&quot;" />
+      <option name="_new_parameters" value="&quot;&quot;" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;$PROJECT_DIR$/tests&quot;" />
+      <option name="_new_targetType" value="&quot;PATH&quot;" />
+      <method v="2" />
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Python.app" />
+        <item itemvalue="Python.wsgi" />
+        <item itemvalue="Python tests.pytest in tests" />
+      </list>
+    </recent_temporary>
+  </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
@@ -41,41 +251,38 @@
   </component>
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
-      <changelist id="daa875c1-080c-404a-8274-729c693c0610" name="Changes" comment="" />
-      <created>1774786977888</created>
+      <changelist id="c1798d1e-bb0e-40b4-8b11-08c80dd3f143" name="Changes" comment="" />
+      <created>1775687282397</created>
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
-      <updated>1774786977888</updated>
-      <workItem from="1774786979036" duration="13315000" />
-      <workItem from="1775083309096" duration="5627000" />
+      <updated>1775687282397</updated>
+      <workItem from="1775687283595" duration="13512000" />
+      <workItem from="1775749721366" duration="7602000" />
     </task>
-    <task id="LOCAL-00001" summary="New sketch for true OIDC">
-      <option name="closed" value="true" />
-      <created>1774899418099</created>
-      <option name="number" value="00001" />
-      <option name="presentableId" value="LOCAL-00001" />
-      <option name="project" value="LOCAL" />
-      <updated>1774899418099</updated>
-    </task>
-    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
-  <component name="VcsManagerConfiguration">
-    <MESSAGE value="New sketch for true OIDC" />
-    <option name="LAST_COMMIT_MESSAGE" value="New sketch for true OIDC" />
-  </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
-      <breakpoints>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/.venv/lib/python3.11/site-packages/werkzeug/sansio/utils.py</url>
-          <line>139</line>
-          <option name="timeStamp" value="1" />
-        </line-breakpoint>
-      </breakpoints>
+      <default-breakpoints>
+        <breakpoint type="python-exception">
+          <properties notifyOnTerminate="true" exception="BaseException">
+            <option name="notifyOnTerminate" value="true" />
+          </properties>
+        </breakpoint>
+      </default-breakpoints>
     </breakpoint-manager>
+    <watches-manager>
+      <configuration name="PythonConfigurationType">
+        <watch expression="root_path" />
+      </configuration>
+    </watches-manager>
+  </component>
+  <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/x2fa$app.coverage" NAME="app Coverage Results" MODIFIED="1775761123247" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/sandbox" />
+    <SUITE FILE_PATH="coverage/x2fa$pytest_in_tests.coverage" NAME="pytest in tests Coverage Results" MODIFIED="1775687682982" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/x2fa$wsgi.coverage" NAME="wsgi Coverage Results" MODIFIED="1775747672904" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/x2fa" />
   </component>
 </project>

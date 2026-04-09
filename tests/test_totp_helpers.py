@@ -4,11 +4,10 @@ from datetime import datetime, timedelta, timezone
 
 import pyotp
 
-from app.src.x2fa.app import NEVER_USED
 
 
 def test_generate_secret():
-    from app.src.x2fa.app import generate_secret
+    from x2fa import generate_secret
 
     secret = generate_secret()
     assert len(secret) >= 16
@@ -19,7 +18,7 @@ def test_generate_secret():
 
 
 def test_provisioning_uri():
-    from app.src.x2fa.app import build_provisioning_uri
+    from x2fa import build_provisioning_uri
 
     uri = build_provisioning_uri("JBSWY3DPEHPK3PXP", "alice", "X2FA")
     assert uri.startswith("otpauth://totp/")
@@ -28,7 +27,7 @@ def test_provisioning_uri():
 
 
 def test_qr_data_uri():
-    from app.src.x2fa.app import generate_qr_data_uri
+    from x2fa import generate_qr_data_uri
 
     uri = generate_qr_data_uri("otpauth://totp/test?secret=ABC")
     assert uri.startswith("data:image/png;base64,")
@@ -36,7 +35,7 @@ def test_qr_data_uri():
 
 
 def test_verify_code_valid():
-    from app.src.x2fa.app import verify_code
+    from x2fa import verify_code
 
     secret = pyotp.random_base32()
     code = pyotp.TOTP(secret).now()
@@ -44,7 +43,7 @@ def test_verify_code_valid():
 
 
 def test_verify_code_invalid():
-    from app.src.x2fa.app import verify_code
+    from x2fa import verify_code
 
     secret = pyotp.random_base32()
     assert verify_code(secret, "000000", last_used_at=NEVER_USED) is False
@@ -52,7 +51,7 @@ def test_verify_code_invalid():
 
 def test_verify_code_replay_protection():
     """The same code within 30s is rejected."""
-    from app.src.x2fa.app import verify_code
+    from x2fa import verify_code
 
     secret = pyotp.random_base32()
     code = pyotp.TOTP(secret).now()
@@ -62,7 +61,7 @@ def test_verify_code_replay_protection():
 
 def test_verify_code_replay_after_window():
     """Code is accepted when last_used_at is more than 30s in the past."""
-    from app.src.x2fa.app import verify_code
+    from x2fa import verify_code
 
     secret = pyotp.random_base32()
     code = pyotp.TOTP(secret).now()

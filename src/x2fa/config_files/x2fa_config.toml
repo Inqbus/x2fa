@@ -1,0 +1,25 @@
+[default]
+# Default configuration
+HOST = "127.0.0.1"
+PORT = 5000
+DOMAIN = "localhost"
+TESTING = true
+
+[production]
+HOST = "prod.example.com"
+PORT = 8000
+DOMAIN = "example.com"
+TESTING = false
+
+[test]
+HOST = "127.0.0.1"
+PORT = 5098
+DOMAIN = "localhost"
+TESTING = true
+
+[e2e]
+HOST = "127.0.0.1"
+PORT = 5098
+CALLBACK_PORT = 19999
+DOMAIN = "localhost"
+TESTING = true

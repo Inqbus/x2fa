@@ -1,13 +1,9 @@
 """Shared fixtures for all X2FA tests."""
 
-import os
-import sys
-
 import pytest
 
-# Add project directory to sys.path so all modules can be found
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "vendor"))
+from x2fa.app import create_app
+from x2fa.webauthn_helpers import init_webauthn
 
 TEST_SECRET = "a" * 32
 TEST_DOMAIN = "test.example.com"
@@ -35,8 +31,7 @@ def init_services():
     os.environ["X2FA_DOMAIN"] = TEST_DOMAIN
     os.environ["X2FA_DATABASE_URL"] = "sqlite:///:memory:"
 
-    from app.src.x2fa.app.services.crypto import CryptoService
-    from app.src.x2fa.app import init_webauthn
+    from x2fa.services.crypto import CryptoService
 
     CryptoService(TEST_SECRET)
     init_webauthn(TEST_DOMAIN)
@@ -83,7 +78,6 @@ class TestClient:
 
 @pytest.fixture
 def client():
-    from app.src.x2fa.app import create_app
 
     flask_app = create_app("testing")
     return TestClient(flask_app)

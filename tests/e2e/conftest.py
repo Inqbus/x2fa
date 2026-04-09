@@ -17,10 +17,7 @@ from playwright.sync_api import Page
 # Must be set before app.config is imported so Dynaconf loads the [e2e] section.
 os.environ.setdefault("ENV_FOR_DYNACONF", "e2e")
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "vendor"))
-
-from app.src.x2fa.app import settings as x2fa_settings  # noqa: E402
+from x2fa.config import settings as x2fa_settings
 
 # ---------------------------------------------------------------------------
 # Constants — read from settings.toml [e2e] section via x2fa_settings
@@ -62,10 +59,10 @@ def x2fa_app():
     os.environ["X2FA_SECRET"] = "a" * 32
     os.environ["X2FA_DOMAIN"] = x2fa_settings.DOMAIN
 
-    from app.src.x2fa.app import create_app
-    from app.src.x2fa.app import db
-    from app.src.x2fa.app.models import OIDCClient, SigningKey
-    from app.src.x2fa.app.services.crypto import CryptoService
+    from x2fa import create_app
+    from x2fa import db
+    from x2fa.models import OIDCClient, SigningKey
+    from x2fa.services.crypto import CryptoService
 
     flask_app = create_app("e2e")
 
@@ -179,9 +176,9 @@ def create_totp(x2fa_app):
 
     def _create(user_id: str, totp_secret: str | None = None) -> str:
         import pyotp
-        from app.src.x2fa.app import db
-        from app.src.x2fa.app.models import TOTPSecret
-        from app.src.x2fa.app.services.crypto import CryptoService
+        from x2fa import db
+        from x2fa.models import TOTPSecret
+        from x2fa.services.crypto import CryptoService
 
         if totp_secret is None:
             totp_secret = pyotp.random_base32()
@@ -211,9 +208,9 @@ def create_backup_codes(x2fa_app):
     """Create backup codes for a user_id. Returns the list of plaintext codes."""
 
     def _create(user_id: str, codes: list[str] | None = None) -> list[str]:
-        from app.src.x2fa.app import db
-        from app.src.x2fa.app.models import BackupCode
-        from app.src.x2fa.app.services.crypto import CryptoService
+        from x2fa import db
+        from x2fa.models import BackupCode
+        from x2fa.services.crypto import CryptoService
 
         if codes is None:
             codes = [secrets.token_hex(4).upper() for _ in range(10)]

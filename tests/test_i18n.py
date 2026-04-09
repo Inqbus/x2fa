@@ -6,9 +6,9 @@ import pytest
 def _setup_totp(client, user_id: str = "user_test") -> str:
     """Creates a verified TOTP secret and returns the plaintext value."""
     from flask import current_app
-    from app.src.x2fa.app import generate_secret
-    from app.src.x2fa.app.services.crypto import CryptoService
-    from app.src.x2fa.app.models import TOTPSecret, db
+    from x2fa import generate_secret
+    from x2fa.services.crypto import CryptoService
+    from x2fa.models import TOTPSecret, db
 
     secret = generate_secret()
     with client.app_context():

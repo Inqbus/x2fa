@@ -1,0 +1,25 @@
+[default]
+SECRET_KEY = "default-secret-key"
+SECRET_SALT = "default-secret-salt"
+SESSION_COOKIE_SECURE = true
+SESSION_COOKIE_HTTPONLY = true
+SESSION_COOKIE_SAMESITE = "Lax"
+PERMANENT_SESSION_LIFETIME = 600 # Seconds
+CLIENT_ID = "default-client"
+CLIENT_SECRET = "default-secret"
+
+[testing]
+SECRET_KEY = "testing-secret-key"
+SESSION_COOKIE_SECURE = false
+SESSION_COOKIE_SAMESITE = false
+WTF_CSRF_ENABLED = true
+CLIENT_ID = "testing-client"
+CLIENT_SECRET = "testing-secret"
+
+[e2e]
+SECRET_KEY = "testing-secret-key"
+SESSION_COOKIE_SECURE = false
+SESSION_COOKIE_SAMESITE = false
+WTF_CSRF_ENABLED = false
+CLIENT_ID = "e2e-client"
+CLIENT_SECRET = "e2e-secret"

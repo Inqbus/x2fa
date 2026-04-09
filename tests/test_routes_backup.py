@@ -5,8 +5,8 @@ def _create_backup_codes(
     client, user_id: str = "user_test", count: int = 10
 ) -> list[str]:
     """Creates backup codes in the DB and returns the plaintext values."""
-    from app.src.x2fa.app.models import BackupCode, db
-    from app.src.x2fa.app.services.crypto import CryptoService
+    from x2fa.models import BackupCode, db
+    from x2fa.services.crypto import CryptoService
 
     with client.app_context():
         codes = CryptoService.generate_backup_codes(count)
@@ -87,13 +87,13 @@ def test_backup_verify_already_used(client):
 
 def test_backup_verify_marks_code_as_used(client):
     """used_at is set after redemption."""
-    from app.src.x2fa.app.models import BackupCode
+    from x2fa.models import BackupCode
 
     codes = _create_backup_codes(client)
     client.set_session()
     client.post_form("/backup/verify", {"code": codes[0]})
 
-    from app.src.x2fa.app import NEVER_USED
+    from x2fa import NEVER_USED
 
     with client.app_context():
         used = [

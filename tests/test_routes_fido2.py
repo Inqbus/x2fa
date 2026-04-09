@@ -20,7 +20,7 @@ def _create_credential(
     client, cred_id: bytes = b"cred1234", user_id: str = "user_test"
 ):
     """Creates a WebAuthn credential directly in the DB."""
-    from app.src.x2fa.app.models import Credential, db
+    from x2fa.models import Credential, db
 
     with client.app_context():
         db.session.add(
@@ -84,7 +84,7 @@ def test_setup_webauthn_get_valid(client):
 
 
 def test_setup_webauthn_creates_challenge(client):
-    from app.src.x2fa.app.models import Challenge
+    from x2fa.models import Challenge
 
     client.set_session(setup_mode=True)
     client.get("/setup/webauthn")
