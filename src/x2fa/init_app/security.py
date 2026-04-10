@@ -2,7 +2,7 @@ import secrets
 
 from flask import Flask, g
 
-from x2fa import webauthn_helpers
+from x2fa.helpers import webauthn_helpers
 from x2fa.oidc import oauth
 from x2fa.oidc.grants import (
     S256OnlyCodeChallenge,

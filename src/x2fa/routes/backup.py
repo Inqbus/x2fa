@@ -13,9 +13,9 @@ from flask import (
     session,
     url_for,
 )
-from flask_babel import gettext as _
+from flask_babelplus import gettext as _
 
-from x2fa.extensions import db, limiter
+from x2fa.init_app.limiter import limiter
 from x2fa.models import BackupCode
 from x2fa.constants import ACTION_FAIL, ACTION_VERIFY, METHOD_BACKUP, NEVER_USED
 from x2fa.routes import audit_log
@@ -52,7 +52,7 @@ def backup_verify_get():
 
 
 @backup_bp.route("/backup/verify", methods=["POST"])
-@limiter.limit(lambda: current_app.config["RATE_LIMIT_BACKUP_VERIFY"])
+@limiter.limit(lambda: current_app.config.x2fa_ratelimit.RATE_LIMIT_BACKUP_VERIFY)
 def backup_verify_post():
     _require_session()
     user_id = session["user_id"]
@@ -81,9 +81,9 @@ def backup_verify_post():
     # Mark code as used
     from datetime import datetime, timezone
 
-    record = db.session.get(BackupCode, matched_hash)
+    record = g.db_session.get(BackupCode, matched_hash)
     record.used_at = datetime.now(timezone.utc)
-    db.session.commit()
+    g.db_session.commit()
 
     audit_log(ACTION_VERIFY, METHOD_BACKUP, user_id)
 

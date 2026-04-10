@@ -17,6 +17,8 @@ def config(app: Flask):
     # Startup checks
     if 'SECRET_KEY' not in app.config.x2fa_security:
         raise RuntimeError("SECRET_KEY not set in secret_config.toml!")
+    app.config['SECRET_KEY'] = app.config.x2fa_security.SECRET_KEY
+
 
     if not cfg.x2fa.TESTING and not "RATELIMIT_STORAGE_URI" in app.config.x2fa_ratelimit:
         raise RuntimeError(

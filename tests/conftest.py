@@ -3,7 +3,7 @@
 import pytest
 
 from x2fa.app import create_app
-from x2fa.webauthn_helpers import init_webauthn
+from x2fa.helpers.webauthn_helpers import init_webauthn
 
 TEST_SECRET = "a" * 32
 TEST_DOMAIN = "test.example.com"

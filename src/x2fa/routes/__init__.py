@@ -1,10 +1,9 @@
 import hashlib
 
-from flask import current_app, request
+from flask import request, g
 
-from x2fa.extensions import db
 from x2fa.models import AuditLog
-from x2fa import config
+from x2fa.config import cfg
 
 def client_ip() -> str:
     """Returns the real client IP, preferring X-Forwarded-For behind a reverse proxy."""
@@ -21,9 +20,9 @@ def audit_log(action: str, method: str, user_id: str) -> None:
     This satisfies GDPR pseudonymisation requirements.
     """
     ip = client_ip()
-    salt = config.security["SECRET_SALT"]
+    salt = cfg.x2fa_security["SECRET_SALT"]
     ip_hash = hashlib.sha256((ip + salt).encode()).hexdigest()
-    db.session.add(
+    g.db_session.add(
         AuditLog(
             action=action,
             method=method,
@@ -31,4 +30,4 @@ def audit_log(action: str, method: str, user_id: str) -> None:
             ip_hash=ip_hash,
         )
     )
-    db.session.commit()
+    g.db_session.commit()

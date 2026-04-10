@@ -5,7 +5,9 @@ from authlib.oauth2.rfc6749.grants import AuthorizationCodeGrant
 from authlib.oauth2.rfc7636 import CodeChallenge
 from authlib.oidc.core.grants import OpenIDCode
 
-from x2fa.extensions import db
+from flask import g
+from sqlalchemy import select
+
 from x2fa.models import AuthorizationCode, OIDCClient, SigningKey
 
 
@@ -45,8 +47,8 @@ class X2FAAuthorizationCodeGrant(AuthorizationCodeGrant):
             auth_time=int(time.time()),
             expires_at=datetime.now(timezone.utc) + timedelta(seconds=60),
         )
-        db.session.add(auth_code)
-        db.session.commit()
+        g.db_session.add(auth_code)
+        g.db_session.commit()
         return auth_code
 
     def query_authorization_code(self, code, client):
@@ -62,7 +64,7 @@ class X2FAAuthorizationCodeGrant(AuthorizationCodeGrant):
     def delete_authorization_code(self, authorization_code):
         """Marks the code as used. Does not physically delete — preserves nonce for replay protection."""
         authorization_code.used = True
-        db.session.commit()
+        g.db_session.commit()
 
     def authenticate_user(self, authorization_code):
         """Returns the user identifier (becomes the 'sub' claim in the ID token)."""
@@ -88,21 +90,21 @@ class X2FAOpenIDCode(OpenIDCode):
         from flask import current_app
         from x2fa.services.crypto import CryptoService
 
-        crypto = CryptoService(current_app.config["X2FA_SECRET"])
-        signing_key = (
-            SigningKey.query.filter(
-                SigningKey.active == True,
-                SigningKey.expires_at > datetime.now(timezone.utc),
-            )
+        crypto = CryptoService(current_app.config.x2fa_security.SECRET_KEY)
+        stmt = (
+            select(SigningKey)
+            .where(SigningKey.active == True)
+            .where(SigningKey.expires_at > datetime.now(timezone.utc))
             .order_by(SigningKey.created_at.desc())
-            .first()
         )
+
+        signing_key = g.db_session.execute(stmt).scalars().first()
         if not signing_key:
             raise RuntimeError(
                 "No active signing key found. Run 'flask init-keys' first."
             )
         private_key = signing_key.get_private_key(crypto.get_fernet())
-        domain = current_app.config["X2FA_DOMAIN"]
+        domain = current_app.config.x2fa.DOMAIN
         return {
             "key": private_key,
             "alg": signing_key.algorithm,
@@ -118,7 +120,12 @@ class X2FAOpenIDCode(OpenIDCode):
 
 def query_client(client_id: str):
     """Authlib client loader — returns an active OIDCClient or None."""
-    return OIDCClient.query.filter_by(client_id=client_id, active=True).first()
+
+    stmt = select(OIDCClient).where(
+    OIDCClient.client_id == client_id,
+    OIDCClient.active == True
+    )
+    return g.db_session.execute(stmt).scalars().first()
 
 
 def save_token(token, request):

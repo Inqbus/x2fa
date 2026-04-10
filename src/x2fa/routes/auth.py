@@ -7,6 +7,7 @@ from flask import (
     Blueprint,
     abort,
     current_app,
+    g,
     jsonify,
     redirect,
     render_template,
@@ -14,11 +15,13 @@ from flask import (
     session,
     url_for,
 )
-from flask_babel import gettext as _
+from flask_babelplus import gettext as _
+from sqlalchemy import select
 
-from x2fa.extensions import limiter
-from x2fa.models import OIDCClient, SigningKey
+from x2fa.init_app.limiter import limiter
+from x2fa.models import OIDCClient, SigningKey, Base
 from x2fa.oidc import oauth
+from x2fa.config import cfg
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -31,7 +34,7 @@ auth_bp = Blueprint("auth", __name__)
 @auth_bp.route("/.well-known/openid-configuration")
 def openid_configuration():
     """Standard OIDC discovery document (RFC 8414)."""
-    domain = current_app.config["X2FA_DOMAIN"]
+    domain = current_app.config.x2fa.DOMAIN
     base = f"https://{domain}"
     return jsonify(
         {
@@ -90,7 +93,7 @@ def jwks():
 
 
 @auth_bp.route("/authorize")
-@limiter.limit(lambda: current_app.config["RATE_LIMIT_AUTHORIZE"])
+@limiter.limit(cfg.x2fa_ratelimit.RATE_LIMIT_AUTHORIZE)
 def authorize():
     """
     OIDC Authorization Endpoint — two-phase flow:
@@ -137,8 +140,13 @@ def authorize():
         abort(
             HTTPStatus.BAD_REQUEST, _("Only code_challenge_method=S256 is supported.")
         )
+    stmt = select(OIDCClient).where(
+        OIDCClient.client_id == client_id,
+        OIDCClient.active == True
+    )
+    print("Verfügbare Tabellen:", Base.metadata.tables.keys())
+    client = g.db_session.execute(stmt).scalar_one_or_none()
 
-    client = OIDCClient.query.filter_by(client_id=client_id, active=True).first()
     if not client:
         abort(HTTPStatus.BAD_REQUEST, _("Unknown client_id."))
     if not client.check_redirect_uri(redirect_uri):
@@ -215,7 +223,7 @@ def _oidc_error_redirect(error: str, description: str = ""):
 
 
 @auth_bp.route("/token", methods=["POST"])
-@limiter.limit(lambda: current_app.config["RATE_LIMIT_TOKEN"])
+@limiter.limit(cfg.x2fa_ratelimit.RATE_LIMIT_TOKEN)
 def token():
     """OIDC Token Endpoint — exchanges an authorization code for tokens."""
     return oauth.create_token_response()

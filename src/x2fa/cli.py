@@ -5,7 +5,8 @@ import click
 from flask import current_app
 from flask.cli import with_appcontext
 
-from x2fa.extensions import db
+from sqlalchemy import update
+
 from x2fa.constants import NEVER_USED
 from x2fa.models import (
     AuditLog,
@@ -15,6 +16,8 @@ from x2fa.models import (
     SigningKey,
     TOTPSecret,
 )
+
+from x2fa.init_app.database import SessionFactory
 
 
 @click.command("init-keys")
@@ -30,7 +33,9 @@ def init_keys():
     )
     from x2fa.services.crypto import CryptoService
 
-    crypto = CryptoService(current_app.config["X2FA_SECRET"])
+    db_session = SessionFactory()
+
+    crypto = CryptoService(current_app.config.x2fa_security.SECRET_KEY)
 
     private_key = ec.generate_private_key(ec.SECP256R1())
     public_key = private_key.public_key()
@@ -49,9 +54,11 @@ def init_keys():
     kid = secrets.token_hex(8)
 
     # Deactivate all existing keys
-    SigningKey.query.update({"active": False})
 
-    db.session.add(
+    stmt = update(SigningKey).values(active=False)
+    db_session.execute(stmt)
+
+    db_session.add(
         SigningKey(
             kid=kid,
             private_key_encrypted=private_encrypted,
@@ -60,7 +67,7 @@ def init_keys():
             active=True,
         )
     )
-    db.session.commit()
+    db_session.commit()
     click.echo(f"Signing key generated: kid={kid}")
 
 
@@ -77,7 +84,9 @@ def add_client(client_id, redirect_uri, secret, scopes):
     if not secret:
         secret = secrets.token_urlsafe(32)
 
-    existing = db.session.get(OIDCClient, client_id)
+    db_session = SessionFactory()
+
+    existing = db_session.get(OIDCClient, client_id)
     if existing:
         click.echo(
             f"Client '{client_id}' already exists. Updating configuration.", err=True
@@ -88,7 +97,7 @@ def add_client(client_id, redirect_uri, secret, scopes):
             secret  # always update (new random or explicitly given)
         )
     else:
-        db.session.add(
+        db_session.add(
             OIDCClient(
                 client_id=client_id,
                 client_secret=secret,
@@ -97,7 +106,7 @@ def add_client(client_id, redirect_uri, secret, scopes):
             )
         )
 
-    db.session.commit()
+    db_session.commit()
     click.echo(f"Client ID:     {client_id}")
     click.echo(f"Client secret: {secret}")
     click.echo(f"Redirect URI:  {redirect_uri}")
@@ -122,12 +131,15 @@ def list_clients():
 @with_appcontext
 def revoke_client(client_id):
     """Deactivates an OIDC client."""
-    client = db.session.get(OIDCClient, client_id)
+
+    db_session = SessionFactory()
+
+    client = db_session.get(OIDCClient, client_id)
     if not client:
         click.echo(f"Client '{client_id}' not found.", err=True)
         return
     client.active = False
-    db.session.commit()
+    db_session.commit()
     click.echo(f"Client '{client_id}' deactivated.")
 
 
@@ -136,9 +148,10 @@ def revoke_client(client_id):
 def stats():
     """Shows usage statistics."""
     from sqlalchemy import func
+    db_session = SessionFactory()
 
     rows = (
-        db.session.query(AuditLog.action, AuditLog.method, func.count())
+        db_session.query(AuditLog.action, AuditLog.method, func.count())
         .group_by(AuditLog.action, AuditLog.method)
         .all()
     )
@@ -158,14 +171,15 @@ def stats():
 def cleanup_codes():
     """Removes authorization codes older than 1 hour (nonce protection is preserved)."""
     from datetime import datetime, timezone, timedelta
-    from app.models import AuthorizationCode
+    from x2fa.models import AuthorizationCode
+    db_session = SessionFactory()
 
     cutoff = datetime.now(timezone.utc) - timedelta(hours=1)
     old = AuthorizationCode.query.filter(AuthorizationCode.expires_at < cutoff).all()
     count = len(old)
     for code in old:
-        db.session.delete(code)
-    db.session.commit()
+        db_session.delete(code)
+    db_session.commit()
     click.echo(f"Deleted: {count} authorization codes (older than 1 hour).")
 
 

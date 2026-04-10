@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 from http import HTTPStatus
 
-from x2fa import totp_helpers
+from x2fa.helpers import totp_helpers
 from flask import (
     Blueprint,
     abort,
@@ -15,9 +15,9 @@ from flask import (
     session,
     url_for,
 )
-from flask_babel import gettext as _
+from flask_babelplus import gettext as _
 
-from x2fa.extensions import db, limiter
+from x2fa.init_app.limiter import limiter
 from x2fa.models import BackupCode, TOTPSecret
 from x2fa.constants import (
     ACTION_FAIL,
@@ -52,28 +52,28 @@ def totp_setup_get():
     user_id = session["user_id"]
 
     secret = totp_helpers.generate_secret()
-    crypto = CryptoService(current_app.config["X2FA_SECRET"])
+    crypto = CryptoService(current_app.config.x2fa_security.SECRET_KEY)
 
     secret_encrypted = crypto.encrypt(secret)
     provisioning_uri = totp_helpers.build_provisioning_uri(
-        secret, user_id, issuer=current_app.config["X2FA_DOMAIN"]
+        secret, user_id, issuer=current_app.config.x2fa.DOMAIN
     )
 
     # Persist (unverified until the code is confirmed)
-    existing = db.session.get(TOTPSecret, user_id)
+    existing = g.db_session.get(TOTPSecret, user_id)
     if existing:
         existing.secret_encrypted = secret_encrypted
         existing.verified = False
         existing.last_used_at = NEVER_USED
     else:
-        db.session.add(
+        g.db_session.add(
             TOTPSecret(
                 user_id=user_id,
                 secret_encrypted=secret_encrypted,
                 last_used_at=NEVER_USED,
             )
         )
-    db.session.commit()
+    g.db_session.commit()
 
     return render_template(
         "totp_setup.html",
@@ -90,17 +90,17 @@ def totp_setup_get():
 
 
 @totp_bp.route("/totp/setup/verify", methods=["POST"])
-@limiter.limit(lambda: current_app.config["RATE_LIMIT_TOTP_SETUP"])
+@limiter.limit(lambda: current_app.config.x2fa_ratelimit.RATE_LIMIT_TOTP_SETUP)
 def totp_setup_verify():
     _require_session()
     user_id = session["user_id"]
     code = request.form.get("code", "").strip()
 
-    totp_record = db.session.get(TOTPSecret, user_id)
+    totp_record = g.db_session.get(TOTPSecret, user_id)
     if totp_record is None:
         abort(HTTPStatus.BAD_REQUEST, _("No TOTP secret found. Please restart setup."))
 
-    secret = CryptoService(current_app.config["X2FA_SECRET"]).decrypt(
+    secret = CryptoService(current_app.config.x2fa_security.SECRET_KEY).decrypt(
         bytes(totp_record.secret_encrypted)
     )
 
@@ -116,9 +116,9 @@ def totp_setup_verify():
     # Generate backup codes (same as WebAuthn setup flow)
     codes = CryptoService.generate_backup_codes(BACKUP_CODES_COUNT)
     for code_hash in [CryptoService.hash_backup_code(c) for c in codes]:
-        db.session.add(BackupCode(code_hash=code_hash, user_id=user_id))
+        g.db_session.add(BackupCode(code_hash=code_hash, user_id=user_id))
 
-    db.session.commit()
+    g.db_session.commit()
     audit_log(ACTION_SETUP, METHOD_TOTP, user_id)
 
     session["backup_codes"] = codes
@@ -136,7 +136,7 @@ def totp_verify_get():
     _require_session()
     user_id = session["user_id"]
 
-    totp_record = db.session.get(TOTPSecret, user_id)
+    totp_record = g.db_session.get(TOTPSecret, user_id)
     if totp_record is None or not totp_record.verified:
         from x2fa.routes.auth import _oidc_error_redirect
 
@@ -155,13 +155,13 @@ def totp_verify_get():
 
 
 @totp_bp.route("/totp/verify", methods=["POST"])
-@limiter.limit(lambda: current_app.config["RATE_LIMIT_TOTP_VERIFY"])
+@limiter.limit(lambda: current_app.config.x2fa_ratelimit.RATE_LIMIT_TOTP_VERIFY)
 def totp_verify_post():
     _require_session()
     user_id = session["user_id"]
     code = request.form.get("code", "").strip()
 
-    totp_record = db.session.get(TOTPSecret, user_id)
+    totp_record = g.db_session.get(TOTPSecret, user_id)
     if totp_record is None or not totp_record.verified:
         # Treat missing TOTP identically to a wrong code — no state leak
         audit_log(ACTION_FAIL, METHOD_TOTP, user_id)
@@ -169,7 +169,7 @@ def totp_verify_post():
             url_for("totp.totp_verify_get", error=_("Wrong or already used code."))
         )
 
-    secret = CryptoService(current_app.config["X2FA_SECRET"]).decrypt(
+    secret = CryptoService(current_app.config.x2fa_security.SECRET_KEY).decrypt(
         bytes(totp_record.secret_encrypted)
     )
 
@@ -182,7 +182,7 @@ def totp_verify_post():
         )
 
     totp_record.last_used_at = datetime.now(timezone.utc)
-    db.session.commit()
+    g.db_session.commit()
     audit_log(ACTION_VERIFY, METHOD_TOTP, user_id)
 
     session["2fa_verified"] = True

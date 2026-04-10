@@ -1,39 +1,38 @@
 from flask import Flask, g
 
-from flask_migrate import Migrate
-
 from sqlalchemy import create_engine
-from sqlalchemy.engine.base import Engine
-from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy.orm import sessionmaker
 
 from x2fa.models import Base
 
-migrate = Migrate()
+from x2fa.config import cfg
+
+
+engine = create_engine(cfg.x2fa_db.SQLALCHEMY_DATABASE_URI)
+SessionFactory = sessionmaker(bind=engine)
 
 def database(app: Flask):
-    engine = database_engine(app)
-    database_creation(app, engine)
-    database_session(app, engine)
+    database_creation(app)
+    database_migration(app)
+    database_session(app)
 
-def database_engine(app: Flask):
-    engine = create_engine(app.config.db.SQLALCHEMY_DATABASE_URI, pool_pre_ping = True)
-    return engine
 
-def database_creation(app: Flask, engine: Engine):
+def database_creation(app: Flask):
     # Create database tables
-    if app.config.x2fa.TESTING:
-        with app.app_context():
-            Base.metadata.create_all(engine)
+    # THis is important to guarantee that the models are availabe
+    import x2fa.models
 
-def database_migraton(app: Flask):
+    if app.config.x2fa.TESTING:
+        Base.metadata.create_all(engine)
+
+def database_migration(app: Flask):
     """To be implemented"""
 
-def database_session(app: Flask, engine: Engine):
-    SessionFactory = sessionmaker(bind=engine)
+def database_session(app: Flask):
 
     @app.before_request
     def before_request():
-        g.db_session = scoped_session(SessionFactory)
+        g.db_session = SessionFactory()
 
     @app.teardown_appcontext
     def teardown(error):
@@ -43,4 +42,4 @@ def database_session(app: Flask, engine: Engine):
                 db_session.rollback()
             else:
                 db_session.commit()
-            db_session.remove()
+            db_session.close()

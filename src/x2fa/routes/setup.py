@@ -17,10 +17,10 @@ from flask import (
     session,
     url_for,
 )
-from flask_babel import gettext as _
+from flask_babelplus import gettext as _
 
-from x2fa import webauthn_helpers
-from x2fa.extensions import db, limiter
+from x2fa.helpers import webauthn_helpers
+from x2fa.init_app.limiter import limiter
 from x2fa.models import BackupCode, Challenge, Credential
 from x2fa.constants import (
     ACTION_SETUP,
@@ -68,10 +68,10 @@ def setup_webauthn_get():
     challenge_bytes = secrets.token_bytes(CHALLENGE_BYTES)
     challenge_id = str(uuid.uuid4())
     expires_at = datetime.now(timezone.utc) + timedelta(
-        minutes=current_app.config["CHALLENGE_TTL_MINUTES"]
+        minutes=current_app.config.x2fa_ratelimit.CHALLENGE_TTL_MINUTES
     )
 
-    db.session.add(
+    g.db_session.add(
         Challenge(
             challenge_id=challenge_id,
             user_id=user_id,
@@ -79,7 +79,7 @@ def setup_webauthn_get():
             expires_at=expires_at,
         )
     )
-    db.session.commit()
+    g.db_session.commit()
 
     options_json = webauthn_helpers.build_registration_options_json(
         user_id, challenge_bytes
@@ -99,7 +99,7 @@ def setup_webauthn_get():
 
 
 @setup_bp.route("/setup/complete", methods=["POST"])
-@limiter.limit(lambda: current_app.config["RATE_LIMIT_SETUP_COMPLETE"])
+@limiter.limit(lambda: current_app.config.x2fa_ratelimit.RATE_LIMIT_SETUP_COMPLETE)
 def setup_complete():
     if not session.get("oidc_request") or not session.get("user_id"):
         return jsonify({"error": _("No active session.")}), HTTPStatus.UNAUTHORIZED
@@ -112,7 +112,7 @@ def setup_complete():
     challenge_id = data.get("challenge_id", "")
 
     # Consume the challenge (single-use, TTL check)
-    ch = db.session.get(Challenge, challenge_id)
+    ch = g.db_session.get(Challenge, challenge_id)
     if not ch or ch.user_id != user_id or ch.used:
         return jsonify({"error": _("Invalid challenge.")}), HTTPStatus.BAD_REQUEST
 
@@ -123,7 +123,7 @@ def setup_complete():
         return jsonify({"error": _("Challenge expired.")}), HTTPStatus.BAD_REQUEST
 
     ch.used = True
-    db.session.commit()
+    g.db_session.commit()
     challenge_bytes = bytes(ch.challenge)
 
     # Build the credential JSON structure expected by py_webauthn
@@ -148,7 +148,7 @@ def setup_complete():
         METHOD_WEBAUTHN_PLATFORM if auth_type == "platform" else METHOD_WEBAUTHN_ROAMING
     )
 
-    db.session.add(
+    g.db_session.add(
         Credential(
             credential_id=reg["credential_id"],
             user_id=user_id,
@@ -164,9 +164,9 @@ def setup_complete():
     # Generate single-use backup codes and store their bcrypt hashes
     codes = CryptoService.generate_backup_codes(BACKUP_CODES_COUNT)
     for code_hash in [CryptoService.hash_backup_code(c) for c in codes]:
-        db.session.add(BackupCode(code_hash=code_hash, user_id=user_id))
+        g.db_session.add(BackupCode(code_hash=code_hash, user_id=user_id))
 
-    db.session.commit()
+    g.db_session.commit()
     audit_log(ACTION_SETUP, method, user_id)
 
     # Store backup codes in session for one-time display, mark 2FA as verified

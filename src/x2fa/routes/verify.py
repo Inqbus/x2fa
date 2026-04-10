@@ -18,10 +18,10 @@ from flask import (
     session,
     url_for,
 )
-from flask_babel import gettext as _
+from flask_babelplus import gettext as _
 
-from x2fa.app import webauthn_helpers
-from x2fa.extensions import db, limiter
+from x2fa.helpers import webauthn_helpers
+from x2fa.init_app.limiter import limiter
 from x2fa.models import Challenge, Credential
 from x2fa.constants import (
     ACTION_FAIL,
@@ -59,7 +59,7 @@ def verify_get():
         # No WebAuthn credentials — check for TOTP as fallback
         from x2fa.models import TOTPSecret
 
-        totp_record = db.session.get(TOTPSecret, user_id)
+        totp_record = g.db_session.get(TOTPSecret, user_id)
         if totp_record and totp_record.verified:
             return redirect(url_for("totp.totp_verify_get"))
         # No 2FA method registered at all — return OIDC error to the RP
@@ -71,10 +71,10 @@ def verify_get():
     challenge_bytes = secrets.token_bytes(CHALLENGE_BYTES)
     challenge_id = str(uuid.uuid4())
     expires_at = datetime.now(timezone.utc) + timedelta(
-        minutes=current_app.config["CHALLENGE_TTL_MINUTES"]
+        minutes=current_app.config.x2fa_ratelimit.CHALLENGE_TTL_MINUTES
     )
 
-    db.session.add(
+    g.db_session.add(
         Challenge(
             challenge_id=challenge_id,
             user_id=user_id,
@@ -82,7 +82,7 @@ def verify_get():
             expires_at=expires_at,
         )
     )
-    db.session.commit()
+    g.db_session.commit()
 
     credential_ids = [bytes(c.credential_id) for c in credentials]
     transports_list = [
@@ -107,7 +107,7 @@ def verify_get():
 
 
 @verify_bp.route("/verify/complete", methods=["POST"])
-@limiter.limit(lambda: current_app.config["RATE_LIMIT_WEBAUTHN_VERIFY"])
+@limiter.limit(lambda: current_app.config.x2fa_ratelimit.RATE_LIMIT_WEBAUTHN_VERIFY)
 def verify_complete():
     if not session.get("oidc_request") or not session.get("user_id"):
         return jsonify({"error": _("No active session.")}), HTTPStatus.UNAUTHORIZED
@@ -120,7 +120,7 @@ def verify_complete():
     challenge_id = data.get("challenge_id", "")
 
     # Consume the challenge (single-use, TTL check)
-    ch = db.session.get(Challenge, challenge_id)
+    ch = g.db_session.get(Challenge, challenge_id)
     if not ch or ch.user_id != user_id or ch.used:
         return jsonify({"error": _("Invalid challenge.")}), HTTPStatus.BAD_REQUEST
 
@@ -131,7 +131,7 @@ def verify_complete():
         return jsonify({"error": _("Challenge expired.")}), HTTPStatus.BAD_REQUEST
 
     ch.used = True
-    db.session.commit()
+    g.db_session.commit()
     challenge_bytes = bytes(ch.challenge)
 
     # Decode rawId to look up the stored credential
@@ -142,7 +142,7 @@ def verify_complete():
     except Exception:
         return jsonify({"error": _("Invalid credential ID.")}), HTTPStatus.BAD_REQUEST
 
-    cred = db.session.get(Credential, raw_id)
+    cred = g.db_session.get(Credential, raw_id)
     if cred is None or cred.user_id != user_id:
         return jsonify({"error": _("Credential not found.")}), HTTPStatus.NOT_FOUND
 
@@ -169,7 +169,7 @@ def verify_complete():
     # Update sign count — regression would indicate a cloned authenticator
     cred.sign_count = new_sign_count
     cred.last_used_at = datetime.now(timezone.utc)
-    db.session.commit()
+    g.db_session.commit()
 
     method = (
         METHOD_WEBAUTHN_PLATFORM

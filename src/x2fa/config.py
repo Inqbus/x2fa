@@ -16,7 +16,7 @@ cfg = AttrDict(
     ),
     x2fa_babel = Dynaconf(
         root_path=root_path,
-        settings_files=["bable_config.toml"],
+        settings_files=["babel_config.toml"],
         environments=True,
         load_dotenv=True,
         envvar_prefix="X2FA_BABEL",

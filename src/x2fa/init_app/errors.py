@@ -6,7 +6,7 @@ def errors(app: Flask):
     # Error pages
     @app.errorhandler(HTTPStatus.BAD_REQUEST)
     def _e400(err):
-        from flask_babel import gettext as _
+        from flask_babelplus import gettext as _
 
         return render_template(
             "error.html",
@@ -18,7 +18,7 @@ def errors(app: Flask):
 
     @app.errorhandler(HTTPStatus.UNAUTHORIZED)
     def _e401(err):
-        from flask_babel import gettext as _
+        from flask_babelplus import gettext as _
 
         return render_template(
             "error.html",
@@ -30,7 +30,7 @@ def errors(app: Flask):
 
     @app.errorhandler(HTTPStatus.FORBIDDEN)
     def _e403(err):
-        from flask_babel import gettext as _
+        from flask_babelplus import gettext as _
 
         return render_template(
             "error.html",
@@ -42,7 +42,7 @@ def errors(app: Flask):
 
     @app.errorhandler(HTTPStatus.NOT_FOUND)
     def _e404(err):
-        from flask_babel import gettext as _
+        from flask_babelplus import gettext as _
 
         return render_template(
             "error.html",
@@ -54,7 +54,7 @@ def errors(app: Flask):
 
     @app.errorhandler(HTTPStatus.TOO_MANY_REQUESTS)
     def _e429(err):
-        from flask_babel import gettext as _
+        from flask_babelplus import gettext as _
 
         return render_template(
             "error.html",
@@ -66,7 +66,7 @@ def errors(app: Flask):
 
     @app.errorhandler(HTTPStatus.INTERNAL_SERVER_ERROR)
     def _e500(err):
-        from flask_babel import gettext as _
+        from flask_babelplus import gettext as _
 
         return render_template(
             "error.html",

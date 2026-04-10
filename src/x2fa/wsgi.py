@@ -13,10 +13,10 @@ if os.path.exists("../../.env"):
             k, _, v = line.partition("=")
             os.environ.setdefault(k.strip(), v.strip())
 
-from app import create_app
+from x2fa.app import create_app
 
 app = create_app()
 
 if __name__ == "__main__":
-    from x2fa.config import x2fa
-    app.run(host=x2fa['HOST'], port=x2fa['PORT'])
+    from x2fa.config import cfg
+    app.run(host=cfg.x2fa['HOST'], port=cfg.x2fa['PORT'])

@@ -33,7 +33,7 @@ import urllib.request
 from dynaconf import Dynaconf
 from pathlib import Path
 from flask import Flask, redirect, render_template_string, request, session, url_for
-from flask_babel import Babel, gettext as _
+from flask_babelplus import Babel, gettext as _
 
 cfg = Dynaconf(
     root_path=Path(__file__).parent,
@@ -71,9 +71,9 @@ def _get_locale() -> str:
     return request.accept_languages.best_match(SUPPORTED_UI, default="en")
 
 
-babel.init_app(app, locale_selector=_get_locale)
+babel.init_app(app)
 
-from flask_babel import get_locale
+from flask_babelplus import get_locale
 app.jinja_env.globals["get_locale"] = get_locale
 
 

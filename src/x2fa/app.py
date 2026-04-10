@@ -26,3 +26,5 @@ def create_app() -> Flask:
     security(app)
     errors(app)
     limiter.init_app(app)
+
+    return app
