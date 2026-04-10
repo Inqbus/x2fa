@@ -71,10 +71,12 @@ def jwks():
     from authlib.jose import JsonWebKey
     from datetime import datetime, timezone
 
-    keys = SigningKey.query.filter(
-        SigningKey.active == True,
-        SigningKey.expires_at > datetime.now(timezone.utc),
-    ).all()
+    stmt = (
+        select(SigningKey)
+        .where(SigningKey.active == True)
+        .where(SigningKey.expires_at > datetime.now(timezone.utc))
+    )
+    keys = g.db_session.execute(stmt).scalars().all()
     jwk_list = []
     for sk in keys:
         # Pass PEM bytes directly to authlib (not a pre-loaded key object)
@@ -141,8 +143,7 @@ def authorize():
             HTTPStatus.BAD_REQUEST, _("Only code_challenge_method=S256 is supported.")
         )
     stmt = select(OIDCClient).where(
-        OIDCClient.client_id == client_id,
-        OIDCClient.active == True
+        OIDCClient.client_id == client_id, OIDCClient.active == True
     )
     print("Verfügbare Tabellen:", Base.metadata.tables.keys())
     client = g.db_session.execute(stmt).scalar_one_or_none()

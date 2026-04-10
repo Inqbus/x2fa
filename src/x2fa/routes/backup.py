@@ -58,11 +58,12 @@ def backup_verify_post():
     user_id = session["user_id"]
     code = request.form.get("code", "").strip().upper()
 
-    valid_codes = (
-        BackupCode.query.filter_by(user_id=user_id)
-        .filter(BackupCode.used_at == NEVER_USED)
-        .all()
+    stmt = (
+        select(BackupCode)
+        .where(BackupCode.user_id == user_id)
+        .where(BackupCode.used_at == NEVER_USED)
     )
+    valid_codes = g.db_session.execute(stmt).scalars().all()
 
     from x2fa.services.crypto import CryptoService
 

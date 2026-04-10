@@ -53,10 +53,11 @@ class X2FAAuthorizationCodeGrant(AuthorizationCodeGrant):
 
     def query_authorization_code(self, code, client):
         """Looks up a valid (unused, unexpired) authorization code."""
-        auth_code = AuthorizationCode.query.filter_by(
-            code=code,
-            client_id=client.client_id,
-        ).first()
+        stmt = select(AuthorizationCode).where(
+            AuthorizationCode.code == code,
+            AuthorizationCode.client_id == client.client_id,
+        )
+        auth_code = g.db_session.execute(stmt).scalars().first()
         if not auth_code or auth_code.is_expired() or auth_code.used:
             return None
         return auth_code
@@ -83,7 +84,8 @@ class X2FAOpenIDCode(OpenIDCode):
         """Returns True if this nonce has already been used (replay protection)."""
         if not nonce:
             return False
-        return AuthorizationCode.query.filter_by(nonce=nonce).first() is not None
+        stmt = select(AuthorizationCode).where(AuthorizationCode.nonce == nonce)
+        return g.db_session.execute(stmt).scalars().first() is not None
 
     def get_jwt_config(self, grant, client=None):
         """Returns the JWT signing configuration for the ID token."""
@@ -122,8 +124,7 @@ def query_client(client_id: str):
     """Authlib client loader — returns an active OIDCClient or None."""
 
     stmt = select(OIDCClient).where(
-    OIDCClient.client_id == client_id,
-    OIDCClient.active == True
+        OIDCClient.client_id == client_id, OIDCClient.active == True
     )
     return g.db_session.execute(stmt).scalars().first()
 

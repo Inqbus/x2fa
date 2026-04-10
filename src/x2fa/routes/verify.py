@@ -54,7 +54,8 @@ def verify_get():
     _require_session()
     user_id = session["user_id"]
 
-    credentials = Credential.query.filter_by(user_id=user_id).all()
+    stmt = select(Credential).where(Credential.user_id == user_id)
+    credentials = g.db_session.execute(stmt).scalars().all()
     if not credentials:
         # No WebAuthn credentials — check for TOTP as fallback
         from x2fa.models import TOTPSecret

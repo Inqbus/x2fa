@@ -117,7 +117,8 @@ def add_client(client_id, redirect_uri, secret, scopes):
 @with_appcontext
 def list_clients():
     """Lists all registered OIDC clients."""
-    clients = OIDCClient.query.all()
+    stmt = select(OIDCClient)
+    clients = g.db_session.execute(stmt).scalars().all()
     if not clients:
         click.echo("No clients registered.")
         return
@@ -148,22 +149,32 @@ def revoke_client(client_id):
 def stats():
     """Shows usage statistics."""
     from sqlalchemy import func
+
     db_session = SessionFactory()
 
-    rows = (
-        db_session.query(AuditLog.action, AuditLog.method, func.count())
-        .group_by(AuditLog.action, AuditLog.method)
-        .all()
+    stmt = select(AuditLog.action, AuditLog.method, func.count()).group_by(
+        AuditLog.action, AuditLog.method
     )
+    rows = db_session.execute(stmt).all()
     click.echo("Audit statistics:")
     for action, method, count in rows:
         click.echo(f"  {action:8s} {method:25s} {count:5d}x")
 
-    click.echo(f"\nCredentials:  {Credential.query.count()}")
-    click.echo(f"TOTP secrets: {TOTPSecret.query.count()}")
-    click.echo(
-        f"Backup codes: {BackupCode.query.filter(BackupCode.used_at == NEVER_USED).count()} remaining"
+    stmt = select(func.count()).select_from(Credential)
+    count = g.db_session.execute(stmt).scalar()
+    click.echo(f"\nCredentials:  {count}")
+
+    stmt = select(func.count()).select_from(TOTPSecret)
+    count = g.db_session.execute(stmt).scalar()
+    click.echo(f"TOTP secrets: {count}")
+
+    stmt = (
+        select(func.count())
+        .select_from(BackupCode)
+        .where(BackupCode.used_at == NEVER_USED)
     )
+    count = g.db_session.execute(stmt).scalar()
+    click.echo(f"Backup codes: {count} remaining")
 
 
 @click.command("cleanup-codes")
@@ -172,10 +183,12 @@ def cleanup_codes():
     """Removes authorization codes older than 1 hour (nonce protection is preserved)."""
     from datetime import datetime, timezone, timedelta
     from x2fa.models import AuthorizationCode
+
     db_session = SessionFactory()
 
     cutoff = datetime.now(timezone.utc) - timedelta(hours=1)
-    old = AuthorizationCode.query.filter(AuthorizationCode.expires_at < cutoff).all()
+    stmt = select(AuthorizationCode).where(AuthorizationCode.expires_at < cutoff)
+    old = g.db_session.execute(stmt).scalars().all()
     count = len(old)
     for code in old:
         db_session.delete(code)
