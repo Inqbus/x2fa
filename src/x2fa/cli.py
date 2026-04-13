@@ -17,7 +17,7 @@ from x2fa.models import (
     TOTPSecret,
 )
 
-from x2fa.init_app.database import SessionFactory
+from x2fa.init_app import database
 
 
 @click.command("init-keys")
@@ -33,7 +33,7 @@ def init_keys():
     )
     from x2fa.services.crypto import CryptoService
 
-    db_session = SessionFactory()
+    db_session = database.SessionFactory()
 
     crypto = CryptoService(current_app.config.x2fa_security.SECRET_KEY)
 
@@ -84,7 +84,7 @@ def add_client(client_id, redirect_uri, secret, scopes):
     if not secret:
         secret = secrets.token_urlsafe(32)
 
-    db_session = SessionFactory()
+    db_session = database.SessionFactory()
 
     existing = db_session.get(OIDCClient, client_id)
     if existing:
@@ -117,7 +117,7 @@ def add_client(client_id, redirect_uri, secret, scopes):
 @with_appcontext
 def list_clients():
     """Lists all registered OIDC clients."""
-    db_session = SessionFactory()
+    db_session = database.SessionFactory()
     stmt = select(OIDCClient)
     clients = db_session.execute(stmt).scalars().all()
     if not clients:
@@ -134,7 +134,7 @@ def list_clients():
 def revoke_client(client_id):
     """Deactivates an OIDC client."""
 
-    db_session = SessionFactory()
+    db_session = database.SessionFactory()
 
     client = db_session.get(OIDCClient, client_id)
     if not client:
@@ -151,7 +151,7 @@ def stats():
     """Shows usage statistics."""
     from sqlalchemy import func
 
-    db_session = SessionFactory()
+    db_session = database.SessionFactory()
 
     stmt = select(AuditLog.action, AuditLog.method, func.count()).group_by(
         AuditLog.action, AuditLog.method
@@ -185,7 +185,7 @@ def cleanup_codes():
     from datetime import datetime, timezone, timedelta
     from x2fa.models import AuthorizationCode
 
-    db_session = SessionFactory()
+    db_session = database.SessionFactory()
 
     cutoff = datetime.now(timezone.utc) - timedelta(hours=1)
     stmt = select(AuthorizationCode).where(AuthorizationCode.expires_at < cutoff)
