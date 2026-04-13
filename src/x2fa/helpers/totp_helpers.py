@@ -6,7 +6,8 @@ from datetime import datetime, timezone
 
 import pyotp
 import qrcode
-
+from qrcode.image.pil import PilImage
+from qrcode.constants import ERROR_CORRECT_H
 
 def generate_secret() -> str:
     """Generates a random Base32 TOTP secret."""
@@ -17,13 +18,25 @@ def build_provisioning_uri(secret: str, user_id: str, issuer: str = "X2FA") -> s
     totp = pyotp.TOTP(secret)
     return totp.provisioning_uri(name=user_id, issuer_name=issuer)
 
-
 def generate_qr_data_uri(provisioning_uri: str) -> str:
     """Returns a base64-encoded PNG data URI for the QR code."""
-    img = qrcode.make(provisioning_uri)
+    qr = qrcode.QRCode(
+        version=None,
+        error_correction=ERROR_CORRECT_H,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(provisioning_uri)
+    qr.make(fit=True)
+
+    img = qr.make_image(image_factory=PilImage)
+
     buf = io.BytesIO()
     img.save(buf, format="PNG")
-    b64 = base64.b64encode(buf.getvalue()).decode()
+
+    img_bytes = buf.getvalue()
+    b64 = base64.b64encode(img_bytes).decode()
+
     return f"data:image/png;base64,{b64}"
 
 
