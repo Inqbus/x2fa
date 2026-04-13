@@ -3,3 +3,6 @@ SQLALCHEMY_DATABASE_URI = "sqlite:///db.sqlite"
 
 [production]
 SQLALCHEMY_DATABASE_URI = "sqlite:///db.sqlite"
+
+[testing]
+SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"

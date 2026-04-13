@@ -1,11 +1,15 @@
 """Shared fixtures for all X2FA tests."""
 
+# Must be set before any x2fa import so Dynaconf loads the [testing] section
+# from all config files (db_config.toml, security_config.toml, …).
+import os
+os.environ.setdefault("ENV_FOR_DYNACONF", "testing")
+
 import pytest
 
 from x2fa.app import create_app
 from x2fa.helpers.webauthn_helpers import init_webauthn
 
-TEST_SECRET = "a" * 32
 TEST_DOMAIN = "test.example.com"
 
 # Default OIDC session for tests (verification flow)
@@ -24,16 +28,7 @@ OIDC_REQUEST_VERIFY = {
 
 @pytest.fixture(scope="session", autouse=True)
 def init_services():
-    """Initializes Crypto and WebAuthn once per test session."""
-    import os
-
-    os.environ["X2FA_SECRET"] = TEST_SECRET
-    os.environ["X2FA_DOMAIN"] = TEST_DOMAIN
-    os.environ["X2FA_DATABASE_URL"] = "sqlite:///:memory:"
-
-    from x2fa.services.crypto import CryptoService
-
-    CryptoService(TEST_SECRET)
+    """Initializes WebAuthn once per test session."""
     init_webauthn(TEST_DOMAIN)
 
 
@@ -78,6 +73,13 @@ class TestClient:
 
 @pytest.fixture
 def client():
-
     flask_app = create_app()
+
+    # Reset the schema before each test so no data leaks between tests.
+    from x2fa.models import Base
+    from x2fa.init_app.database import get_engine
+    engine = get_engine()
+    Base.metadata.drop_all(engine)
+    Base.metadata.create_all(engine)
+
     return TestClient(flask_app)
