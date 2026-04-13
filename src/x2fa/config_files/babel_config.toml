@@ -1,5 +1,5 @@
 [default]
-BABEL_DEFAULT_LOCALE = "en"
+BABEL_DEFAULT_LOCALE = "de"
 BABEL_TRANSLATION_DIRECTORIES = "../translations"
 BABEL_SUPPORTED_LOCALES = [
     "de",

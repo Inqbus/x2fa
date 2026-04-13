@@ -1,5 +1,8 @@
+import os
+
 from flask import Flask, request, session
 from flask_babelplus import Babel, gettext, ngettext
+from flask_babelplus.domain import Domain
 
 from x2fa.config import cfg
 
@@ -12,10 +15,15 @@ def babel(app: Flask):
     # Configuration
     app.config['BABEL_DEFAULT_LOCALE'] = cfg.x2fa_babel.BABEL_DEFAULT_LOCALE
     app.config['BABEL_SUPPORTED_LOCALES'] = cfg.x2fa_babel.BABEL_SUPPORTED_LOCALES
-    app.config['BABEL_TRANSLATION_DIRECTORIES'] = 'translations'
 
-    # Initialize extension
-    babel_ext = Babel(app)
+    # Resolve translation directory relative to the app root_path (src/x2fa/).
+    # cfg value "../translations" resolves to src/translations/ where .mo files live.
+    translations_dir = os.path.normpath(
+        os.path.join(app.root_path, cfg.x2fa_babel.BABEL_TRANSLATION_DIRECTORIES)
+    )
+
+    # Initialize extension with explicit Domain so flask-babelplus finds the .mo files.
+    babel_ext = Babel(app, default_domain=Domain(dirname=translations_dir))
 
     # 1. Locale Selector: OIDC session parameter > Browser preference
     @babel_ext.localeselector
