@@ -20,8 +20,6 @@ def security(app: Flask):
         [S256OnlyCodeChallenge(required=True), X2FAOpenIDCode(require_nonce=False)],
     )
 
-    webauthn_helpers.init_webauthn(app.config.x2fa.DOMAIN)
-
     # Test-only blueprint for session injection (E2E Playwright tests)
     if app.config.x2fa.TESTING:
         from x2fa.routes.test_helpers import test_bp

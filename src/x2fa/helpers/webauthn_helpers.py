@@ -1,6 +1,6 @@
 """Thin wrapper around py_webauthn 2.x for X2FA."""
 
-import os
+# import os
 
 from webauthn import (
     generate_authentication_options,
@@ -17,22 +17,7 @@ from webauthn.helpers.structs import (
     UserVerificationRequirement,
 )
 
-_DOMAIN: str | None = None
-_ORIGIN: str | None = None
-
-
-def init_webauthn(domain: str) -> None:
-    global _DOMAIN, _ORIGIN
-    _DOMAIN = domain
-    # X2FA_ORIGIN overrides the default (https://<domain>).
-    # For local testing: X2FA_ORIGIN=http://localhost:5000
-    _ORIGIN = os.environ.get("X2FA_ORIGIN") or f"https://{domain}"
-
-
-def _require_domain() -> str:
-    if not _DOMAIN:
-        raise RuntimeError("webauthn_helpers.init_webauthn() has not been called.")
-    return _DOMAIN
+from x2fa.config import cfg
 
 
 # ---------------------------------------------------------------------------
@@ -41,10 +26,9 @@ def _require_domain() -> str:
 
 def build_registration_options_json(user_id: str, challenge: bytes) -> str:
     """Returns a JSON string that can be sent directly to the frontend."""
-    domain = _require_domain()
     options = generate_registration_options(
-        rp_id=domain,
-        rp_name="X2FA",
+        rp_id=cfg.x2fa.DOMAIN,
+        rp_name=cfg.x2fa.NAME,
         user_id=user_id.encode(),
         user_name=user_id,
         challenge=challenge,
@@ -70,13 +54,13 @@ def verify_registration(challenge: bytes, credential_json: str) -> dict:
         }
     Raises ValueError on failure.
     """
-    domain = _require_domain()
+
     try:
         verification = verify_registration_response(
             credential=credential_json,
             expected_challenge=challenge,
-            expected_rp_id=domain,
-            expected_origin=_ORIGIN,
+            expected_rp_id=cfg.x2fa.DOMAIN,
+            expected_origin=cfg.x2fa.ORIGIN,
             require_user_verification=True,
         )
     except Exception as exc:

@@ -34,7 +34,7 @@ auth_bp = Blueprint("auth", __name__)
 @auth_bp.route("/.well-known/openid-configuration")
 def openid_configuration():
     """Standard OIDC discovery document (RFC 8414)."""
-    domain = current_app.config.x2fa.DOMAIN
+    domain = current_app.config.x2fa.RP_ID
     base = f"https://{domain}"
     return jsonify(
         {
