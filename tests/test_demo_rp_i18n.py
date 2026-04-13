@@ -19,7 +19,7 @@ def demo_rp_base_url():
     """Starts the demo-rp Flask server in a background thread."""
     spec = importlib.util.spec_from_file_location(
         "demo_rp_module",
-        os.path.join(os.path.dirname(__file__), "..", "demo_rp.py"),
+        os.path.join(os.path.dirname(__file__), "..", "demo_rp", "app.py"),
     )
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
