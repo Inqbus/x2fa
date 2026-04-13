@@ -24,7 +24,6 @@ X2FA is a FIDO2 microservice with OIDC provider that handles two-factor authenti
 - Test structure:
   - `tests/test_*.py` — unit tests (pytest fixtures in `tests/conftest.py`)
   - `tests/e2e/test_*.py` — end-to-end tests (fixtures in `tests/e2e/conftest.py`)
-- **Current status**: Tests failing due to active Flask/OIDC refactor (~March 2026)
 - E2E tests use `ENV_FOR_DYNACONF=e2e` and start a live server on configurable port (5098 default)
 - Demo RP (`demo_rp/app.py`) simulates an OIDC relying party for manual testing
 

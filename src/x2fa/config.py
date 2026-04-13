@@ -44,4 +44,3 @@ cfg = AttrDict(
     ),
 )
 
-settings = cfg

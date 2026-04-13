@@ -8,4 +8,4 @@ __pycache__/
 .env
 Caddyfile
 *.nginx.conf
-.aider*
+.idea*

@@ -24,6 +24,7 @@ from x2fa.config import cfg
 # Registration
 # ---------------------------------------------------------------------------
 
+
 def build_registration_options_json(user_id: str, challenge: bytes) -> str:
     """Returns a JSON string that can be sent directly to the frontend."""
     options = generate_registration_options(
@@ -77,6 +78,7 @@ def verify_registration(challenge: bytes, credential_json: str) -> dict:
     if hasattr(verification, "credential_device_type"):
         try:
             from webauthn.helpers.structs import CredentialDeviceType
+
             if verification.credential_device_type == CredentialDeviceType.MULTI_DEVICE:
                 device_type = "multi_device"
         except Exception:
@@ -95,12 +97,19 @@ def verify_registration(challenge: bytes, credential_json: str) -> dict:
 
     # Transport from the JSON payload (provided by the browser via getTransports())
     import json as _json
+
     transport: str | None = None
     try:
         _data = _json.loads(credential_json)
-        transports = _data.get("transports") or _data.get("response", {}).get("transports")
+        transports = _data.get("transports") or _data.get("response", {}).get(
+            "transports"
+        )
         if transports:
-            transport = ",".join(transports) if isinstance(transports, list) else str(transports)
+            transport = (
+                ",".join(transports)
+                if isinstance(transports, list)
+                else str(transports)
+            )
     except Exception:
         pass
 
@@ -119,11 +128,17 @@ def verify_registration(challenge: bytes, credential_json: str) -> dict:
 # Authentication
 # ---------------------------------------------------------------------------
 
+
 def build_authentication_options_json(
-    challenge: bytes, credential_ids: list[bytes], transports: list[list[str]] | None = None
+    challenge: bytes,
+    credential_ids: list[bytes],
+    transports: list[list[str]] | None = None,
 ) -> str:
-    domain = _require_domain()
-    def _to_transport_enums(raw: list[str] | None) -> list[AuthenticatorTransport] | None:
+    domain = cfg.x2fa.DOMAIN
+
+    def _to_transport_enums(
+        raw: list[str] | None,
+    ) -> list[AuthenticatorTransport] | None:
         if not raw:
             return None
         result = []
@@ -158,18 +173,12 @@ def verify_authentication(
     stored_public_key: bytes,
     stored_sign_count: int,
 ) -> int:
-    """Verifies the authentication response.
-
-    Returns the new sign_count.
-    Raises ValueError on failure or suspected cloning (sign count regression).
-    """
-    domain = _require_domain()
     try:
         verification = verify_authentication_response(
             credential=credential_json,
             expected_challenge=challenge,
-            expected_rp_id=domain,
-            expected_origin=_ORIGIN,
+            expected_rp_id=cfg.x2fa.DOMAIN,
+            expected_origin=cfg.x2fa.ORIGIN,
             credential_public_key=stored_public_key,
             credential_current_sign_count=stored_sign_count,
             require_user_verification=True,

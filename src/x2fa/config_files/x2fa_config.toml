@@ -2,6 +2,7 @@
 # Default configuration
 HOST = "127.0.0.1"
 PORT = 5000
+CALLBACK_PORT = 19999
 
 DOMAIN = "x2fa.dev.inqbus.de"
 ORIGIN = "https://x2fa.dev.inqbus.de"

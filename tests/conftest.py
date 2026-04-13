@@ -3,12 +3,13 @@
 # Must be set before any x2fa import so Dynaconf loads the [testing] section
 # from all config files (db_config.toml, security_config.toml, …).
 import os
+
 os.environ.setdefault("ENV_FOR_DYNACONF", "testing")
 
 import pytest
 
 from x2fa.app import create_app
-from x2fa.helpers.webauthn_helpers import init_webauthn
+
 
 TEST_DOMAIN = "test.example.com"
 
@@ -24,12 +25,6 @@ OIDC_REQUEST_VERIFY = {
     "response_type": "code",
     "login_hint": "user_test",
 }
-
-
-@pytest.fixture(scope="session", autouse=True)
-def init_services():
-    """Initializes WebAuthn once per test session."""
-    init_webauthn(TEST_DOMAIN)
 
 
 class TestClient:
@@ -78,6 +73,7 @@ def client():
     # Reset the schema before each test so no data leaks between tests.
     from x2fa.models import Base
     from x2fa.init_app.database import get_engine
+
     engine = get_engine()
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
