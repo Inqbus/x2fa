@@ -19,7 +19,7 @@ from flask_babelplus import gettext as _
 from sqlalchemy import select
 
 from x2fa.init_app.limiter import limiter
-from x2fa.models import OIDCClient, SigningKey, Base
+from x2fa.models import OIDCClient, SigningKey
 from x2fa.oidc import oauth
 from x2fa.config import cfg
 
@@ -145,7 +145,6 @@ def authorize():
     stmt = select(OIDCClient).where(
         OIDCClient.client_id == client_id, OIDCClient.active == True
     )
-    print("Verfügbare Tabellen:", Base.metadata.tables.keys())
     client = g.db_session.execute(stmt).scalar_one_or_none()
 
     if not client:

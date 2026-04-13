@@ -5,19 +5,22 @@ def _create_backup_codes(
     client, user_id: str = "user_test", count: int = 10
 ) -> list[str]:
     """Creates backup codes in the DB and returns the plaintext values."""
-    from x2fa.models import BackupCode, db
+    from x2fa.models import BackupCode
     from x2fa.services.crypto import CryptoService
+    from x2fa.init_app.database import SessionFactory
 
     with client.app_context():
+        db_session = SessionFactory()
         codes = CryptoService.generate_backup_codes(count)
         for code in codes:
-            db.session.add(
+            db_session.add(
                 BackupCode(
                     code_hash=CryptoService.hash_backup_code(code),
                     user_id=user_id,
                 )
             )
-        db.session.commit()
+        db_session.commit()
+        db_session.close()
     return codes
 
 
@@ -87,20 +90,22 @@ def test_backup_verify_already_used(client):
 
 def test_backup_verify_marks_code_as_used(client):
     """used_at is set after redemption."""
+    from sqlalchemy import select
     from x2fa.models import BackupCode
+    from x2fa.constants import NEVER_USED
+    from x2fa.init_app.database import SessionFactory
 
     codes = _create_backup_codes(client)
     client.set_session()
     client.post_form("/backup/verify", {"code": codes[0]})
 
-    from x2fa import NEVER_USED
-
     with client.app_context():
-        used = [
-            r
-            for r in BackupCode.query.filter_by(user_id="user_test").all()
-            if r.used_at != NEVER_USED
-        ]
+        db_session = SessionFactory()
+        all_codes = db_session.execute(
+            select(BackupCode).where(BackupCode.user_id == "user_test")
+        ).scalars().all()
+        db_session.close()
+        used = [r for r in all_codes if r.used_at != NEVER_USED]
     assert len(used) == 1
 
 

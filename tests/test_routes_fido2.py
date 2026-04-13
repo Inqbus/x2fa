@@ -20,10 +20,12 @@ def _create_credential(
     client, cred_id: bytes = b"cred1234", user_id: str = "user_test"
 ):
     """Creates a WebAuthn credential directly in the DB."""
-    from x2fa.models import Credential, db
+    from x2fa.models import Credential
+    from x2fa.init_app.database import SessionFactory
 
     with client.app_context():
-        db.session.add(
+        db_session = SessionFactory()
+        db_session.add(
             Credential(
                 credential_id=cred_id,
                 user_id=user_id,
@@ -33,7 +35,8 @@ def _create_credential(
                 device_type="single_device",
             )
         )
-        db.session.commit()
+        db_session.commit()
+        db_session.close()
 
 
 def _extract_challenge_id(html: bytes) -> str:
@@ -84,12 +87,18 @@ def test_setup_webauthn_get_valid(client):
 
 
 def test_setup_webauthn_creates_challenge(client):
+    from sqlalchemy import select, func
     from x2fa.models import Challenge
+    from x2fa.init_app.database import SessionFactory
 
     client.set_session(setup_mode=True)
     client.get("/setup/webauthn")
     with client.app_context():
-        count = Challenge.query.filter_by(user_id="user_test").count()
+        db_session = SessionFactory()
+        count = db_session.execute(
+            select(func.count()).select_from(Challenge).where(Challenge.user_id == "user_test")
+        ).scalar()
+        db_session.close()
     assert count == 1
 
 

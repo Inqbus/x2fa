@@ -5,7 +5,7 @@ import click
 from flask import current_app
 from flask.cli import with_appcontext
 
-from sqlalchemy import update
+from sqlalchemy import select, update
 
 from x2fa.constants import NEVER_USED
 from x2fa.models import (
@@ -117,8 +117,9 @@ def add_client(client_id, redirect_uri, secret, scopes):
 @with_appcontext
 def list_clients():
     """Lists all registered OIDC clients."""
+    db_session = SessionFactory()
     stmt = select(OIDCClient)
-    clients = g.db_session.execute(stmt).scalars().all()
+    clients = db_session.execute(stmt).scalars().all()
     if not clients:
         click.echo("No clients registered.")
         return
@@ -161,11 +162,11 @@ def stats():
         click.echo(f"  {action:8s} {method:25s} {count:5d}x")
 
     stmt = select(func.count()).select_from(Credential)
-    count = g.db_session.execute(stmt).scalar()
+    count = db_session.execute(stmt).scalar()
     click.echo(f"\nCredentials:  {count}")
 
     stmt = select(func.count()).select_from(TOTPSecret)
-    count = g.db_session.execute(stmt).scalar()
+    count = db_session.execute(stmt).scalar()
     click.echo(f"TOTP secrets: {count}")
 
     stmt = (
@@ -173,7 +174,7 @@ def stats():
         .select_from(BackupCode)
         .where(BackupCode.used_at == NEVER_USED)
     )
-    count = g.db_session.execute(stmt).scalar()
+    count = db_session.execute(stmt).scalar()
     click.echo(f"Backup codes: {count} remaining")
 
 
@@ -188,7 +189,7 @@ def cleanup_codes():
 
     cutoff = datetime.now(timezone.utc) - timedelta(hours=1)
     stmt = select(AuthorizationCode).where(AuthorizationCode.expires_at < cutoff)
-    old = g.db_session.execute(stmt).scalars().all()
+    old = db_session.execute(stmt).scalars().all()
     count = len(old)
     for code in old:
         db_session.delete(code)

@@ -79,5 +79,5 @@ class TestClient:
 @pytest.fixture
 def client():
 
-    flask_app = create_app("testing")
+    flask_app = create_app()
     return TestClient(flask_app)

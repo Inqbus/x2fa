@@ -60,11 +60,11 @@ def x2fa_app():
     os.environ["X2FA_DOMAIN"] = x2fa_settings.DOMAIN
 
     from x2fa import create_app
-    from x2fa import db
     from x2fa.models import OIDCClient, SigningKey
     from x2fa.services.crypto import CryptoService
+    from x2fa.init_app.database import SessionFactory
 
-    flask_app = create_app("e2e")
+    flask_app = create_app()
 
     with flask_app.app_context():
         # EC signing key for ID tokens
@@ -76,11 +76,12 @@ def x2fa_app():
             PublicFormat,
         )
 
+        db_session = SessionFactory()
         priv = ec.generate_private_key(ec.SECP256R1())
-        db.session.add(
+        db_session.add(
             SigningKey(
                 kid=secrets.token_hex(8),
-                private_key_encrypted=CryptoService(flask_app.config["X2FA_SECRET"])
+                private_key_encrypted=CryptoService(flask_app.config.x2fa_security.SECRET_KEY)
                 .get_fernet()
                 .encrypt(
                     priv.private_bytes(
@@ -96,15 +97,16 @@ def x2fa_app():
         )
 
         # OIDC test client
-        db.session.add(
+        db_session.add(
             OIDCClient(
-                client_id=x2fa_settings.CLIENT_ID,
-                client_secret=x2fa_settings.CLIENT_SECRET,
+                client_id=x2fa_settings.x2fa_security.CLIENT_ID,
+                client_secret=x2fa_settings.x2fa_security.CLIENT_SECRET,
                 redirect_uris=REDIRECT_URI,
                 allowed_scopes="openid app:setup",
             )
         )
-        db.session.commit()
+        db_session.commit()
+        db_session.close()
 
     return flask_app
 
@@ -176,27 +178,30 @@ def create_totp(x2fa_app):
 
     def _create(user_id: str, totp_secret: str | None = None) -> str:
         import pyotp
-        from x2fa import db
         from x2fa.models import TOTPSecret
         from x2fa.services.crypto import CryptoService
+        from x2fa.constants import NEVER_USED
+        from x2fa.init_app.database import SessionFactory
 
         if totp_secret is None:
             totp_secret = pyotp.random_base32()
 
         with x2fa_app.app_context():
-            crypto = CryptoService(x2fa_app.config["X2FA_SECRET"])
+            db_session = SessionFactory()
+            crypto = CryptoService(x2fa_app.config.x2fa_security.SECRET_KEY)
             enc = crypto.encrypt(totp_secret)
 
-            existing = db.session.get(TOTPSecret, user_id)
+            existing = db_session.get(TOTPSecret, user_id)
             if existing:
                 existing.secret_encrypted = enc
                 existing.verified = True
-                existing.last_used_at = None
+                existing.last_used_at = NEVER_USED
             else:
-                db.session.add(
+                db_session.add(
                     TOTPSecret(user_id=user_id, secret_encrypted=enc, verified=True)
                 )
-            db.session.commit()
+            db_session.commit()
+            db_session.close()
 
         return totp_secret
 
@@ -208,23 +213,26 @@ def create_backup_codes(x2fa_app):
     """Create backup codes for a user_id. Returns the list of plaintext codes."""
 
     def _create(user_id: str, codes: list[str] | None = None) -> list[str]:
-        from x2fa import db
+        from sqlalchemy import delete
         from x2fa.models import BackupCode
         from x2fa.services.crypto import CryptoService
+        from x2fa.init_app.database import SessionFactory
 
         if codes is None:
             codes = [secrets.token_hex(4).upper() for _ in range(10)]
 
         with x2fa_app.app_context():
-            BackupCode.query.filter_by(user_id=user_id).delete()
+            db_session = SessionFactory()
+            db_session.execute(delete(BackupCode).where(BackupCode.user_id == user_id))
             for code in codes:
-                db.session.add(
+                db_session.add(
                     BackupCode(
                         code_hash=CryptoService.hash_backup_code(code),
                         user_id=user_id,
                     )
                 )
-            db.session.commit()
+            db_session.commit()
+            db_session.close()
 
         return codes
 

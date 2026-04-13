@@ -20,6 +20,8 @@ from flask import (
 )
 from flask_babelplus import gettext as _
 
+from sqlalchemy import select
+
 from x2fa.helpers import webauthn_helpers
 from x2fa.init_app.limiter import limiter
 from x2fa.models import Challenge, Credential
