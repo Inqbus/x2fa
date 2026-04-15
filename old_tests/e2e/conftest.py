@@ -62,12 +62,11 @@ def x2fa_app():
     from x2fa.app import create_app
     from x2fa.models import OIDCClient, SigningKey
     from x2fa.services.crypto import CryptoService
-    from x2fa.init_app.database import SessionFactory
+    from x2fa.init_app.database import db
 
     flask_app = create_app()
 
     with flask_app.app_context():
-        # EC signing key for ID tokens
         from cryptography.hazmat.primitives.asymmetric import ec
         from cryptography.hazmat.primitives.serialization import (
             Encoding,
@@ -76,39 +75,37 @@ def x2fa_app():
             PublicFormat,
         )
 
-        db_session = SessionFactory()
-        priv = ec.generate_private_key(ec.SECP256R1())
-        db_session.add(
-            SigningKey(
-                kid=secrets.token_hex(8),
-                private_key_encrypted=CryptoService(
-                    flask_app.config.x2fa_security.SECRET_KEY
-                )
-                .get_fernet()
-                .encrypt(
-                    priv.private_bytes(
-                        Encoding.PEM, PrivateFormat.PKCS8, NoEncryption()
+        with db.test_transaction() as db_session:
+            priv = ec.generate_private_key(ec.SECP256R1())
+            db_session.add(
+                SigningKey(
+                    kid=secrets.token_hex(8),
+                    private_key_encrypted=CryptoService(
+                        flask_app.config.x2fa_security.SECRET_KEY
                     )
-                ),
-                public_key_pem=priv.public_key()
-                .public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo)
-                .decode(),
-                algorithm="ES256",
-                active=True,
+                    .get_fernet()
+                    .encrypt(
+                        priv.private_bytes(
+                            Encoding.PEM, PrivateFormat.PKCS8, NoEncryption()
+                        )
+                    ),
+                    public_key_pem=priv.public_key()
+                    .public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo)
+                    .decode(),
+                    algorithm="ES256",
+                    active=True,
+                )
             )
-        )
 
-        # OIDC test client
-        db_session.add(
-            OIDCClient(
-                client_id=cfg.x2fa_security.CLIENT_ID,
-                client_secret=cfg.x2fa_security.CLIENT_SECRET,
-                redirect_uris=REDIRECT_URI,
-                allowed_scopes="openid app:setup",
+            # OIDC test client
+            db_session.add(
+                OIDCClient(
+                    client_id=cfg.x2fa_security.CLIENT_ID,
+                    client_secret=cfg.x2fa_security.CLIENT_SECRET,
+                    redirect_uris=REDIRECT_URI,
+                    allowed_scopes="openid app:setup",
+                )
             )
-        )
-        db_session.commit()
-        db_session.close()
 
     return flask_app
 
@@ -183,27 +180,25 @@ def create_totp(x2fa_app):
         from x2fa.models import TOTPSecret
         from x2fa.services.crypto import CryptoService
         from x2fa.constants import NEVER_USED
-        from x2fa.init_app.database import SessionFactory
+        from x2fa.init_app.database import db
 
         if totp_secret is None:
             totp_secret = pyotp.random_base32()
 
         with x2fa_app.app_context():
-            db_session = SessionFactory()
-            crypto = CryptoService(x2fa_app.config.x2fa_security.SECRET_KEY)
-            enc = crypto.encrypt(totp_secret)
+            with db.test_transaction() as db_session:
+                crypto = CryptoService(x2fa_app.config.x2fa_security.SECRET_KEY)
+                enc = crypto.encrypt(totp_secret)
 
-            existing = db_session.get(TOTPSecret, user_id)
-            if existing:
-                existing.secret_encrypted = enc
-                existing.verified = True
-                existing.last_used_at = NEVER_USED
-            else:
-                db_session.add(
-                    TOTPSecret(user_id=user_id, secret_encrypted=enc, verified=True)
-                )
-            db_session.commit()
-            db_session.close()
+                existing = db_session.get(TOTPSecret, user_id)
+                if existing:
+                    existing.secret_encrypted = enc
+                    existing.verified = True
+                    existing.last_used_at = NEVER_USED
+                else:
+                    db_session.add(
+                        TOTPSecret(user_id=user_id, secret_encrypted=enc, verified=True)
+                    )
 
         return totp_secret
 
@@ -218,23 +213,23 @@ def create_backup_codes(x2fa_app):
         from sqlalchemy import delete
         from x2fa.models import BackupCode
         from x2fa.services.crypto import CryptoService
-        from x2fa.init_app.database import SessionFactory
+        from x2fa.init_app.database import db
 
         if codes is None:
             codes = [secrets.token_hex(4).upper() for _ in range(10)]
 
         with x2fa_app.app_context():
-            db_session = SessionFactory()
-            db_session.execute(delete(BackupCode).where(BackupCode.user_id == user_id))
-            for code in codes:
-                db_session.add(
-                    BackupCode(
-                        code_hash=CryptoService.hash_backup_code(code),
-                        user_id=user_id,
-                    )
+            with db.test_transaction() as db_session:
+                db_session.execute(
+                    delete(BackupCode).where(BackupCode.user_id == user_id)
                 )
-            db_session.commit()
-            db_session.close()
+                for code in codes:
+                    db_session.add(
+                        BackupCode(
+                            code_hash=CryptoService.hash_backup_code(code),
+                            user_id=user_id,
+                        )
+                    )
 
         return codes
 

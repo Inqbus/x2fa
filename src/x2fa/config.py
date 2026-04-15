@@ -21,7 +21,7 @@ cfg = AttrDict(
         load_dotenv=True,
         envvar_prefix="X2FA_BABEL",
     ),
-    x2fa_db=Dynaconf(
+    x2fa_database=Dynaconf(
         root_path=root_path,
         settings_files=["db_config.toml"],
         environments=True,

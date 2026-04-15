@@ -1,6 +1,7 @@
 import secrets
 
 from flask import Flask, g
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from x2fa.helpers import webauthn_helpers
 from x2fa.oidc import oauth
@@ -13,6 +14,9 @@ from x2fa.oidc.grants import (
 )
 
 def security(app: Flask):
+    # Trust reverse proxy headers so Authlib sees https:// as the scheme
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
+
     # OIDC / Authlib setup
     oauth.init_app(app, query_client=query_client, save_token=save_token)
     oauth.register_grant(
@@ -20,12 +24,12 @@ def security(app: Flask):
         [S256OnlyCodeChallenge(required=True), X2FAOpenIDCode(require_nonce=False)],
     )
 
-    # Test-only blueprint for session injection (E2E Playwright tests)
-    if app.config.x2fa.TESTING:
-        from x2fa.routes.test_helpers import test_bp
-
-        app.register_blueprint(test_bp)
-
+    # # Test-only blueprint for session injection (E2E Playwright tests)
+    # if app.config.x2fa.ENV_FOR_DYNACONF == 'testing':
+    #     from x2fa.routes.test_helpers import test_bp
+    #
+    #     app.register_blueprint(test_bp)
+    #
 
     # Security headers + CSP nonce
     @app.before_request
@@ -46,7 +50,7 @@ def security(app: Flask):
             "style-src 'unsafe-inline'",
             "img-src data:",  # for TOTP QR code
             "connect-src 'self'",
-            f"form-action 'self' https:{'  http://127.0.0.1:*' if app.config.x2fa.TESTING else ''}",
+            "form-action 'self' https",
             "base-uri 'none'",
             "frame-ancestors 'none'",
         ]

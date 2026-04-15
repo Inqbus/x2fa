@@ -72,10 +72,9 @@ def client():
 
     # Reset the schema before each test so no data leaks between tests.
     from x2fa.models import Base
-    from x2fa.init_app.database import get_engine
+    from x2fa.init_app.database import db
 
-    engine = get_engine()
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    Base.metadata.drop_all(db.engine)
+    Base.metadata.create_all(db.engine)
 
     return TestClient(flask_app)

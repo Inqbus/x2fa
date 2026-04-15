@@ -5,4 +5,4 @@ SQLALCHEMY_DATABASE_URI = "sqlite:///db.sqlite"
 SQLALCHEMY_DATABASE_URI = "sqlite:///db.sqlite"
 
 [testing]
-SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
+SQLALCHEMY_DATABASE_URI = "sqlite:///test_cli.db"

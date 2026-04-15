@@ -303,12 +303,16 @@ TEMPLATE = """\
 
 <div class="card meta">
   <strong>{{ _("Client config") }}</strong><br>
-  {{ _("Client ID") }}: <code>{{ client_id }}</code> &nbsp;&bull;&nbsp;
-  {{ _("Callback") }}: <code>{{ redirect_uri }}</code> &nbsp;&bull;&nbsp;
-  X2FA: <code>{{ x2fa_url }}</code>
-  <br><br>
+  <ul> 
+    <li>{{ _("Client ID") }}: <code>{{ client_id }}</code></li>
+    <li>{{ _("Callback") }}: <code>{{ redirect_uri }}</code></li>
+    <li>X2FA: <code>{{ x2fa_url }}</code></li>
+  </ul>
   <strong>{{ _("First-time setup") }}</strong> ({{ _("run once in the X2FA directory") }}):<br>
-  <code>flask add-client demo-rp http://localhost:5001/callback --secret testsecret</code>
+  <ul>
+    <li><code>flask init-keys</code></li>
+    <li><code>flask add-client demo-rp {{ redirect_uri }} --secret testsecret</code></li>
+  </ul>
 </div>
 
 </body>

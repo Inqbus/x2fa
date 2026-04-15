@@ -1,60 +1,100 @@
-from flask import Flask, g
+from contextlib import contextmanager
+from flask import Flask, g, has_request_context
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.engine import make_url
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
+import threading
 
 from x2fa.models import Base
 from x2fa.config import cfg
 
-# Initialised once on first create_app() call.
-_engine = None
-SessionFactory = None
 
+class Database:
+    """Database connection manager with support for Web, CLI, and Test contexts."""
 
-def get_engine():
-    return _engine
+    def __init__(self):
+        self.engine = None
+        self._Session = None
+        self._local = threading.local()
+        self.is_configured = False
 
-
-def database(app: Flask):
-    global _engine, SessionFactory
-
-    if _engine is None:
-        uri = cfg.x2fa_db.SQLALCHEMY_DATABASE_URI
+    def configure(self, uri: str, **engine_kwargs):
+        """Configure database engine and session factory (once)."""
         url = make_url(uri)
+
         if url.drivername == "sqlite" and url.database in (None, "", ":memory:"):
-            # StaticPool: all sessions share one connection so that an in-memory
-            # database created by one session is visible to all others (including
-            # the ones opened by the test fixtures that inspect the DB directly).
-            _engine = create_engine(
-                uri,
-                connect_args={"check_same_thread": False},
-                poolclass=StaticPool,
+            engine_kwargs.setdefault("connect_args", {"check_same_thread": False})
+            engine_kwargs.setdefault("poolclass", StaticPool)
+
+        self.engine = create_engine(uri, **engine_kwargs)
+        self._Session = sessionmaker(bind=self.engine)
+
+        if cfg.x2fa.ENV_FOR_DYNACONF == "testing":
+            self.reset_schema()
+
+        self.is_configured = True
+
+    def init_app(self, app: Flask):
+        """Bind database to Flask request lifecycle."""
+        if not self.is_configured:
+            self.configure(uri=cfg.x2fa_database.SQLALCHEMY_DATABASE_URI)
+
+        @app.before_request
+        def open_session():
+            g.db_session = self._Session()
+
+        @app.teardown_appcontext
+        def close_session(exc):
+            session = g.pop("db_session", None)
+            if session:
+                if exc:
+                    session.rollback()
+                else:
+                    session.commit()
+                session.close()
+
+    @property
+    def session(self) -> Session:
+        """Get session from Flask request context."""
+        if not has_request_context():
+            raise RuntimeError(
+                "Outside of request context. "
+                "Use 'with db.session_scope()' for CLI or 'with db.test_transaction()' for tests."
             )
-        else:
-            _engine = create_engine(uri, pool_pre_ping=True)
+        return g.db_session
 
-        SessionFactory = sessionmaker(bind=_engine)
+    @contextmanager
+    def session_scope(self):
+        """For CLI tools and background jobs. Auto-commit/rollback."""
+        session = self._Session()
+        try:
+            yield session
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
 
-    # Ensure schema exists (idempotent — uses IF NOT EXISTS internally).
-    Base.metadata.create_all(_engine)
+    @contextmanager
+    def test_transaction(self):
+        """For pytest fixtures. Uses savepoint for auto-rollback."""
+        conn = self.engine.connect()
+        trans = conn.begin()
+        session = self._Session(bind=conn)
 
-    database_session(app)
+        try:
+            yield session
+        finally:
+            session.close()
+            trans.rollback()
+            conn.close()
 
+    def reset_schema(self):
+        """Drop and recreate all tables (for tests)."""
+        Base.metadata.drop_all(self.engine)
+        Base.metadata.create_all(self.engine)
 
-def database_session(app: Flask):
-
-    @app.before_request
-    def before_request():
-        g.db_session = SessionFactory()
-
-    @app.teardown_appcontext
-    def teardown(error):
-        db_session = g.pop('db_session', None)
-        if db_session is not None:
-            if error:
-                db_session.rollback()
-            else:
-                db_session.commit()
-            db_session.close()
+db = Database()

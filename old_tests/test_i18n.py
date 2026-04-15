@@ -10,28 +10,28 @@ def _setup_totp(client, user_id: str = "user_test") -> str:
     from x2fa.services.crypto import CryptoService
     from x2fa.models import TOTPSecret
     from x2fa.constants import NEVER_USED
-    from x2fa.init_app.database import SessionFactory
+    from x2fa.init_app.database import db
 
     secret = generate_secret()
     with client.app_context():
-        db_session = SessionFactory()
-        crypto = CryptoService(current_app.config.x2fa_security.SECRET_KEY)
-        secret_encrypted = crypto.encrypt(secret)
-        totp_record = db_session.get(TOTPSecret, user_id)
-        if totp_record:
-            totp_record.secret_encrypted = secret_encrypted
-            totp_record.verified = True
-            totp_record.last_used_at = NEVER_USED
-        else:
-            db_session.add(
-                TOTPSecret(
-                    user_id=user_id,
-                    secret_encrypted=secret_encrypted,
-                    verified=True,
+        with db.session_scope() as db_session:
+            crypto = CryptoService(current_app.config.x2fa_security.SECRET_KEY)
+            secret_encrypted = crypto.encrypt(secret)
+            totp_record = db_session.get(TOTPSecret, user_id)
+            if totp_record:
+                totp_record.secret_encrypted = secret_encrypted
+                totp_record.verified = True
+                totp_record.last_used_at = NEVER_USED
+            else:
+                db_session.add(
+                    TOTPSecret(
+                        user_id=user_id,
+                        secret_encrypted=secret_encrypted,
+                        verified=True,
+                    )
                 )
-            )
-        db_session.commit()
-        db_session.close()
+
+
     return secret
 
 

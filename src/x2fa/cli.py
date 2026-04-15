@@ -17,7 +17,7 @@ from x2fa.models import (
     TOTPSecret,
 )
 
-from x2fa.init_app import database
+from x2fa.init_app.database import db
 
 
 @click.command("init-keys")
@@ -32,8 +32,6 @@ def init_keys():
         PrivateFormat,
     )
     from x2fa.services.crypto import CryptoService
-
-    db_session = database.SessionFactory()
 
     crypto = CryptoService(current_app.config.x2fa_security.SECRET_KEY)
 
@@ -53,21 +51,19 @@ def init_keys():
     private_encrypted = crypto.get_fernet().encrypt(private_pem)
     kid = secrets.token_hex(8)
 
-    # Deactivate all existing keys
+    with db.session_scope() as db_session:
+        stmt = update(SigningKey).values(active=False)
+        db_session.execute(stmt)
 
-    stmt = update(SigningKey).values(active=False)
-    db_session.execute(stmt)
-
-    db_session.add(
-        SigningKey(
-            kid=kid,
-            private_key_encrypted=private_encrypted,
-            public_key_pem=public_pem,
-            algorithm="ES256",
-            active=True,
+        db_session.add(
+            SigningKey(
+                kid=kid,
+                private_key_encrypted=private_encrypted,
+                public_key_pem=public_pem,
+                algorithm="ES256",
+                active=True,
+            )
         )
-    )
-    db_session.commit()
     click.echo(f"Signing key generated: kid={kid}")
 
 
@@ -84,29 +80,29 @@ def add_client(client_id, redirect_uri, secret, scopes):
     if not secret:
         secret = secrets.token_urlsafe(32)
 
-    db_session = database.SessionFactory()
-
-    existing = db_session.get(OIDCClient, client_id)
-    if existing:
-        click.echo(
-            f"Client '{client_id}' already exists. Updating configuration.", err=True
-        )
-        existing.redirect_uris = redirect_uri
-        existing.allowed_scopes = scopes
-        existing.client_secret = (
-            secret  # always update (new random or explicitly given)
-        )
-    else:
-        db_session.add(
-            OIDCClient(
-                client_id=client_id,
-                client_secret=secret,
-                redirect_uris=redirect_uri,
-                allowed_scopes=scopes,
+    existing = None
+    with db.session_scope() as db_session:
+        existing = db_session.get(OIDCClient, client_id)
+        if existing:
+            click.echo(
+                f"Client '{client_id}' already exists. Updating configuration.",
+                err=True,
             )
-        )
+            existing.redirect_uris = redirect_uri
+            existing.allowed_scopes = scopes
+            existing.client_secret = (
+                secret  # always update (new random or explicitly given)
+            )
+        else:
+            db_session.add(
+                OIDCClient(
+                    client_id=client_id,
+                    client_secret=secret,
+                    redirect_uris=redirect_uri,
+                    allowed_scopes=scopes,
+                )
+            )
 
-    db_session.commit()
     click.echo(f"Client ID:     {client_id}")
     click.echo(f"Client secret: {secret}")
     click.echo(f"Redirect URI:  {redirect_uri}")
@@ -117,15 +113,15 @@ def add_client(client_id, redirect_uri, secret, scopes):
 @with_appcontext
 def list_clients():
     """Lists all registered OIDC clients."""
-    db_session = database.SessionFactory()
-    stmt = select(OIDCClient)
-    clients = db_session.execute(stmt).scalars().all()
-    if not clients:
-        click.echo("No clients registered.")
-        return
-    for c in clients:
-        status = "active" if c.active else "deactivated"
-        click.echo(f"  {c.client_id:30s} [{status}]  {c.redirect_uris[:60]}")
+    with db.session_scope() as db_session:
+        stmt = select(OIDCClient)
+        clients = db_session.execute(stmt).scalars().all()
+        if not clients:
+            click.echo("No clients registered.")
+            return
+        for c in clients:
+            status = "active" if c.active else "deactivated"
+            click.echo(f"  {c.client_id:30s} [{status}]  {c.redirect_uris[:60]}")
 
 
 @click.command("revoke-client")
@@ -134,14 +130,12 @@ def list_clients():
 def revoke_client(client_id):
     """Deactivates an OIDC client."""
 
-    db_session = database.SessionFactory()
-
-    client = db_session.get(OIDCClient, client_id)
-    if not client:
-        click.echo(f"Client '{client_id}' not found.", err=True)
-        return
-    client.active = False
-    db_session.commit()
+    with db.session_scope() as db_session:
+        client = db_session.get(OIDCClient, client_id)
+        if not client:
+            click.echo(f"Client '{client_id}' not found.", err=True)
+            return
+        client.active = False
     click.echo(f"Client '{client_id}' deactivated.")
 
 
@@ -151,30 +145,32 @@ def stats():
     """Shows usage statistics."""
     from sqlalchemy import func
 
-    db_session = database.SessionFactory()
-
-    stmt = select(AuditLog.action, AuditLog.method, func.count()).group_by(
-        AuditLog.action, AuditLog.method
-    )
-    rows = db_session.execute(stmt).all()
+    with db.session_scope() as db_session:
+        stmt = select(AuditLog.action, AuditLog.method, func.count()).group_by(
+            AuditLog.action, AuditLog.method
+        )
+        rows = db_session.execute(stmt).all()
     click.echo("Audit statistics:")
     for action, method, count in rows:
         click.echo(f"  {action:8s} {method:25s} {count:5d}x")
 
-    stmt = select(func.count()).select_from(Credential)
-    count = db_session.execute(stmt).scalar()
+    with db.session_scope() as db_session:
+        stmt = select(func.count()).select_from(Credential)
+        count = db_session.execute(stmt).scalar()
     click.echo(f"\nCredentials:  {count}")
 
-    stmt = select(func.count()).select_from(TOTPSecret)
-    count = db_session.execute(stmt).scalar()
+    with db.session_scope() as db_session:
+        stmt = select(func.count()).select_from(TOTPSecret)
+        count = db_session.execute(stmt).scalar()
     click.echo(f"TOTP secrets: {count}")
 
-    stmt = (
-        select(func.count())
-        .select_from(BackupCode)
-        .where(BackupCode.used_at == NEVER_USED)
-    )
-    count = db_session.execute(stmt).scalar()
+    with db.session_scope() as db_session:
+        stmt = (
+            select(func.count())
+            .select_from(BackupCode)
+            .where(BackupCode.used_at == NEVER_USED)
+        )
+        count = db_session.execute(stmt).scalar()
     click.echo(f"Backup codes: {count} remaining")
 
 
@@ -185,15 +181,14 @@ def cleanup_codes():
     from datetime import datetime, timezone, timedelta
     from x2fa.models import AuthorizationCode
 
-    db_session = database.SessionFactory()
-
     cutoff = datetime.now(timezone.utc) - timedelta(hours=1)
-    stmt = select(AuthorizationCode).where(AuthorizationCode.expires_at < cutoff)
-    old = db_session.execute(stmt).scalars().all()
+    with db.session_scope() as db_session:
+        stmt = select(AuthorizationCode).where(AuthorizationCode.expires_at < cutoff)
+        old = db_session.execute(stmt).scalars().all()
     count = len(old)
-    for code in old:
-        db_session.delete(code)
-    db_session.commit()
+    with db.session_scope() as db_session:
+        for code in old:
+            db_session.delete(code)
     click.echo(f"Deleted: {count} authorization codes (older than 1 hour).")
 
 

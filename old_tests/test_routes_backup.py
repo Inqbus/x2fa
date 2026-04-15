@@ -7,20 +7,18 @@ def _create_backup_codes(
     """Creates backup codes in the DB and returns the plaintext values."""
     from x2fa.models import BackupCode
     from x2fa.services.crypto import CryptoService
-    from x2fa.init_app.database import SessionFactory
+    from x2fa.init_app.database import db
 
     with client.app_context():
-        db_session = SessionFactory()
-        codes = CryptoService.generate_backup_codes(count)
-        for code in codes:
-            db_session.add(
-                BackupCode(
-                    code_hash=CryptoService.hash_backup_code(code),
-                    user_id=user_id,
+        with db.session_scope() as db_session:
+            codes = CryptoService.generate_backup_codes(count)
+            for code in codes:
+                db_session.add(
+                    BackupCode(
+                        code_hash=CryptoService.hash_backup_code(code),
+                        user_id=user_id,
+                    )
                 )
-            )
-        db_session.commit()
-        db_session.close()
     return codes
 
 
@@ -93,20 +91,23 @@ def test_backup_verify_marks_code_as_used(client):
     from sqlalchemy import select
     from x2fa.models import BackupCode
     from x2fa.constants import NEVER_USED
-    from x2fa.init_app.database import SessionFactory
+    from x2fa.init_app.database import db
 
     codes = _create_backup_codes(client)
     client.set_session()
     client.post_form("/backup/verify", {"code": codes[0]})
 
     with client.app_context():
-        db_session = SessionFactory()
-        all_codes = db_session.execute(
-            select(BackupCode).where(BackupCode.user_id == "user_test")
-        ).scalars().all()
-        db_session.close()
-        used = [r for r in all_codes if r.used_at != NEVER_USED]
-    assert len(used) == 1
+        with db.session_scope() as db_session:
+            all_codes = (
+                db_session.execute(
+                    select(BackupCode).where(BackupCode.user_id == "user_test")
+                )
+                .scalars()
+                .all()
+            )
+            used = [r for r in all_codes if r.used_at != NEVER_USED]
+        assert len(used) == 1
 
 
 def test_backup_verify_rate_limit(client):

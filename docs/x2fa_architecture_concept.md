@@ -201,10 +201,6 @@ def config(app: Flask):
     for key in cfg:
         setattr(app.config, key, AttrDict(dict(cfg[key])))
 
-    # Disable Authlib HTTPS requirement in testing
-    if cfg.x2fa.ENV_FOR_DYNACONF == "testing":
-        os.environ.setdefault("AUTHLIB_INSECURE_TRANSPORT", "1")
-
     # Startup-Check: SECRET_KEY muss gesetzt sein
     if 'SECRET_KEY' not in app.config.x2fa_security:
         raise RuntimeError("SECRET_KEY not set in secret_config.toml!")
@@ -215,10 +211,6 @@ def config(app: Flask):
         raise RuntimeError(
             "REDIS_URL must be set in production (distributed rate-limiting)."
         )
-
-    # X2FA_ORIGIN ableiten, falls nicht explizit gesetzt
-    if 'ORIGIN' not in app.config.x2fa:
-        app.config.x2fa.ORIGIN = f"https://{app.config.x2fa.DOMAIN}"
 ```
 
 ### Session-Sicherheit (`security_config.toml`)

@@ -8,9 +8,6 @@ DOMAIN = "x2fa.dev.inqbus.de"
 ORIGIN = "https://x2fa.dev.inqbus.de"
 NAME = "X2FA"
 
-TESTING = true
-
-
 [production]
 HOST = "prod.example.com"
 PORT = 8000
@@ -18,23 +15,10 @@ PORT = 8000
 DOMAIN = "prod.example.com"
 ORIGIN = "https://prod.example.com"
 
-TESTING = false
 
-[test]
+[testing]
 HOST = "127.0.0.1"
 PORT = 5098
 
 DOMAIN = "localhost"
-ORIGIN = "http://localhost"
-
-TESTING = true
-
-[e2e]
-HOST = "127.0.0.1"
-PORT = 5098
-CALLBACK_PORT = 19999
-
-DOMAIN = "localhost"
-ORIGIN = "http://localhost"
-
-TESTING = true
+ORIGIN = "https://localhost"

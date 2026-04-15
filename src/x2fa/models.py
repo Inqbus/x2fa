@@ -11,7 +11,7 @@ Base = declarative_base()
 
 
 class Credential(Base):
-    __tablename__ = "credentials"
+    __tablename__ = "credential"
 
     credential_id = Column(LargeBinary, primary_key=True)
     user_id = Column(String(255), nullable=False, index=True)
@@ -40,7 +40,7 @@ class Credential(Base):
 class Challenge(Base):
     """Short-lived WebAuthn challenge (TTL 5 minutes, single-use)."""
 
-    __tablename__ = "challenges"
+    __tablename__ = "challenge"
 
     challenge_id = Column(String(255), primary_key=True)
     user_id = Column(String(255), nullable=False, index=True)
@@ -50,7 +50,7 @@ class Challenge(Base):
 
 
 class TOTPSecret(Base):
-    __tablename__ = "totp_secrets"
+    __tablename__ = "totp_secret"
 
     user_id = Column(String(255), primary_key=True)
     secret_encrypted = Column(LargeBinary, nullable=False)
@@ -66,7 +66,7 @@ class TOTPSecret(Base):
 
 
 class BackupCode(Base):
-    __tablename__ = "backup_codes"
+    __tablename__ = "backup_code"
 
     code_hash = Column(String(255), primary_key=True)
     user_id = Column(String(255), nullable=False, index=True)
@@ -108,7 +108,7 @@ class AuditLog(Base):
 class OIDCClient(Base):
     """Registered OIDC client (relying party)."""
 
-    __tablename__ = "oidc_clients"
+    __tablename__ = "oidc_client"
 
     client_id = Column(String(255), primary_key=True)
     client_secret = Column(String(255), nullable=False)
@@ -164,7 +164,7 @@ class OIDCClient(Base):
 class AuthorizationCode(Base):
     """OIDC authorization code — PKCE S256, single-use, 60-second TTL."""
 
-    __tablename__ = "authorization_codes"
+    __tablename__ = "authorization_code"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     code = Column(String(255), nullable=False, unique=True, index=True)
@@ -190,7 +190,9 @@ class AuthorizationCode(Base):
         exp = self.expires_at
         if exp.tzinfo is None:
             exp = exp.replace(tzinfo=timezone.utc)
-        return datetime.now(timezone.utc) > exp
+        now_utc = datetime.now(timezone.utc)
+        print(f'exp: {exp}, now_utc: {now_utc}')
+        return now_utc > exp
 
     # --- Authlib interface ---
 
@@ -216,7 +218,7 @@ class AuthorizationCode(Base):
 class SigningKey(Base):
     """EC key pair for ID token signing (ES256). Private key is Fernet-encrypted."""
 
-    __tablename__ = "signing_keys"
+    __tablename__ = "signing_key"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     kid = Column(String(255), nullable=False, unique=True)

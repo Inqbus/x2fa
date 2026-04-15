@@ -74,3 +74,8 @@ x2fa/
 ## Migration & CLI
 - Run migrations: `uv run flask dbigrate -m "desc"` then `uv run flask db upgrade`
 - Cleanup old codes: `uv run flask cleanup-codes` (keep codes <1 hour for nonce protection)
+
+## Reading files
+- CRITICAL: When reading files, always read the COMPLETE file content, 
+- never request partial snippets. Use the Read tool with full file access.
+- Nutze kein "sed" um edits an files zu machen. Zeige immer diffs. 
