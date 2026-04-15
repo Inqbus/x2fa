@@ -7,7 +7,13 @@ from flask.cli import with_appcontext
 
 from sqlalchemy import select, update
 
-from x2fa.constants import NEVER_USED
+from x2fa.constants import (
+    NEVER_USED,
+    AUTH_METHOD_CLIENT_SECRET_POST,
+    AUTH_METHOD_CLIENT_SECRET_BASIC,
+    AUTH_METHOD_TLS_CLIENT_AUTH,
+    AUTH_METHOD_PRIVATE_KEY_JWT,
+)
 from x2fa.model import (
     AuditLog,
     BackupCode,
@@ -83,9 +89,13 @@ def init_keys():
 @click.argument("redirect_uri")
 @click.option(
     "--method",
-    default="client_secret_post",
+    default=AUTH_METHOD_CLIENT_SECRET_POST,
     show_default=True,
-    type=click.Choice(["client_secret_post", "tls_client_auth", "private_key_jwt"]),
+    type=click.Choice([
+        AUTH_METHOD_CLIENT_SECRET_POST,
+        AUTH_METHOD_TLS_CLIENT_AUTH,
+        AUTH_METHOD_PRIVATE_KEY_JWT,
+    ]),
     help="Token endpoint authentication method.",
 )
 @click.option(
@@ -97,10 +107,10 @@ def init_keys():
 @with_appcontext
 def add_client(client_id, redirect_uri, method, secret, scopes, jwks_uri):
     """Registers a new OIDC client."""
-    if method == "private_key_jwt" and not jwks_uri:
+    if method == AUTH_METHOD_PRIVATE_KEY_JWT and not jwks_uri:
         raise click.UsageError("--jwks-uri is required for private_key_jwt.")
 
-    if method == "client_secret_post":
+    if method == AUTH_METHOD_CLIENT_SECRET_POST:
         if not secret:
             secret = secrets.token_urlsafe(32)
     else:
@@ -132,7 +142,7 @@ def add_client(client_id, redirect_uri, method, secret, scopes, jwks_uri):
 
     click.echo(f"Client ID:     {client_id}")
     click.echo(f"Auth method:   {method}")
-    if method == "client_secret_post":
+    if method == AUTH_METHOD_CLIENT_SECRET_POST:
         click.echo(f"Client secret: {secret}")
     if jwks_uri:
         click.echo(f"JWKS URI:      {jwks_uri}")

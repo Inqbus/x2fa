@@ -1,14 +1,22 @@
 import time
 from datetime import datetime, timezone, timedelta
 
+from authlib.oauth2.rfc6749 import InvalidClientError
 from authlib.oauth2.rfc6749.grants import AuthorizationCodeGrant
+from authlib.oauth2.rfc7523.client import JWTBearerClientAssertion
 from authlib.oauth2.rfc7636 import CodeChallenge
 from authlib.oidc.core.grants import OpenIDCode
 
 from flask import g
 from sqlalchemy import select
 
-from x2fa.model import AuthorizationCode, OIDCClient, SigningKey
+from x2fa.constants import (
+    AUTH_METHOD_CLIENT_SECRET_BASIC,
+    AUTH_METHOD_CLIENT_SECRET_POST,
+    AUTH_METHOD_PRIVATE_KEY_JWT,
+    AUTH_METHOD_TLS_CLIENT_AUTH,
+)
+from x2fa.model import AuthorizationCode, OIDCClient, SigningKey, TrustedCA
 
 
 class S256OnlyCodeChallenge(CodeChallenge):
@@ -27,7 +35,12 @@ class X2FAAuthorizationCodeGrant(AuthorizationCodeGrant):
                        → authenticate_user
     """
 
-    TOKEN_ENDPOINT_AUTH_METHODS = ["client_secret_post", "client_secret_basic"]
+    TOKEN_ENDPOINT_AUTH_METHODS = [
+        AUTH_METHOD_TLS_CLIENT_AUTH,
+        AUTH_METHOD_PRIVATE_KEY_JWT,
+        AUTH_METHOD_CLIENT_SECRET_POST,
+        AUTH_METHOD_CLIENT_SECRET_BASIC,
+    ]
 
     def save_authorization_code(self, code, request):
         """Persists the authorization code to the database."""
@@ -118,6 +131,110 @@ class X2FAOpenIDCode(OpenIDCode):
     def generate_user_info(self, user, scope):
         """Returns the minimal claims set for the ID token payload."""
         return {"sub": user}
+
+
+def authenticate_via_mtls(query_client, request):
+    """Client authenticator for tls_client_auth.
+
+    Reads the PEM-encoded client certificate from the X-Client-Certificate header
+    (nginx: proxy_set_header X-Client-Certificate $ssl_client_escaped_cert),
+    validates it against every active TrustedCA, and returns the matching OIDCClient.
+    """
+    from urllib.parse import unquote
+
+    cert_raw = request.headers.get("X-Client-Certificate")
+    if not cert_raw:
+        return None
+
+    cert_pem = unquote(cert_raw)
+
+    cas = g.db_session.execute(
+        select(TrustedCA).where(TrustedCA.active == True)
+    ).scalars().all()
+
+    for ca in cas:
+        result = ca.verify_certificate(cert_pem)
+        if result["valid"]:
+            return query_client(result["client_id"])
+
+    return None
+
+
+class X2FAPrivateKeyJwtAuth(JWTBearerClientAssertion):
+    """Client authenticator for private_key_jwt.
+
+    Supports two key resolution strategies:
+    - x5c in the JWT header: validates the embedded cert chain against active TrustedCAs
+      and returns the leaf certificate's public key.
+    - jwks_uri on the client row: fetches the JWKS endpoint and matches by kid.
+
+    JTI replay protection is not implemented (acceptable for internal deployments).
+    """
+
+    CLIENT_AUTH_METHOD = AUTH_METHOD_PRIVATE_KEY_JWT
+
+    def authenticate_client(self, client):
+        if client.check_endpoint_auth_method(AUTH_METHOD_PRIVATE_KEY_JWT, "token"):
+            return client
+        raise InvalidClientError(
+            description="Client is not registered for private_key_jwt authentication."
+        )
+
+    def resolve_client_public_key(self, client, headers):
+        x5c = headers.get("x5c")
+        if x5c:
+            return self._key_from_x5c(x5c)
+        if client.jwks_uri:
+            return self._key_from_jwks_uri(client, headers)
+        raise InvalidClientError(description="No public key available for this client.")
+
+    def _key_from_x5c(self, x5c):
+        import base64
+        from cryptography import x509
+        from cryptography.hazmat.primitives.serialization import Encoding
+
+        try:
+            leaf_der = base64.b64decode(x5c[0])
+            leaf_cert = x509.load_der_x509_certificate(leaf_der)
+        except Exception as exc:
+            raise InvalidClientError(description=f"Invalid x5c certificate: {exc}")
+
+        leaf_pem = leaf_cert.public_bytes(Encoding.PEM).decode()
+
+        cas = g.db_session.execute(
+            select(TrustedCA).where(TrustedCA.active == True)
+        ).scalars().all()
+
+        for ca in cas:
+            if ca.verify_certificate(leaf_pem)["valid"]:
+                return leaf_cert.public_key()
+
+        raise InvalidClientError(
+            description="Certificate in x5c is not trusted by any registered CA."
+        )
+
+    def _key_from_jwks_uri(self, client, headers):
+        import json
+        import urllib.request
+        from authlib.jose import JsonWebKey
+
+        kid = headers.get("kid")
+        try:
+            with urllib.request.urlopen(client.jwks_uri, timeout=5) as resp:
+                jwks = json.loads(resp.read())
+        except Exception as exc:
+            raise InvalidClientError(
+                description=f"Failed to fetch JWKS from {client.jwks_uri}: {exc}"
+            )
+
+        for k in jwks.get("keys", []):
+            if kid is None or k.get("kid") == kid:
+                return JsonWebKey.import_key(k)
+
+        raise InvalidClientError(description="No matching key found in JWKS.")
+
+    def validate_jti(self, claims, jti):
+        return True
 
 
 def query_client(client_id: str):

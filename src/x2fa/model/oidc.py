@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy.sql.schema import Column
 from sqlalchemy.sql.sqltypes import LargeBinary, String, Integer, Boolean, DateTime, Text
 
-from x2fa.constants import NEVER_EXPIRES
+from x2fa.constants import NEVER_EXPIRES, AUTH_METHOD_CLIENT_SECRET_POST
 from x2fa.model.base import Base
 
 
@@ -25,7 +25,7 @@ class OIDCClient(Base):
     )
     # PKI auth fields (Step 3 of Self-Sovereign Keys migration)
     token_endpoint_auth_method = Column(
-        String(50), nullable=False, default="client_secret_post"
+        String(50), nullable=False, default=AUTH_METHOD_CLIENT_SECRET_POST
     )
     client_cert_fingerprint = Column(String(255), nullable=True)  # optional SHA256 pinning
     jwks_uri = Column(String(255), nullable=True)                  # for private_key_jwt clients

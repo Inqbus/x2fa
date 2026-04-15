@@ -26,6 +26,15 @@ METHOD_WEBAUTHN_ROAMING  = "webauthn_roaming"
 METHOD_TOTP              = "totp"
 METHOD_BACKUP            = "backup"
 
+# Token endpoint authentication methods (RFC 7591 / RFC 7523)
+AUTH_METHOD_CLIENT_SECRET_POST  = "client_secret_post"
+AUTH_METHOD_CLIENT_SECRET_BASIC = "client_secret_basic"
+AUTH_METHOD_TLS_CLIENT_AUTH     = "tls_client_auth"
+AUTH_METHOD_PRIVATE_KEY_JWT     = "private_key_jwt"
+
+# JWT client assertion type (RFC 7523)
+JWT_BEARER_ASSERTION_TYPE = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+
 # Cryptography — not admin-tunable, fixed by design
 BCRYPT_ROUNDS      = 12   # bcrypt cost factor for backup-code hashes
 BACKUP_CODES_COUNT = 10   # number of single-use backup codes generated per registration

@@ -3,12 +3,15 @@ import secrets
 from flask import Flask, g
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+from x2fa.constants import AUTH_METHOD_TLS_CLIENT_AUTH, AUTH_METHOD_PRIVATE_KEY_JWT
 from x2fa.helpers import webauthn_helpers
 from x2fa.oidc import oauth
 from x2fa.oidc.grants import (
     S256OnlyCodeChallenge,
     X2FAAuthorizationCodeGrant,
     X2FAOpenIDCode,
+    X2FAPrivateKeyJwtAuth,
+    authenticate_via_mtls,
     query_client,
     save_token,
 )
@@ -23,6 +26,11 @@ def security(app: Flask):
         X2FAAuthorizationCodeGrant,
         [S256OnlyCodeChallenge(required=True), X2FAOpenIDCode(require_nonce=False)],
     )
+
+    domain = app.config.x2fa.DOMAIN
+    token_url = f"https://{domain}/token"
+    oauth.register_client_auth_method(AUTH_METHOD_TLS_CLIENT_AUTH, authenticate_via_mtls)
+    oauth.register_client_auth_method(AUTH_METHOD_PRIVATE_KEY_JWT, X2FAPrivateKeyJwtAuth(token_url))
 
     # # Test-only blueprint for session injection (E2E Playwright tests)
     # if app.config.x2fa.ENV_FOR_DYNACONF == 'testing':
