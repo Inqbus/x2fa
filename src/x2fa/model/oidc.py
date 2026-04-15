@@ -25,8 +25,7 @@ class OIDCClient(Base):
     token_endpoint_auth_method = Column(
         String(50), nullable=False, default=AUTH_METHOD_TLS_CLIENT_AUTH
     )
-    client_cert_fingerprint = Column(String(255), nullable=True)  # optional SHA256 pinning
-    jwks_uri = Column(String(255), nullable=True)                  # for private_key_jwt clients
+    jwks_uri = Column(String(255), nullable=True)  # for private_key_jwt clients
 
     # --- Authlib interface ---
 

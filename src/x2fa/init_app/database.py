@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 from flask import Flask, g, has_request_context
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool

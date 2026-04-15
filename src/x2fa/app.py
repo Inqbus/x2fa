@@ -1,6 +1,5 @@
 """X2FA Flask App-Factory."""
 
-import os
 from pathlib import Path
 
 from flask import Flask

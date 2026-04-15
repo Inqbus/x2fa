@@ -4,7 +4,6 @@ from flask import Flask, g
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from x2fa.constants import AUTH_METHOD_TLS_CLIENT_AUTH, AUTH_METHOD_PRIVATE_KEY_JWT
-from x2fa.helpers import webauthn_helpers
 from x2fa.oidc import oauth
 from x2fa.oidc.grants import (
     S256OnlyCodeChallenge,

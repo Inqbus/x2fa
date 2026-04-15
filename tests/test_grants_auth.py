@@ -21,7 +21,6 @@ from flask import g
 
 from x2fa.app import create_app
 from x2fa.constants import (
-    AUTH_METHOD_CLIENT_SECRET_POST,
     AUTH_METHOD_PRIVATE_KEY_JWT,
     AUTH_METHOD_TLS_CLIENT_AUTH,
     JWT_BEARER_ASSERTION_TYPE,
@@ -309,10 +308,10 @@ class TestPrivateKeyJwtX5c:
             _close_ctx(ctx)
 
     def test_wrong_auth_method_raises(self):
-        """Raises InvalidClientError when the client is registered for client_secret_post."""
+        """Raises InvalidClientError when client is registered for tls_client_auth, not private_key_jwt."""
         ca_key, ca_cert, ca_pem = make_ec_ca("jwt-ca-wrong-method")
         client_id = "rp-jwt-wrong-method"
-        _register_ca_and_client(ca_pem, client_id, AUTH_METHOD_CLIENT_SECRET_POST)
+        _register_ca_and_client(ca_pem, client_id, AUTH_METHOD_TLS_CLIENT_AUTH)
 
         client_key, client_cert, _ = _make_client_key_and_cert(client_id, ca_key, ca_cert)
         token = _make_jwt_with_x5c(client_key, client_cert, client_id, TOKEN_URL)
