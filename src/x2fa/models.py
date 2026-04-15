@@ -201,6 +201,12 @@ class OIDCClient(Base):
     created_at = Column(
         DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
     )
+    # PKI auth fields (Step 3 of Self-Sovereign Keys migration)
+    token_endpoint_auth_method = Column(
+        String(50), nullable=False, default="client_secret_post"
+    )
+    client_cert_fingerprint = Column(String(255), nullable=True)  # optional SHA256 pinning
+    jwks_uri = Column(String(255), nullable=True)                  # for private_key_jwt clients
 
     # --- Authlib interface ---
 
@@ -234,7 +240,7 @@ class OIDCClient(Base):
         return " ".join(allowed & requested)
 
     def check_token_endpoint_auth_method(self, method: str) -> bool:
-        return method in ("client_secret_post", "client_secret_basic")
+        return method == self.token_endpoint_auth_method
 
     def check_endpoint_auth_method(self, method: str, endpoint: str) -> bool:
         if endpoint == "token":

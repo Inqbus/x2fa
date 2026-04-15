@@ -82,16 +82,30 @@ def init_keys():
 @click.argument("client_id")
 @click.argument("redirect_uri")
 @click.option(
-    "--secret", default=None, help="Client secret (generated automatically if empty)"
+    "--method",
+    default="client_secret_post",
+    show_default=True,
+    type=click.Choice(["client_secret_post", "tls_client_auth", "private_key_jwt"]),
+    help="Token endpoint authentication method.",
+)
+@click.option(
+    "--secret", default=None,
+    help="Client secret (generated automatically for client_secret_post if omitted).",
 )
 @click.option("--scopes", default="openid app:setup", show_default=True)
+@click.option("--jwks-uri", default=None, help="JWKS URL (required for private_key_jwt).")
 @with_appcontext
-def add_client(client_id, redirect_uri, secret, scopes):
+def add_client(client_id, redirect_uri, method, secret, scopes, jwks_uri):
     """Registers a new OIDC client."""
-    if not secret:
-        secret = secrets.token_urlsafe(32)
+    if method == "private_key_jwt" and not jwks_uri:
+        raise click.UsageError("--jwks-uri is required for private_key_jwt.")
 
-    existing = None
+    if method == "client_secret_post":
+        if not secret:
+            secret = secrets.token_urlsafe(32)
+    else:
+        secret = ""  # no shared secret for PKI-based auth
+
     with db.session_scope() as db_session:
         existing = db_session.get(OIDCClient, client_id)
         if existing:
@@ -101,9 +115,9 @@ def add_client(client_id, redirect_uri, secret, scopes):
             )
             existing.redirect_uris = redirect_uri
             existing.allowed_scopes = scopes
-            existing.client_secret = (
-                secret  # always update (new random or explicitly given)
-            )
+            existing.token_endpoint_auth_method = method
+            existing.client_secret = secret
+            existing.jwks_uri = jwks_uri
         else:
             db_session.add(
                 OIDCClient(
@@ -111,11 +125,17 @@ def add_client(client_id, redirect_uri, secret, scopes):
                     client_secret=secret,
                     redirect_uris=redirect_uri,
                     allowed_scopes=scopes,
+                    token_endpoint_auth_method=method,
+                    jwks_uri=jwks_uri,
                 )
             )
 
     click.echo(f"Client ID:     {client_id}")
-    click.echo(f"Client secret: {secret}")
+    click.echo(f"Auth method:   {method}")
+    if method == "client_secret_post":
+        click.echo(f"Client secret: {secret}")
+    if jwks_uri:
+        click.echo(f"JWKS URI:      {jwks_uri}")
     click.echo(f"Redirect URI:  {redirect_uri}")
     click.echo(f"Scopes:        {scopes}")
 
@@ -132,7 +152,10 @@ def list_clients():
             return
         for c in clients:
             status = "active" if c.active else "deactivated"
-            click.echo(f"  {c.client_id:30s} [{status}]  {c.redirect_uris[:60]}")
+            click.echo(
+                f"  {c.client_id:30s} [{status}]  "
+                f"{c.token_endpoint_auth_method:20s}  {c.redirect_uris[:50]}"
+            )
 
 
 @click.command("revoke-client")
