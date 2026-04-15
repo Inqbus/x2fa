@@ -17,7 +17,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from x2fa.app import create_app
-from x2fa.models import Base, TrustedCA
+from x2fa.model import Base, TrustedCA
 from x2fa.init_app.database import db
 
 

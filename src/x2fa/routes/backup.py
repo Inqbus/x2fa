@@ -18,7 +18,7 @@ from flask_babelplus import gettext as _
 from sqlalchemy import select
 
 from x2fa.init_app.limiter import limiter
-from x2fa.models import BackupCode
+from x2fa.model import BackupCode
 from x2fa.constants import ACTION_FAIL, ACTION_VERIFY, METHOD_BACKUP, NEVER_USED
 from x2fa.routes import audit_log
 

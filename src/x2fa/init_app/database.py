@@ -7,7 +7,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 import threading
 
-from x2fa.models import Base
+from x2fa.model import Base
 from x2fa.config import cfg
 
 

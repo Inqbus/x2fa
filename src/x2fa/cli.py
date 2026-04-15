@@ -8,7 +8,7 @@ from flask.cli import with_appcontext
 from sqlalchemy import select, update
 
 from x2fa.constants import NEVER_USED
-from x2fa.models import (
+from x2fa.model import (
     AuditLog,
     BackupCode,
     Credential,
@@ -213,7 +213,7 @@ def stats():
 def cleanup_codes():
     """Removes authorization codes older than 1 hour (nonce protection is preserved)."""
     from datetime import datetime, timezone, timedelta
-    from x2fa.models import AuthorizationCode
+    from x2fa.model import AuthorizationCode
 
     cutoff = datetime.now(timezone.utc) - timedelta(hours=1)
     with db.session_scope() as db_session:

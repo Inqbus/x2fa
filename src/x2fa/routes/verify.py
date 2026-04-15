@@ -24,7 +24,7 @@ from sqlalchemy import select
 
 from x2fa.helpers import webauthn_helpers
 from x2fa.init_app.limiter import limiter
-from x2fa.models import Challenge, Credential
+from x2fa.model import Challenge, Credential
 from x2fa.constants import (
     ACTION_FAIL,
     ACTION_VERIFY,
@@ -60,7 +60,7 @@ def verify_get():
     credentials = g.db_session.execute(stmt).scalars().all()
     if not credentials:
         # No WebAuthn credentials — check for TOTP as fallback
-        from x2fa.models import TOTPSecret
+        from x2fa.model import TOTPSecret
 
         totp_record = g.db_session.get(TOTPSecret, user_id)
         if totp_record and totp_record.verified:

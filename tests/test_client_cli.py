@@ -6,7 +6,7 @@ from click.testing import CliRunner
 from sqlalchemy import select
 
 from x2fa.app import create_app
-from x2fa.models import OIDCClient
+from x2fa.model import OIDCClient
 from x2fa.init_app.database import db
 
 

@@ -2,7 +2,7 @@ import hashlib
 
 from flask import request, g
 
-from x2fa.models import AuditLog
+from x2fa.model import AuditLog
 from x2fa.config import cfg
 
 def client_ip() -> str:

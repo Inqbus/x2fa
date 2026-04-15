@@ -8,7 +8,7 @@ from authlib.oidc.core.grants import OpenIDCode
 from flask import g
 from sqlalchemy import select
 
-from x2fa.models import AuthorizationCode, OIDCClient, SigningKey
+from x2fa.model import AuthorizationCode, OIDCClient, SigningKey
 
 
 class S256OnlyCodeChallenge(CodeChallenge):

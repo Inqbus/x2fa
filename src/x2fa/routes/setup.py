@@ -21,7 +21,7 @@ from flask_babelplus import gettext as _
 
 from x2fa.helpers import webauthn_helpers
 from x2fa.init_app.limiter import limiter
-from x2fa.models import BackupCode, Challenge, Credential
+from x2fa.model import BackupCode, Challenge, Credential
 from x2fa.constants import (
     ACTION_SETUP,
     BACKUP_CODES_COUNT,

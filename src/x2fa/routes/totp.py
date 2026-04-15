@@ -18,7 +18,7 @@ from flask import (
 from flask_babelplus import gettext as _
 
 from x2fa.init_app.limiter import limiter
-from x2fa.models import BackupCode, TOTPSecret
+from x2fa.model import BackupCode, TOTPSecret
 from x2fa.constants import (
     ACTION_FAIL,
     ACTION_SETUP,
