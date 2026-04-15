@@ -1,15 +1,19 @@
 # X2FA Agent Guidelines
 
 ## Project Overview
-X2FA is a FIDO2 microservice with OIDC provider that handles two-factor authentication. It supports WebAuthn/FIDO2, TOTP, and backup codes. **Currently in Flask/OIDC refactor** — the test suite reflects an older Bottle implementation.
+X2FA is a FIDO2 microservice with OIDC provider that handles two-factor authentication. It supports WebAuthn/FIDO2, TOTP, and backup codes. Client authentication uses X.509/mTLS and `private_key_jwt` — no shared secrets.
 
 ## Key Commands
-- Run tests: `uv run pytest tests/ -v` (77 tests, some failing due to active refactor)
+- Run tests: `uv run pytest tests/ -v` (29 unit tests)
 - Run single test: `uv run pytest tests/test_file.py::test_name -v`
 - Start development server: `FLASK_APP=wsgi:app uv run flask run`
-- Database upgrade: `FLASK_APP=wsgi:app uv run flask db upgrade`
+- Initialize database: `FLASK_APP=wsgi:app uv run flask init-db`
 - Initialize keys: `FLASK_APP=wsgi:app uv run flask init-keys`
-- Add client: `FLASK_APP=wsgi:app uv run flask add-client <client_id> <redirect_uri>`
+- Add client: `FLASK_APP=wsgi:app uv run flask add-client <client_id> <redirect_uri> [--method tls_client_auth|private_key_jwt]`
+- Add CA: `FLASK_APP=wsgi:app uv run flask add-ca <name> <cert_path>`
+- List CAs: `FLASK_APP=wsgi:app uv run flask list-cas`
+- Revoke CA: `FLASK_APP=wsgi:app uv run flask revoke-ca <name>`
+- Issue client cert: `FLASK_APP=wsgi:app uv run flask issue-client-cert <client_id> --ca <name>`
 - Run demo RP: `cd demo_rp && uv run python app.py`
 
 ## Environment Setup
@@ -20,11 +24,10 @@ X2FA is a FIDO2 microservice with OIDC provider that handles two-factor authenti
 - Config is loaded via **Dynaconf** from `src/x2fa/config_files/*.toml` and environment variables (prefix `X2FA_`)
 
 ## Testing Notes
-- **68 unit tests** + **9 E2E tests** (Playwright/Chromium)
+- **29 unit tests** (all passing)
 - Test structure:
   - `tests/test_*.py` — unit tests (pytest fixtures in `tests/conftest.py`)
-  - `tests/e2e/test_*.py` — end-to-end tests (fixtures in `tests/e2e/conftest.py`)
-- E2E tests use `ENV_FOR_DYNACONF=e2e` and start a live server on configurable port (5098 default)
+  - `old_tests/e2e/test_*.py` — archived E2E tests (Playwright/Chromium, not yet updated for PKI auth)
 - Demo RP (`demo_rp/app.py`) simulates an OIDC relying party for manual testing
 
 ## Architecture
@@ -44,7 +47,7 @@ x2fa/
 │   ├── app.py              # create_app() factory
 │   ├── config.py           # Dynaconf configuration (cfg object)
 │   ├── config_files/       # *.toml config files (x2fa_config, ratelimit, security, etc.)
-│   ├── models.py           # SQLAlchemy models (Credential, TOTPSecret, BackupCode, etc.)
+│   ├── model/              # SQLAlchemy models (Credential, TOTPSecret, BackupCode, OIDCClient, TrustedCA, …)
 │   ├── constants.py        # Sentinels (NEVER_USED), action/method strings
 │   ├── cli.py              # Flask CLI commands
 │   ├── wsgi.py             # WSGI entry point (loads .env, creates app)
@@ -56,10 +59,9 @@ x2fa/
 │   └── templates/          # Jinja2 templates
 ├── tests/
 │   ├── conftest.py         # Unit test fixtures
-│   ├── e2e/conftest.py     # Playwright E2E fixtures
-│   └── test_*.py           # Unit and E2E tests
+│   └── test_*.py           # Unit tests
+├── old_tests/              # Archived tests (pre-PKI, not yet updated)
 ├── demo_rp/                # Demo relying party for manual testing
-├── migrations/             # Alembic migrations
 └── .env                    # Local environment (git-ignored)
 ```
 
@@ -71,11 +73,11 @@ x2fa/
 - **Database sentinels**: `NEVER_USED` (1970-01-01) and `NEVER_EXPIRES` (9999-12-31) are timezone-naive
 - **Babel i18n**: `ui_locales` OIDC parameter controls UI language (German default)
 
-## Migration & CLI
-- Run migrations: `uv run flask dbigrate -m "desc"` then `uv run flask db upgrade`
+## Schema & Maintenance CLI
+- Initialize schema: `uv run flask init-db` (creates all tables; no Alembic migrations)
 - Cleanup old codes: `uv run flask cleanup-codes` (keep codes <1 hour for nonce protection)
 
 ## Reading files
 - CRITICAL: When reading files, always read the COMPLETE file content, 
 - never request partial snippets. Use the Read tool with full file access.
-- Nutze kein "sed" um edits an files zu machen. Zeige immer diffs. 
+- Do not use "sed" to edit files. Always show diffs.

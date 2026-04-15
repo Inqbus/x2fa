@@ -1,4 +1,4 @@
-Hier ist ein Entwurf, der alle drei Kontexte (Web, CLI, Tests) sauber trennt – ohne globale Module-State, mit klarer Lebenszykluskontrolle:
+Here is a design that cleanly separates all three contexts (web, CLI, tests) — no global module state, with explicit lifecycle control:
 
 ```python
 from contextlib import contextmanager
@@ -11,30 +11,30 @@ class Database:
     def __init__(self):
         self.engine = None
         self._Session = None
-        self._local = threading.local()  # Für CLI-Thread-Isolation
-    
+        self._local = threading.local()  # Thread isolation for CLI
+
     def configure(self, uri: str, **engine_kwargs):
-        """Einmalig zur App-Initialisierung"""
+        """Called once during app initialization."""
         self.engine = create_engine(uri, **engine_kwargs)
         self._Session = sessionmaker(bind=self.engine)
-        
-        # Für SQLite-Tests: ensure foreign keys
+
+        # For SQLite tests: ensure foreign keys
         if self.engine.dialect.name == 'sqlite':
             @event.listens_for(self.engine, "connect")
             def set_sqlite_pragma(dbapi_conn, connection_record):
                 cursor = dbapi_conn.cursor()
                 cursor.execute("PRAGMA foreign_keys=ON")
                 cursor.close()
-    
+
     def init_app(self, app):
-        """Bindet sich in Flask-Request-Lifecycle ein"""
+        """Hooks into the Flask request lifecycle."""
         if self.engine is None:
             raise RuntimeError("Call configure() before init_app()")
-        
+
         @app.before_request
         def open_session():
             g._db_session = self._Session()
-        
+
         @app.teardown_appcontext
         def close_session(exc):
             session = g.pop('_db_session', None)
@@ -44,30 +44,30 @@ class Database:
                 else:
                     session.commit()
                 session.close()
-    
+
     @property
     def session(self) -> Session:
         """
-        Nur für Web-Requests! 
-        Zugriff auf die aktive Request-Session via Flask g.
+        For web requests only!
+        Accesses the active request-scoped session via Flask g.
         """
         if not has_request_context():
             raise RuntimeError(
-                "Außerhalb eines Request-Kontexts. "
-                "Verwende 'with db.session_scope():' für CLI/Tests"
+                "Outside of a request context. "
+                "Use 'with db.session_scope():' for CLI/tests."
             )
         return g._db_session
-    
+
     @contextmanager
     def session_scope(self, bind=None):
         """
-        Für CLI-Tools und Background-Jobs.
-        Automatisches Commit/Rollback, Thread-sicher.
+        For CLI tools and background jobs.
+        Automatic commit/rollback, thread-safe.
         """
         session = self._Session(bind=bind)
         token = getattr(self._local, 'token', 0) + 1
         self._local.token = token
-        
+
         try:
             yield session
             session.commit()
@@ -78,14 +78,14 @@ class Database:
             session.close()
             if getattr(self._local, 'token', None) == token:
                 delattr(self._local, 'token')
-    
+
     @contextmanager
     def test_transaction(self):
         """
-        Für Pytest-Fixtures.
-        Startet eine verschachtelte Transaktion (Savepoint), 
-        die am Ende automatisch rollbacked.
-        
+        For pytest fixtures.
+        Starts a nested transaction (savepoint) that is automatically
+        rolled back at the end.
+
         Usage:
             @pytest.fixture
             def db_session(database):
@@ -94,125 +94,124 @@ class Database:
         """
         conn = self.engine.connect()
         trans = conn.begin()
-        
-        # Session an Connection binden (nicht Engine), damit wir 
-        # die Transaktion kontrollieren können
+
+        # Bind session to the connection (not the engine) so we control the transaction
         session = self._Session(bind=conn)
-        
-        # Für PostgreSQL/MySQL: Beginne Savepoint für ORM-Operationen
+
+        # For PostgreSQL/MySQL: begin a savepoint for ORM operations
         if self.engine.dialect.name != 'sqlite':
             session.begin_nested()
-        
+
         try:
             yield session
         finally:
             session.close()
             trans.rollback()
             conn.close()
-    
+
     def reset_schema(self):
-        """Hilfsmethode für Tests: Drop & Create all tables"""
+        """Helper for tests: drop and recreate all tables."""
         from x2fa.models import Base
         Base.metadata.drop_all(self.engine)
         Base.metadata.create_all(self.engine)
 ```
 
-### Verwendung
+### Usage
 
 **1. Web (normal):**
 ```python
 @app.route('/users')
 def list_users():
-    # Automatisch via Flask g, geschlossen nach Request
+    # Automatically managed via Flask g, closed after the request
     users = db.session.query(User).all()
     return render_template('users.html', users=users)
 ```
 
-**2. CLI-Tools:**
+**2. CLI tools:**
 ```python
 @click.command()
 def initdb():
-    """Funktioniert ohne Flask-Request-Context"""
+    """Works without a Flask request context."""
     with db.session_scope() as session:
-        # Explizite Session, wird committed am Ende
+        # Explicit session, committed at the end
         admin = User(name="admin")
         session.add(admin)
 
 @click.command()
 def complex_workflow():
-    """Mehrere Operationen in einer Transaktion"""
+    """Multiple operations in a single transaction."""
     with db.session_scope() as session:
         do_step1(session)
         do_step2(session)
-        # Commit erst hier, bei Exception automatisch Rollback
+        # Committed here; automatic rollback on exception
 ```
 
-**3. Tests (mit Fixtures):**
+**3. Tests (with fixtures):**
 ```python
 import pytest
 
 @pytest.fixture(scope='session')
 def database():
     db = Database()
-    db.configure("sqlite:///:memory:", poolclass=StaticPool, 
+    db.configure("sqlite:///:memory:", poolclass=StaticPool,
                  connect_args={"check_same_thread": False})
     db.reset_schema()
     return db
 
 @pytest.fixture
 def db_session(database):
-    """Jeder Test läuft in isolierter Transaktion"""
+    """Each test runs in an isolated transaction."""
     with database.test_transaction() as session:
         yield session
-    # Auto-rollback hier, DB bleibt clean für nächsten Test
+    # Auto-rollback here; DB stays clean for the next test
 
 @pytest.fixture
 def sample_user(db_session):
-    """Fixture baut Test-Daten auf"""
+    """Fixture builds test data."""
     user = User(name="Testuser", email="test@example.com")
     db_session.add(user)
-    db_session.flush()  # ID generieren ohne Commit
+    db_session.flush()  # Generate ID without committing
     return user
 
 def test_user_model(database, sample_user):
-    # Wenn du einen Request simulierst (Flask test_client):
+    # Simulating a request (Flask test_client):
     with app.test_request_context():
-        # db.session ist jetzt verfügbar und identisch mit test-transaction
-        # wenn du bind_to_transaction verwendest (siehe unten)
+        # db.session is now available and shares the test transaction
+        # when bind_to_transaction is used (see below)
         pass
-    
-    # Oder direkt mit der Session arbeiten:
+
+    # Or work directly with the session:
     assert sample_user.id is not None
     result = database.engine.execute("SELECT count(*) FROM users").scalar()
     assert result == 1
-    # Nach dem Test: alles weg durch rollback
+    # After the test: everything gone via rollback
 ```
 
-### Erweiterung: Test-Integration mit Flask-Test-Client
+### Extension: test integration with Flask test client
 
-Wenn du `test_client()` nutzen willst, aber die DB-Änderungen des Fixtures im Request sichtbar sein sollen (gleiche Transaktion):
+If you want to use `test_client()` but have DB changes from fixtures visible inside the request (same transaction):
 
 ```python
 @pytest.fixture
 def app(database):
     app = create_app(testing=True)
-    app.extensions['sqlalchemy'] = database  # Deine DB-Instanz
-    
-    # Patch: Test-Client nutzt gleiche Connection/Transaktion
+    app.extensions['sqlalchemy'] = database  # Your DB instance
+
+    # Patch: test client uses the same connection/transaction
     @app.before_request
     def bind_test_session():
         if hasattr(g, '_test_session'):
             g._db_session = g._test_session
-    
+
     return app
 
 def test_api(app, database, db_session):
-    # db_session ist deine Test-Fixture-Session
+    # db_session is your test fixture session
     user = User(name="API User")
     db_session.add(user)
     db_session.flush()
-    
-    # Mach diese Session für den Request verfügbar
+
+    # Make this session available to the request
     with app.test_request_context():
         g._test_session = db_session
         with app.test_client() as client:
@@ -220,10 +219,8 @@ def test_api(app, database, db_session):
             assert resp.status_code == 200
 ```
 
-**Vorteile dieser Lösung:**
-- **Kein globaler State**: `_engine` und `SessionFactory` sind Instanzvariablen
-- **Explizite Scopes**: Web (implizit), CLI (explizit), Tests (transaktional)
-- **Thread-Sicher**: CLI nutzt `session_scope` mit lokalem Kontext
-- **Schnelle Tests**: `test_transaction` nutzt Savepoints (keine DB-Reset zwischen Tests nötig)
-
-Möchtest du die Test-Integration mit Factory-Boy oder ähnlichen Fixture-Generatoren kombinieren?
+**Advantages of this design:**
+- **No global state**: `_engine` and `SessionFactory` are instance variables
+- **Explicit scopes**: Web (implicit), CLI (explicit), Tests (transactional)
+- **Thread-safe**: CLI uses `session_scope` with a local context
+- **Fast tests**: `test_transaction` uses savepoints (no DB reset between tests needed)

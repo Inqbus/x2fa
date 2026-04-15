@@ -1,49 +1,49 @@
-# X2FA Architektur v2.1
-**FIDO2 Microservice mit OIDC-Provider – Self-Sovereign Key Architektur**
-*Stand: 2026-04-15*
+# X2FA Architecture v2.1
+**FIDO2 Microservice with OIDC Provider – Self-Sovereign Key Architecture**
+*Date: 2026-04-15*
 
 ---
 
 ## 1. Vision & Value Proposition
 
-X2FA ist ein standalone 2FA-Microservice mit vollständigem OIDC-Provider (OpenID Connect), der in bestehende Anwendungen über den standardisierten Authorization Code Flow integriert wird. Unterstützt alle FIDO2-Authenticator-Klassen (Platform, Roaming, Hybrid) sowie TOTP-Fallback für universelle Plattformkompatibilität (inkl. Linux).
+X2FA is a standalone 2FA microservice with a full OIDC provider (OpenID Connect), integrated into existing applications via the standardized Authorization Code Flow. Supports all FIDO2 authenticator classes (Platform, Roaming, Hybrid) as well as TOTP fallback for universal platform compatibility (including Linux).
 
-**Value Proposition:** FIDO2-Authentifizierung ohne Framework-Overhead, datenbankagnostisch, mit intelligenter Fallback-Strategie für alle Plattformen (macOS, Windows, Linux, iOS, Android). Kommunikation über OIDC-Standard – keine proprietären JWTs, **keine geteilten Secrets zwischen App und X2FA** (Self-Sovereign Keys via X.509/mTLS).
+**Value Proposition:** FIDO2 authentication without framework overhead, database-agnostic, with an intelligent fallback strategy for all platforms (macOS, Windows, Linux, iOS, Android). Communication via the OIDC standard — no proprietary JWTs, **no shared secrets between app and X2FA** (Self-Sovereign Keys via X.509/mTLS).
 
 ### Bring Your Own Domain + Bring Your Own Infrastructure
 
-| Komponente | Nutzer bringt | X2FA stellt bereit |
-|------------|---------------|-------------------|
-| **Domain** | DNS A-Record (`2fa.example.com` → Server-IP) | Automatische RP-ID Konfiguration |
-| **TLS/Infrastruktur** | Caddy/nginx/Traefik/Cloudflare | HTTP-Backend auf localhost:5000 |
-| **Datenbank** | SQLite (Default), PostgreSQL oder MySQL | SQLAlchemy-ORM mit Migrationen |
-| **Authenticator** | FaceID/TouchID (Apple), Hello (Windows), Android Biometrie, YubiKey (USB/NFC), Phone-as-Key (Hybrid) | Auto-Detection der verfügbaren Methoden, Cross-Platform Support |
-| **Fallback** | TOTP-App (Google Authenticator o.ä.) | Verschlüsselte Speicherung (Fernet) |
-| **Notfall** | 10 Backup-Codes | Einmalige Validierung |
-| **Integration** | OIDC-Client (X.509-Zertifikat oder Private Key) | OIDC Authorization Code Flow, JWKS-Endpunkt, Discovery, mTLS |
+| Component | User provides | X2FA provides |
+|-----------|--------------|---------------|
+| **Domain** | DNS A record (`2fa.example.com` → server IP) | Automatic RP-ID configuration |
+| **TLS/Infrastructure** | Caddy/nginx/Traefik/Cloudflare | HTTP backend on localhost:5000 |
+| **Database** | SQLite (default), PostgreSQL or MySQL | SQLAlchemy ORM with migrations |
+| **Authenticator** | FaceID/TouchID (Apple), Hello (Windows), Android biometrics, YubiKey (USB/NFC), Phone-as-Key (Hybrid) | Auto-detection of available methods, cross-platform support |
+| **Fallback** | TOTP app (Google Authenticator etc.) | Encrypted storage (Fernet) |
+| **Emergency** | 10 backup codes | Single-use validation |
+| **Integration** | OIDC client (X.509 certificate or private key) | OIDC Authorization Code Flow, JWKS endpoint, Discovery, mTLS |
 
-### Authenticator-Strategie (Cross-Platform)
+### Authenticator Strategy (Cross-Platform)
 
-| Plattform | Primäre Methode | Fallback | Implementierung |
-|-----------|----------------|----------|-----------------|
-| **macOS/iOS** | Secure Enclave (TouchID/FaceID) | TOTP | `navigator.credentials` ohne Attachment-Filter |
-| **Windows 10/11** | TPM 2.0 (Windows Hello) | TOTP | Platform-Detection |
-| **Android** | StrongBox/TEE | TOTP | Biometrie-API |
-| **Linux Desktop** | Hybrid/Phone-as-Key oder YubiKey | TOTP | QR-Code für Phone-Auth oder USB-Roaming |
-| **Server/Headless** | TOTP oder Backup-Codes | – | Kein WebAuthn verfügbar |
+| Platform | Primary method | Fallback | Implementation |
+|----------|---------------|----------|----------------|
+| **macOS/iOS** | Secure Enclave (TouchID/FaceID) | TOTP | `navigator.credentials` without attachment filter |
+| **Windows 10/11** | TPM 2.0 (Windows Hello) | TOTP | Platform detection |
+| **Android** | StrongBox/TEE | TOTP | Biometrics API |
+| **Linux Desktop** | Hybrid/Phone-as-Key or YubiKey | TOTP | QR code for phone auth or USB roaming |
+| **Server/Headless** | TOTP or backup codes | – | No WebAuthn available |
 
-Keine `authenticatorAttachment: "platform"` Einschränkung – ermöglicht YubiKey und Hybrid-Transport.
+No `authenticatorAttachment: "platform"` restriction — enables YubiKey and hybrid transport.
 
 ---
 
-## 2. Systemarchitektur
+## 2. System Architecture
 
-### Komponentendiagramm
+### Component Diagram
 
 ```mermaid
 graph TB
     subgraph "TRUST ROOT"
-        CA["Interne CA<br/>Root-Zertifikat<br/>Trust-Anchor für X2FA"]
+        CA["Internal CA<br/>Root Certificate<br/>Trust Anchor for X2FA"]
     end
     
     subgraph "CLIENT"
@@ -51,39 +51,39 @@ graph TB
         PlatformAuth["Platform Authenticator<br/>FaceID / TouchID / Windows Hello"]
         RoamingAuth["Roaming Authenticator<br/>YubiKey USB/NFC"]
         HybridAuth["Hybrid/Phone<br/>Android/iPhone via QR/BLE"]
-        TOTPApp["TOTP-App<br/>Google Authenticator o.ä."]
+        TOTPApp["TOTP app<br/>Google Authenticator etc."]
         
-        subgraph "Hauptanwendung"
+        subgraph "Main application"
             App["Flask/Django/Node.js<br/>OIDC Client"]
-            Key["Private Key<br/>(lokal, AES-verschlüsselt)"]
-            Cert["X.509 Zertifikat<br/>CN=client_id"]
+            Key["Private key<br/>(local, AES-encrypted)"]
+            Cert["X.509 certificate<br/>CN=client_id"]
         end
     end
 
-    subgraph "INFRASTRUKTUR"
-        TLS["HTTPS Terminierung<br/>Caddy / nginx / Traefik"]
+    subgraph "INFRASTRUCTURE"
+        TLS["HTTPS termination<br/>Caddy / nginx / Traefik"]
     end
 
     subgraph "X2FA SERVICE"
         Flask["Flask 3.1+<br/>HTTP localhost:5000"]
         
         subgraph "AUTHENTICATOR"
-            MTLS["mTLS-Validation<br/>oder private_key_jwt"]
-            TrustedCA["Trusted CA Store<br/>(Root-Certs)"]
+            MTLS["mTLS validation<br/>or private_key_jwt"]
+            TrustedCA["Trusted CA store<br/>(root certs)"]
         end
 
-        subgraph "DATENBANKSCHICHT"
+        subgraph "DATABASE LAYER"
             SQLAlchemy["SQLAlchemy 2.0+ ORM"]
         end
 
-        subgraph "DATENBANK"
+        subgraph "DATABASE"
             SQLite[("SQLite Default")]
             Postgres[("PostgreSQL")]
             MySQL[("MySQL")]
         end
     end
 
-    MainApp["HAUPTANWENDUNG"]
+    MainApp["MAIN APPLICATION"]
 
     Browser <-->|"HTTPS TLS 1.3"| TLS
     TLS <-->|"HTTP"| Flask
@@ -95,16 +95,16 @@ graph TB
     Browser <-->|"WebAuthn API"| PlatformAuth
     Browser <-->|"WebAuthn API"| RoamingAuth
     Browser <-->|"caBLE/QR"| HybridAuth
-    Browser -.->|"Manuelle Eingabe"| TOTPApp
+    Browser -.->|"Manual entry"| TOTPApp
 
-    App <-->|"mTLS oder JWT"| TLS
+    App <-->|"mTLS or JWT"| TLS
     TLS <-->|"X-Client-Certificate"| Flask
     
     App <-->|"OIDC Authorization Code Flow"| TLS
     
-    Flask -->|"verifiziert"| TrustedCA
-    TrustedCA -.->|"signiert"| Cert
-    CA -.->|"Root Cert"| TrustedCA
+    Flask -->|"verifies"| TrustedCA
+    TrustedCA -.->|"signed by"| Cert
+    CA -.->|"Root cert"| TrustedCA
     
     style PlatformAuth fill:#f9f
     style RoamingAuth fill:#f9f
@@ -115,43 +115,43 @@ graph TB
     style TrustedCA fill:#bfb
 ```
 
-### HTTPS-Strategien (Resolveragnostisch)
+### HTTPS Strategies (Resolver-agnostic)
 
-| Setup | Verwendung | Konfiguration |
-|-------|-----------|---------------|
-| **Caddy** | Zero-Config, Auto-HTTPS | `reverse_proxy localhost:5000`, automatische Zertifikate, `tls internal` für interne CA |
-| **nginx** | Enterprise, manuelle Kontrolle | `proxy_pass http://127.0.0.1:5000`, `ssl_verify_client optional_no_ca` für mTLS |
-| **Traefik** | Docker/Cloud-Native | Label-basierte Discovery, Auto-HTTPS, `tls.options.mtls.clientAuth` |
+| Setup | Use case | Configuration |
+|-------|----------|---------------|
+| **Caddy** | Zero-config, auto-HTTPS | `reverse_proxy localhost:5000`, automatic certificates, `tls internal` for internal CA |
+| **nginx** | Enterprise, manual control | `proxy_pass http://127.0.0.1:5000`, `ssl_verify_client optional_no_ca` for mTLS |
+| **Traefik** | Docker/cloud-native | Label-based discovery, auto-HTTPS, `tls.options.mtls.clientAuth` |
 
-### Datenbank-Strategien
+### Database Strategies
 
-| Setup | Connection String | Verwendung |
-|-------|-------------------|------------|
-| **SQLite** | `sqlite:///var/lib/x2fa/db.sqlite` | Default, Zero-Config, Single-Node |
-| **PostgreSQL** | `postgresql://user:pass@host/x2fa` | Enterprise, HA-Setups |
-| **MySQL** | `mysql+pymysql://user:pass@host/x2fa` | Bestehende Infrastruktur |
+| Setup | Connection string | Use case |
+|-------|-------------------|----------|
+| **SQLite** | `sqlite:///var/lib/x2fa/db.sqlite` | Default, zero-config, single-node |
+| **PostgreSQL** | `postgresql://user:pass@host/x2fa` | Enterprise, HA setups |
+| **MySQL** | `mysql+pymysql://user:pass@host/x2fa` | Existing infrastructure |
 
 ---
 
-## 3. Technologie-Stack
+## 3. Technology Stack
 
-| Ebene | Technologie | Version |
-|-------|-------------|---------|
+| Layer | Technology | Version |
+|-------|------------|---------|
 | **Framework** | Flask | 3.1.3+ |
 | **Python** | CPython | 3.11+ |
 | **ORM** | SQLAlchemy | 2.0+, `pool_pre_ping=True` |
-| **Migrations** | Alembic (optional) | Für PostgreSQL/MySQL Schema-Updates |
+| **Schema** | `flask init-db` (`create_all`) | No Alembic migrations; run once on first install (**destructive**: drops + recreates all tables). In test mode schema is created automatically on startup. |
 | **WebAuthn** | py_webauthn | 2.7.1+ |
-| **TOTP** | pyotp | 2.9+, RFC 6238, ±30s Fenster |
-| **QR-Code** | qrcode + Pillow | 8.2+ / 12.2+ |
+| **TOTP** | pyotp | 2.9+, RFC 6238, ±30 s window |
+| **QR code** | qrcode + Pillow | 8.2+ / 12.2+ |
 | **OIDC** | Authlib | 1.6.9+, Authorization Code Flow + PKCE, JWKS, Discovery |
-| **Krypto** | cryptography | 46.0.7+, Fernet (AES-128-CBC + HMAC-SHA256), X.509 |
+| **Crypto** | cryptography | 46.0.7+, Fernet (AES-128-CBC + HMAC-SHA256), X.509 |
 | **Hashing** | bcrypt | 5.0.0+, rounds=12 |
-| **Rate Limiting** | Flask-Limiter | 4.1.1+, moving-window |
-| **Konfiguration** | Dynaconf | 3.2.13+, TOML-Dateien, Umgebungen |
-| **i18n** | flask-babelplus | 2.2.0+, 16 Sprachen |
+| **Rate limiting** | Flask-Limiter | 4.1.1+, moving-window |
+| **Configuration** | Dynaconf | 3.2.13+, TOML files, environments |
+| **i18n** | flask-babelplus | 2.2.0+, 16 languages |
 | **WSGI** | Gunicorn | 25.3.0+ |
-| **Frontend** | Vanilla JS | ~50 Zeilen inline, CSP-nonced, keine Build-Tools |
+| **Frontend** | Vanilla JS | ~50 lines inline, CSP-nonced, no build tools |
 
 ### Dependencies (`pyproject.toml`)
 
@@ -179,21 +179,21 @@ pymysql>=1.1.0           # MySQL
 
 ---
 
-## 4. Konfiguration
+## 4. Configuration
 
-### Dynaconf mit TOML-Dateien
+### Dynaconf with TOML Files
 
-Die Konfiguration erfolgt über Dynaconf mit fünf thematisch getrennten TOML-Dateien in `src/x2fa/config_files/`. Jede Datei unterstützt die Environments `[default]`, `[production]`, `[testing]`, `[e2e]`. Environment-Variablen mit dem jeweiligen Präfix überschreiben TOML-Werte.
+Configuration is managed by Dynaconf using five thematically separated TOML files in `src/x2fa/config_files/`. Each file supports the environments `[default]`, `[production]`, `[testing]`, `[e2e]`. Environment variables with the respective prefix override TOML values.
 
-| Config-Datei | Dynaconf-Namespace | Env-Präfix | Inhalt |
+| Config file | Dynaconf namespace | Env prefix | Content |
 |---|---|---|---|
-| `x2fa_config.toml` | `cfg.x2fa` | `X2FA_` | Host, Port, Domain, Testing-Flag |
-| `db_config.toml` | `cfg.x2fa_db` | `X2FA_DB_` | `SQLALCHEMY_DATABASE_URI` |
-| `security_config.toml` | `cfg.x2fa_security` | `X2FA_SECURITY_` | `SECRET_KEY`, `SECRET_SALT`, Session-Cookie-Settings |
-| `ratelimit_config.toml` | `cfg.x2fa_ratelimit` | `X2FA_RATELIMIT_` | Rate-Limit-Werte, Redis-URI, Strategie |
-| `babel_config.toml` | `cfg.x2fa_babel` | `X2FA_BABEL_` | Sprach-Einstellungen |
+| `x2fa_config.toml` | `cfg.x2fa` | `X2FA_` | Host, port, domain, testing flag |
+| `db_config.toml` | `cfg.x2fa_database` | `X2FA_DB_` | `SQLALCHEMY_DATABASE_URI` |
+| `security_config.toml` | `cfg.x2fa_security` | `X2FA_SECURITY_` | `SECRET_KEY`, `SECRET_SALT`, session cookie settings |
+| `ratelimit_config.toml` | `cfg.x2fa_ratelimit` | `X2FA_RATELIMIT_` | Rate limit values, Redis URI, strategy |
+| `babel_config.toml` | `cfg.x2fa_babel` | `X2FA_BABEL_` | Language settings |
 
-### App-Factory mit Startup-Checks
+### App Factory with Startup Checks
 
 ```python
 # src/x2fa/init_app/config.py
@@ -201,26 +201,26 @@ def config(app: Flask):
     for key in cfg:
         setattr(app.config, key, AttrDict(dict(cfg[key])))
 
-    # Startup-Check: SECRET_KEY muss gesetzt sein
+    # Startup check: SECRET_KEY must be set
     if 'SECRET_KEY' not in app.config.x2fa_security:
         raise RuntimeError("SECRET_KEY not set in secret_config.toml!")
     app.config['SECRET_KEY'] = app.config.x2fa_security.SECRET_KEY
 
-    # Startup-Check: Redis in Production erforderlich
+    # Startup check: Redis required in production
     if not cfg.x2fa.ENV_FOR_DYNACONF == "testing" and not "RATELIMIT_STORAGE_URI" in app.config.x2fa_ratelimit:
         raise RuntimeError(
             "REDIS_URL must be set in production (distributed rate-limiting)."
         )
 ```
 
-### Session-Sicherheit (`security_config.toml`)
+### Session Security (`security_config.toml`)
 
 ```toml
 [default]
-SESSION_COOKIE_SECURE   = true   # Nur HTTPS
-SESSION_COOKIE_HTTPONLY = true   # Kein JS-Zugriff
-SESSION_COOKIE_SAMESITE = "Lax"  # CSRF-Schutz
-PERMANENT_SESSION_LIFETIME = 600 # 10 Minuten in Sekunden
+SESSION_COOKIE_SECURE   = true   # HTTPS only
+SESSION_COOKIE_HTTPONLY = true   # no JS access
+SESSION_COOKIE_SAMESITE = "Lax"  # CSRF protection
+PERMANENT_SESSION_LIFETIME = 600 # 10 minutes in seconds
 
 [testing]
 SESSION_COOKIE_SECURE   = false
@@ -229,193 +229,143 @@ SESSION_COOKIE_SAMESITE = false
 
 ---
 
-## 5. Authlib-Integration (Self-Sovereign Keys)
+## 5. Authlib Integration (Self-Sovereign Keys)
 
-### Grant-Klasse
+### Session Pattern: Two Contexts, Two APIs
+
+The codebase intentionally uses two different session APIs — each correct for its context:
+
+| Context | API | Why |
+|---------|-----|-----|
+| **Web routes / grant methods** | `g.db_session` | Flask opens a session in `before_request` and commits/closes it in `teardown_appcontext`. All request-scoped code must use this shared session. |
+| **CLI commands** | `with db.session_scope() as db_session:` | No Flask request context exists; `session_scope()` creates an explicit session with auto-commit/rollback. |
+
+Using `session_scope()` inside a request handler would open a second, independent transaction and bypass the request-scoped lifecycle. Using `g.db_session` in a CLI command would raise `RuntimeError` (no request context).
+
+### Grant Class
 
 ```python
 # src/x2fa/oidc/grants.py
-from authlib.integrations.flask_oauth2 import AuthorizationServer
 from authlib.oauth2.rfc6749.grants import AuthorizationCodeGrant
 from authlib.oauth2.rfc7636 import CodeChallenge
 from authlib.oidc.core.grants import OpenIDCode
-from authlib.oauth2.rfc6749 import OAuth2Error
+from sqlalchemy import select
+from flask import g
 
-class X2FAAuthorizationCodeGrant(AuthorizationCodeGrant, OpenIDCode):
+class S256OnlyCodeChallenge(CodeChallenge):
+    """Restricts PKCE to S256 only — 'plain' is explicitly rejected."""
+    SUPPORTED_CODE_CHALLENGE_METHOD = ["S256"]
+
+
+class X2FAAuthorizationCodeGrant(AuthorizationCodeGrant):
     """
-    OpenIDCode Mixin für ID-Token Funktionalität.
-    PKCE S256 erzwungen, plain explizit blockiert.
-    Unterstützt Self-Sovereign Keys: tls_client_auth und private_key_jwt.
+    PKCE S256 enforced, plain explicitly rejected.
+    OpenIDCode functionality is added as an extension via register_grant().
+    Supports Self-Sovereign Keys: tls_client_auth and private_key_jwt.
     """
     TOKEN_ENDPOINT_AUTH_METHODS = [
-        'tls_client_auth',      # X.509 Client-Zertifikat über mTLS
-        'private_key_jwt',      # JWT mit x5c Header (Zertifikatskette)
-        'none'                  # Für Public Clients (mit PKCE allein)
+        AUTH_METHOD_TLS_CLIENT_AUTH,   # X.509 client certificate via mTLS
+        AUTH_METHOD_PRIVATE_KEY_JWT,   # JWT with x5c header (certificate chain)
     ]
 
     def save_authorization_code(self, code, request):
-        # PKCE Method prüfen und erzwingen
-        method = request.data.get('code_challenge_method', 'S256')
-        if method != 'S256':
-            raise OAuth2Error(
-                'invalid_request',
-                'Only S256 code_challenge_method is supported. Plain is not allowed.'
-            )
-
-        user_id = session.get('user_id')
-        if not user_id:
-            raise OAuth2Error('login_required', '2FA not completed')
-
+        user_id = request.user  # set by create_authorization_response(grant_user=...)
+        payload = request.payload
         auth_code = AuthorizationCode(
             code=code,
             client_id=request.client.client_id,
             user_id=user_id,
-            redirect_uri=request.redirect_uri,
-            scope=request.scope,
-            nonce=request.data.get('nonce'),
-            code_challenge=request.data.get('code_challenge'),
-            code_challenge_method='S256',
+            redirect_uri=(payload.redirect_uri or request.client.get_default_redirect_uri()),
+            scope=payload.scope,
+            nonce=payload.data.get("nonce"),
+            code_challenge=payload.data.get("code_challenge"),
+            code_challenge_method="S256",
             auth_time=int(time.time()),
-            expires_at=datetime.now(timezone.utc) + timedelta(seconds=60)
+            expires_at=datetime.now(timezone.utc) + timedelta(seconds=60),
         )
-        db.session.add(auth_code)
-        db.session.commit()
+        g.db_session.add(auth_code)
+        g.db_session.commit()
         return auth_code
 
     def query_authorization_code(self, code, client):
-        auth_code = AuthorizationCode.query.filter_by(
-            code=code, client_id=client.client_id
-        ).first()
+        stmt = select(AuthorizationCode).where(
+            AuthorizationCode.code == code,
+            AuthorizationCode.client_id == client.client_id,
+        )
+        auth_code = g.db_session.execute(stmt).scalars().first()
         if not auth_code or auth_code.is_expired() or auth_code.used:
             return None
         return auth_code
 
     def delete_authorization_code(self, authorization_code):
-        """Marks code as consumed (not physically deleted — nonce replay protection)."""
+        """Marks code as used (not physically deleted — preserves nonce for replay protection)."""
         authorization_code.used = True
-        db.session.commit()
+        g.db_session.commit()
 
     def authenticate_user(self, authorization_code):
         return authorization_code.user_id
 
-    def authenticate_client(self, request):
-        """
-        Client-Authentifizierung ohne Shared Secret.
-        Unterstützt tls_client_auth (mTLS) oder private_key_jwt.
-        """
-        auth_method = request.client_metadata.get('token_endpoint_auth_method', 'tls_client_auth')
-        
-        if auth_method == 'tls_client_auth':
-            return self._authenticate_via_mtls(request)
-        elif auth_method == 'private_key_jwt':
-            return self._authenticate_via_private_key_jwt(request)
-        else:
-            raise OAuth2Error('invalid_client', f'Unsupported auth method: {auth_method}')
 
-    def _authenticate_via_mtls(self, request):
-        """
-        Extrahiert Client-Zertifikat aus dem TLS-Handshake (via Header vom Reverse Proxy).
-        Validiert gegen TrustedCA.
-        """
-        client_cert_pem = request.headers.get('X-Client-Certificate')
-        if not client_cert_pem:
-            raise OAuth2Error('invalid_client', 'Client certificate required')
-        
-        for ca in TrustedCA.query.filter_by(active=True).all():
-            result = ca.verify_certificate(client_cert_pem)
-            if result['valid']:
-                client = OIDCClient.query.get(result['client_id'])
-                if client and client.active:
-                    return client
-        
-        raise OAuth2Error('invalid_client', 'Certificate not trusted or expired')
-
-    def _authenticate_via_private_key_jwt(self, request):
-        """
-        Verifiziert client_assertion JWT mit eingebettetem X.509-Zertifikat (x5c).
-        """
-        import jwt
-        from cryptography.x509 import load_pem_x509_certificate
-        
-        assertion = request.form.get('client_assertion')
-        if not assertion:
-            raise OAuth2Error('invalid_client', 'Missing client_assertion')
-        
-        try:
-            header = jwt.get_unverified_header(assertion)
-            x5c_chain = header.get('x5c')
-            if not x5c_chain:
-                raise OAuth2Error('invalid_client', 'x5c chain missing in JWT header')
-            
-            client_cert_pem = f"-----BEGIN CERTIFICATE-----\n{x5c_chain[0]}\n-----END CERTIFICATE-----"
-            
-            for ca in TrustedCA.query.filter_by(active=True).all():
-                result = ca.verify_certificate(client_cert_pem)
-                if result['valid']:
-                    client = OIDCClient.query.get(result['client_id'])
-                    if client and client.active:
-                        cert = load_pem_x509_certificate(client_cert_pem.encode())
-                        public_key = cert.public_key()
-                        
-                        jwt.decode(
-                            assertion, 
-                            public_key, 
-                            algorithms=['RS256', 'ES256'],
-                            audience=request.url_root + 'token'
-                        )
-                        return client
-            
-            raise OAuth2Error('invalid_client', 'Invalid certificate or signature')
-            
-        except Exception as e:
-            raise OAuth2Error('invalid_client', str(e))
-
-    def get_jwt_config(self, grant):
-        """ID-Token signing configuration (ES256)."""
-        crypto = CryptoService(current_app.config.x2fa_security.SECRET_KEY)
-        signing_key = SigningKey.query.filter(
-            SigningKey.active == True,
-            SigningKey.expires_at > datetime.now(timezone.utc)
-        ).order_by(SigningKey.created_at.desc()).first()
-
-        if not signing_key:
-            raise RuntimeError("No active signing key! Run 'flask init-keys' first")
-
-        private_key = signing_key.get_private_key(crypto.get_fernet())
-        return {
-            'key': private_key,
-            'alg': 'ES256',
-            'iss': f"https://{current_app.config.x2fa.DOMAIN}",
-            'exp': 60,
-            'kid': signing_key.kid
-        }
-
-    def generate_user_info(self, user_id, scope):
-        return {'sub': user_id}
+class X2FAOpenIDCode(OpenIDCode):
+    """
+    OpenIDCode extension: generates ES256-signed ID tokens and enforces nonce replay protection.
+    Registered as an extension on X2FAAuthorizationCodeGrant via register_grant().
+    """
 
     def exists_nonce(self, nonce, request):
-        """
-        Replay protection: checks whether nonce was already used.
-        Cleanup must NOT delete codes younger than 1 hour (see Section 7).
-        """
+        """Replay protection: checks whether nonce was already used."""
         if not nonce:
             return False
-        return AuthorizationCode.query.filter_by(nonce=nonce).first() is not None
+        stmt = select(AuthorizationCode).where(AuthorizationCode.nonce == nonce)
+        return g.db_session.execute(stmt).scalars().first() is not None
 
-# Registration
-oauth.register_grant(X2FAAuthorizationCodeGrant, [CodeChallenge(required=True)])
+    def get_jwt_config(self, grant, client=None):
+        """ID-Token signing configuration (ES256)."""
+        crypto = CryptoService(current_app.config.x2fa_security.SECRET_KEY)
+        stmt = (
+            select(SigningKey)
+            .where(SigningKey.active == True)
+            .where(SigningKey.expires_at > datetime.now(timezone.utc))
+            .order_by(SigningKey.created_at.desc())
+        )
+        signing_key = g.db_session.execute(stmt).scalars().first()
+        if not signing_key:
+            raise RuntimeError("No active signing key! Run 'flask init-keys' first.")
+        private_key = signing_key.get_private_key(crypto.get_fernet())
+        return {
+            "key": private_key,
+            "alg": signing_key.algorithm,
+            "iss": f"https://{current_app.config.x2fa.DOMAIN}",
+            "exp": 60,
+            "kid": signing_key.kid,
+        }
+
+    def generate_user_info(self, user, scope):
+        return {"sub": user}
+
+
+# Registration lives in src/x2fa/init_app/security.py (not at module level here):
+#
+#   oauth.init_app(app, query_client=query_client, save_token=save_token)
+#   oauth.register_grant(
+#       X2FAAuthorizationCodeGrant,
+#       [S256OnlyCodeChallenge(required=True), X2FAOpenIDCode(require_nonce=False)],
+#   )
+#   token_url = f"https://{app.config.x2fa.DOMAIN}/token"
+#   oauth.register_client_auth_method(AUTH_METHOD_TLS_CLIENT_AUTH, authenticate_via_mtls)
+#   oauth.register_client_auth_method(AUTH_METHOD_PRIVATE_KEY_JWT, X2FAPrivateKeyJwtAuth(token_url))
 ```
 
 ---
 
-## 6. Rate-Limiting
+## 6. Rate Limiting
 
-### Konfiguration (`ratelimit_config.toml`)
+### Configuration (`ratelimit_config.toml`)
 
 ```toml
 [default]
-RATELIMIT_STORAGE_URI   = "memory://"     # Redis URI in Production setzen
-RATELIMIT_STRATEGY      = "moving-window" # Schutz vor Burst-Angriffen an Fenstergrenzen
+RATELIMIT_STORAGE_URI   = "memory://"     # set to Redis URI in production
+RATELIMIT_STRATEGY      = "moving-window" # protection against burst attacks at window boundaries
 RATELIMIT_HEADERS_ENABLED = true
 
 RATE_LIMIT_AUTHORIZE      = "10 per minute; 100 per hour"
@@ -429,239 +379,240 @@ RATE_LIMIT_BACKUP_VERIFY  = "3 per minute; 10 per hour"
 CHALLENGE_TTL_MINUTES = 5
 ```
 
-### Begründung der Limits
+### Rationale for Limits
 
-| Endpunkt | Limit | Begründung |
-|----------|-------|------------|
-| `/authorize` | 10/min, 100/h | OIDC-Einstiegspunkt, moderat |
-| `/token` | 20/min | Server-zu-Server, Zertifikatsvalidierung |
-| `POST /totp/verify` | 5/min, 20/h | 10⁶ mögliche Codes → striktes Limit nötig |
-| `POST /backup/verify` | 3/min, 10/h | 8 Hex-Zeichen = 4 Mrd. Kombinationen → sehr strikt |
-| WebAuthn verify | 10/min, 30/h | Replay-resistent durch Signaturen, Limit schützt DB |
+| Endpoint | Limit | Rationale |
+|----------|-------|-----------|
+| `/authorize` | 10/min, 100/h | OIDC entry point, moderate |
+| `/token` | 20/min | Server-to-server, certificate validation |
+| `POST /totp/verify` | 5/min, 20/h | 10⁶ possible codes → strict limit needed |
+| `POST /backup/verify` | 3/min, 10/h | 8 hex characters = 4 billion combinations → very strict |
+| WebAuthn verify | 10/min, 30/h | Replay-resistant via signatures, limit protects DB |
 
-In Production muss `RATELIMIT_STORAGE_URI` auf einen Redis-Server zeigen (Distributed Rate-Limiting bei mehreren Workern).
+In production, `RATELIMIT_STORAGE_URI` must point to a Redis server (distributed rate limiting with multiple workers).
 
 ---
 
-## 7. Cleanup-Policy (Nonce-Schutz erhalten)
+## 7. Cleanup Policy (Preserving Nonce Protection)
 
 ```python
 # src/x2fa/cli.py — flask cleanup-codes
-def cleanup_authorization_codes():
+@click.command("cleanup-codes")
+@with_appcontext
+def cleanup_codes():
     """
     Deletes authorization codes older than 1 hour.
     Codes younger than 1 hour are retained for nonce replay protection:
     the nonce must remain queryable until all ID tokens issued from it expire.
     """
     cutoff = datetime.now(timezone.utc) - timedelta(hours=1)
-    old_codes = AuthorizationCode.query.filter(
-        AuthorizationCode.expires_at < cutoff
-    ).all()
-    count = len(old_codes)
-    for code in old_codes:
-        db.session.delete(code)
-    db.session.commit()
-    return count
+    with db.session_scope() as db_session:
+        stmt = select(AuthorizationCode).where(AuthorizationCode.expires_at < cutoff)
+        old = db_session.execute(stmt).scalars().all()
+    count = len(old)
+    with db.session_scope() as db_session:
+        for code in old:
+            db_session.delete(code)
+    click.echo(f"Deleted: {count} authorization codes (older than 1 hour).")
 ```
 
-**Nicht erlaubt** (würde Nonce-Schutz brechen):
+**Not allowed** (would break nonce protection):
 ```python
-# FALSCH: Löscht Codes direkt nach Verwendung oder nach TTL-Ablauf
-AuthorizationCode.query.filter(AuthorizationCode.used == True).delete()
-AuthorizationCode.query.filter(AuthorizationCode.expires_at < now()).delete()
+# WRONG: deletes codes immediately after use or after TTL expiry
+select(AuthorizationCode).where(AuthorizationCode.used == True)
+select(AuthorizationCode).where(AuthorizationCode.expires_at < now)
 ```
 
 ---
 
-## 8. Datenbank-Schema (SQLAlchemy Models)
+## 8. Database Schema (SQLAlchemy Models)
 
 ### Model `TrustedCA`
 
-| Feld | Typ | Beschreibung |
-|------|-----|--------------|
+| Field | Type | Description |
+|-------|------|-------------|
 | `id` | `Integer`, PK, autoincrement | |
-| `name` | `String(100)`, unique | Bezeichnung der CA (z.B. "inqbus-internal-ca") |
-| `cert_pem` | `Text` | CA Public Key (Root oder Intermediate) |
-| `active` | `Boolean`, default=True | Aktiv für Validierung |
-| `created_at` | `DateTime` | Erstellungszeitpunkt |
-| `expires_at` | `DateTime`, nullable | CA-Ablaufdatum |
+| `name` | `String(100)`, unique | CA name (e.g. "inqbus-internal-ca") |
+| `cert_pem` | `Text` | CA public key (root or intermediate) |
+| `active` | `Boolean`, default=True | Active for validation |
+| `created_at` | `DateTime` | Creation timestamp |
+| `expires_at` | `DateTime`, nullable | CA expiry date |
 
-Methoden:
-- `verify_certificate(client_cert_pem)`: Prüft Signatur, Gültigkeitszeitraum und extrahiert CN als client_id.
+Methods:
+- `verify_certificate(client_cert_pem)`: Checks signature, validity period, and extracts CN as client_id.
 
-### Model `OIDCClient` (Zertifikat-basiert)
+### Model `OIDCClient` (Certificate-based)
 
-| Feld | Typ | Beschreibung |
-|------|-----|--------------|
-| `client_id` | `String(255)`, PK | CN aus dem X.509-Zertifikat |
-| `token_endpoint_auth_method` | `String(50)` | `tls_client_auth` oder `private_key_jwt` |
-| `client_cert_fingerprint` | `String(255)`, nullable | Optional: SHA256-Fingerprint für Pinning |
-| `redirect_uris` | `Text` | Zeilengetrennte URIs; exakter String-Match |
-| `allowed_scopes` | `String(255)` | Default: `"openid"` |
-| `jwks_uri` | `String(255)`, nullable | Für private_key_jwt: JWKS-URL des Clients |
+| Field | Type | Description |
+|-------|------|-------------|
+| `client_id` | `String(255)`, PK | CN from the X.509 certificate |
+| `token_endpoint_auth_method` | `String(50)` | `tls_client_auth` (default) or `private_key_jwt` |
+| `redirect_uris` | `Text` | Newline-separated URIs; exact string match |
+| `allowed_scopes` | `String(255)` | Default: `"openid app:setup"` |
+| `jwks_uri` | `String(255)`, nullable | For private_key_jwt: client JWKS URL |
 | `active` | `Boolean`, default=True | Revocation |
 | `created_at` | `DateTime` | |
 
 ### Model `Credential` (FIDO2)
 
-| Feld | Typ | Beschreibung |
-|------|-----|--------------|
-| `credential_id` | `LargeBinary`, PK | Base64URL-decodierter FIDO2-Credential-ID |
+| Field | Type | Description |
+|-------|------|-------------|
+| `credential_id` | `LargeBinary`, PK | Base64URL-decoded FIDO2 credential ID |
 | `user_id` | `String(255)`, Index | |
-| `public_key` | `LargeBinary` | COSE-Key |
-| `sign_count` | `Integer`, default=0 | Replay-Schutz |
+| `public_key` | `LargeBinary` | COSE key |
+| `sign_count` | `Integer`, default=0 | Replay protection |
 | `authenticator_type` | `String(20)` | `'platform'` / `'roaming'` |
 | `device_type` | `String(20)` | `'single_device'` / `'multi_device'` |
 | `transport` | `String(50)`, default=`""` | `usb` / `nfc` / `ble` / `hybrid` / `internal` |
-| `is_passkey` | `Boolean`, default=False | Cloud-synchronisiert? |
+| `is_passkey` | `Boolean`, default=False | Cloud-synced? |
 | `created_at` | `DateTime` | UTC |
-| `last_used_at` | `DateTime` | `NEVER_USED`-Sentinel bei Registrierung |
+| `last_used_at` | `DateTime` | `NEVER_USED` sentinel at registration |
 
-Index: `idx_cred_user_created` auf `(user_id, created_at)`.
+Index: `idx_cred_user_created` on `(user_id, created_at)`.
 
-### Model `Challenge` (Temporär, 5min TTL)
+### Model `Challenge` (Temporary, 5 min TTL)
 
-| Feld | Typ | Beschreibung |
-|------|-----|--------------|
+| Field | Type | Description |
+|-------|------|-------------|
 | `challenge_id` | `String(255)`, PK | UUID |
 | `user_id` | `String(255)`, Index | |
-| `challenge` | `LargeBinary` | 32–64 Bytes |
-| `expires_at` | `DateTime`, Index | Auto-Cleanup |
-| `used` | `Boolean`, default=False | Einmalverwendung |
+| `challenge` | `LargeBinary` | 32–64 bytes |
+| `expires_at` | `DateTime`, Index | Auto-cleanup |
+| `used` | `Boolean`, default=False | Single-use |
 
-### Model `TOTPSecret` (Fernet-verschlüsselt)
+### Model `TOTPSecret` (Fernet-encrypted)
 
-| Feld | Typ | Beschreibung |
-|------|-----|--------------|
+| Field | Type | Description |
+|-------|------|-------------|
 | `user_id` | `String(255)`, PK | |
 | `secret_encrypted` | `LargeBinary` | Fernet(AES-128-CBC + HMAC) |
-| `verified` | `Boolean`, default=False | Setup abgeschlossen? |
+| `verified` | `Boolean`, default=False | Setup completed? |
 | `created_at` | `DateTime` | |
-| `last_used_at` | `DateTime` | `NEVER_USED`-Sentinel; Replay-Schutz (30s Fenster) |
+| `last_used_at` | `DateTime` | `NEVER_USED` sentinel; replay protection (30 s window) |
 
-### Model `BackupCode` (10 pro User, einmalig)
+### Model `BackupCode` (10 per user, single-use)
 
-| Feld | Typ | Beschreibung |
-|------|-----|--------------|
-| `code_hash` | `String(255)`, PK | bcrypt-Hash (rounds=12) |
+| Field | Type | Description |
+|-------|------|-------------|
+| `code_hash` | `String(255)`, PK | bcrypt hash of the user-facing 8-char hex code (rounds=12); plaintext never stored |
 | `user_id` | `String(255)`, Index | |
-| `used_at` | `DateTime` | `NEVER_USED`-Sentinel = gültig; realer Timestamp = verbraucht |
+| `used_at` | `DateTime` | `NEVER_USED` sentinel = valid; real timestamp = consumed |
 | `created_at` | `DateTime` | |
 
-### Model `AuthorizationCode` (Kurzlebig, 60s TTL)
+### Model `AuthorizationCode` (Short-lived, 60 s TTL)
 
-| Feld | Typ | Beschreibung |
-|------|-----|--------------|
+| Field | Type | Description |
+|-------|------|-------------|
 | `id` | `Integer`, PK, autoincrement | |
 | `code` | `String(255)`, Unique, Index | `secrets.token_urlsafe(32)` |
 | `client_id` | `String(255)` | |
 | `user_id` | `String(255)` | |
-| `redirect_uri` | `Text` | Muss mit Request übereinstimmen |
-| `scope` | `String(255)` | z.B. `openid` |
+| `redirect_uri` | `Text` | Must match the request |
+| `scope` | `String(255)` | e.g. `openid` |
 | `nonce` | `String(255)`, nullable | Optional (OIDC Core §3.1.2.1) |
 | `code_challenge` | `String(255)` | PKCE: SHA256(code_verifier), Base64URL |
-| `code_challenge_method` | `String(10)` | Immer `S256` |
-| `auth_time` | `Integer` | Unix-Timestamp der 2FA-Verification |
-| `expires_at` | `DateTime`, Index | 60 Sekunden TTL |
-| `used` | `Boolean`, default=False | Einmalverwendung |
+| `code_challenge_method` | `String(10)` | Always `S256` |
+| `auth_time` | `Integer` | Unix timestamp of 2FA verification |
+| `expires_at` | `DateTime`, Index | 60 second TTL |
+| `used` | `Boolean`, default=False | Single-use |
 
-### Model `SigningKey` (EC-Schlüsselpaar für ID-Token)
+### Model `SigningKey` (EC key pair for ID token)
 
-| Feld | Typ | Beschreibung |
-|------|-----|--------------|
+| Field | Type | Description |
+|-------|------|-------------|
 | `id` | `Integer`, PK, autoincrement | |
-| `kid` | `String(255)`, Unique | Key-ID (16 Hex-Zeichen) |
-| `private_key_encrypted` | `LargeBinary` | Fernet-verschlüsselt mit SECRET_KEY |
-| `public_key_pem` | `Text` | Klartext; wird in JWKS veröffentlicht |
+| `kid` | `String(255)`, Unique | Key ID (16 hex characters) |
+| `private_key_encrypted` | `LargeBinary` | Fernet-encrypted with SECRET_KEY |
+| `public_key_pem` | `Text` | Plaintext; published in JWKS |
 | `algorithm` | `String(10)` | `ES256` |
-| `active` | `Boolean`, default=True | Key-Rotation |
+| `active` | `Boolean`, default=True | Key rotation |
 | `created_at` | `DateTime` | |
-| `expires_at` | `DateTime` | `NEVER_EXPIRES`-Sentinel für unbegrenzte Keys |
+| `expires_at` | `DateTime` | `NEVER_EXPIRES` sentinel for unlimited keys |
 
 ### Model `AuditLog`
 
-| Feld | Typ | Beschreibung |
-|------|-----|--------------|
+| Field | Type | Description |
+|-------|------|-------------|
 | `id` | `Integer`, PK, autoincrement | |
 | `user_id` | `String(255)`, Index | |
 | `action` | `String(50)`, Index | `setup` / `verify` / `fail` |
 | `method` | `String(50)` | `webauthn_platform` / `webauthn_roaming` / `totp` / `backup` |
-| `ip_hash` | `String(64)` | `SHA256(ip + SECRET_SALT)` – kein Klartext gespeichert (DSGVO) |
+| `ip_hash` | `String(64)` | `SHA256(ip + SECRET_SALT)` — no plaintext stored (GDPR) |
 | `timestamp` | `DateTime`, Index | UTC |
 
 ---
 
-## 9. Sicherheitskonzept
+## 9. Security Concept
 
 ### Trust Boundaries
 
-| Zone | Daten | Schutzmaßnahmen |
-|------|-------|-----------------|
-| **Secure Enclave/TPM/HSM** | Private Keys (FIDO2) | Hardware-verschlüsselt, nie exportierbar |
-| **Hauptanwendung** | Client Private Key | Lokal gespeichert (verschlüsseltes Filesystem oder HSM), nie über Netzwerk |
-| **Browser** | Challenge, Assertion, TOTP-Codes | CSP `default-src 'none'; script-src 'nonce-{random}';`, Inline-JS only |
-| **Flask Backend** | Public Keys, verschlüsselte Secrets | SQLAlchemy ORM, Fernet-Verschlüsselung vor DB-Schreiben |
-| **Transport** | JWTs, WebAuthn-Daten | TLS 1.3 (extern terminiert), mTLS für Token-Endpunkt |
+| Zone | Data | Protections |
+|------|------|-------------|
+| **Secure Enclave/TPM/HSM** | Private keys (FIDO2) | Hardware-encrypted, never exportable |
+| **Main application** | Client private key | Stored locally (encrypted filesystem or HSM), never over the network |
+| **Browser** | Challenge, assertion, TOTP codes | CSP `default-src 'none'; script-src 'nonce-{random}';`, inline JS only |
+| **Flask backend** | Public keys, encrypted secrets | SQLAlchemy ORM, Fernet encryption before DB writes |
+| **Transport** | JWTs, WebAuthn data | TLS 1.3 (externally terminated), mTLS for token endpoint |
 
-### Sicherheitsmaßnahmen
+### Security Measures
 
-1. **Keine Shared Secrets:** Client-Authentifizierung ausschließlich via X.509-Zertifikate (mTLS) oder private_key_jwt. Keine `client_secret`-Strings in der Datenbank.
+1. **No shared secrets:** Client authentication exclusively via X.509 certificates (mTLS) or private_key_jwt. No `client_secret` strings in the database.
 
-2. **Certificate Pinning:** Hauptanwendung validiert X2FA-Zertifikat beim JWKS-Abruf (Hardcoded Fingerprint oder Trust-Store).
+2. **Certificate pinning:** Main application validates X2FA certificate on JWKS retrieval (hardcoded fingerprint or trust store).
 
-3. **CSP-Header:**
-   `Content-Security-Policy: default-src 'none'; script-src 'nonce-{nonce}'; connect-src 'self'; form-action https:; base-uri 'none'; frame-ancestors 'none';`
+3. **CSP header:**
+   `Content-Security-Policy: default-src 'none'; script-src 'nonce-{nonce}'; style-src 'unsafe-inline'; img-src data:; connect-src 'self'; form-action 'self' https; base-uri 'none'; frame-ancestors 'none';`
 
 4. **HSTS:**
-   `Strict-Transport-Security: max-age=31536000; includeSubDomains` — Pflicht, verhindert SSL-Stripping.
+   `Strict-Transport-Security: max-age=31536000; includeSubDomains` — required, prevents SSL stripping.
 
-5. **TOTP-Verschlüsselung:** Fernet mit Key aus `SHA256(SECRET_KEY)`.
+5. **TOTP encryption:** Fernet with key derived from `SHA256(SECRET_KEY)`.
 
-6. **TOTP-Replay:** `last_used_at` prüfen. Identischer Code im selben 30s-Fenster wird abgelehnt.
+6. **TOTP replay:** Check `last_used_at`. Identical code in the same 30 s window is rejected.
 
-7. **Rate-Limiting** — IP-basiert, moving-window, für alle sicherheitskritischen Endpunkte.
+7. **Rate limiting** — IP-based, moving-window, for all security-critical endpoints.
 
-8. **FIDO2-Replay:** Strikte Sign-Count-Inkrementierung.
+8. **FIDO2 replay:** Strict sign-count increment.
 
-9. **PKCE S256 (RFC 7636):** Pflicht für alle Authorization Code Requests. `plain` explizit abgelehnt.
+9. **PKCE S256 (RFC 7636):** Mandatory for all Authorization Code requests. `plain` explicitly rejected.
 
-10. **OIDC-Sicherheit:**
-    - Authorization Code: 60s TTL, einmalig
-    - ID-Token: ES256, 60s TTL, optionales `nonce`-Binding
-    - `redirect_uri`: exakter String-Match
-    - `state`-Parameter: CSRF-Schutz (Verantwortung der Hauptanwendung)
-    - `iss`-Claim: Hauptanwendung prüft gegen konfigurierte Issuer-URL
+10. **OIDC security:**
+    - Authorization code: 60 s TTL, single-use
+    - ID token: ES256, 60 s TTL, optional `nonce` binding
+    - `redirect_uri`: exact string match
+    - `state` parameter: CSRF protection (relying party's responsibility)
+    - `iss` claim: relying party checks against configured issuer URL
 
-11. **Key-Rotation:**
-    - JWKS enthält aktiven Key + ältere Keys im Overlap-Fenster
+11. **Key rotation:**
+    - JWKS contains the active key plus older keys in the overlap window
     - Rotation via CLI: `flask init-keys`
-    - Client-Zertifikate: 90 Tage Gültigkeit, automatische Renewal-Workflows möglich
+    - Client certificates: 90-day validity, automatic renewal workflows possible
 
-12. **DB-Security:** SQLite (0600), PostgreSQL (SSL-Mode require), Prepared Statements.
+12. **DB security:** SQLite (0600), PostgreSQL (SSL mode require), prepared statements.
 
-13. **Backup-Code-Entropie:** `secrets.token_hex(4).upper()` = 8 Hex-Zeichen (32 Bit), bcrypt rounds=12.
+13. **Backup code entropy:** `secrets.token_hex(4).upper()` = 8 hex characters (32 bits = 4 billion combinations). This is the **user-facing input format**. The database stores only the bcrypt hash (`String(255)`, rounds=12) — the plaintext code is never persisted.
 
-14. **IP-Anonymisierung:** `SHA256(ip + SECRET_SALT)` im AuditLog.
+14. **IP anonymization:** `SHA256(ip + SECRET_SALT)` in AuditLog.
 
 ---
 
-## 10. OIDC-Endpunkte
+## 10. OIDC Endpoints
 
-| Endpunkt | Methode | Beschreibung |
-|----------|---------|--------------|
-| `/.well-known/openid-configuration` | GET | Discovery-Dokument (RFC 8414) |
-| `/.well-known/jwks.json` | GET | X2FA Public Key Set (RFC 7517) |
-| `/authorize` | GET | Startet Authorization Code Flow |
-| `/token` | POST | Code gegen ID-Token tauschen (mTLS oder private_key_jwt) |
-| `/setup` | GET | Methodenauswahl (WebAuthn / TOTP) |
-| `/setup/complete` | POST | FIDO2-Registrierung abschließen |
-| `/totp/setup` | GET | TOTP-QR-Code anzeigen |
-| `/totp/setup/verify` | POST | TOTP-Setup bestätigen |
-| `/totp/verify` | GET/POST | TOTP-Code eingeben und verifizieren |
-| `/backup/verify` | GET/POST | Backup-Code eingeben und verifizieren |
-| `/done` | GET | Demo-Callback (nur für Demo-RP) |
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/.well-known/openid-configuration` | GET | Discovery document (RFC 8414) |
+| `/.well-known/jwks.json` | GET | X2FA public key set (RFC 7517) |
+| `/authorize` | GET | Starts Authorization Code Flow |
+| `/token` | POST | Exchange code for ID token (mTLS or private_key_jwt) |
+| `/setup` | GET | Method selection (WebAuthn / TOTP) |
+| `/setup/complete` | POST | Complete FIDO2 registration |
+| `/totp/setup` | GET | Show TOTP QR code |
+| `/totp/setup/verify` | POST | Confirm TOTP setup |
+| `/totp/verify` | GET/POST | Enter and verify TOTP code |
+| `/backup/verify` | GET/POST | Enter and verify backup code |
+| `/done` | GET | Demo callback (demo RP only) |
 
-### Discovery-Dokument
+### Discovery Document
 
 ```json
 {
@@ -674,8 +625,9 @@ Index: `idx_cred_user_created` auf `(user_id, created_at)`.
   "id_token_signing_alg_values_supported": ["ES256"],
   "scopes_supported": ["openid", "app:setup"],
   "token_endpoint_auth_methods_supported": ["tls_client_auth", "private_key_jwt"],
-  "tls_client_certificate_bound_access_tokens_supported": true,
-  "claims_supported": ["sub", "iss", "aud", "exp", "iat", "nonce"]
+  "code_challenge_methods_supported": ["S256"],
+  "grant_types_supported": ["authorization_code"],
+  "claims_supported": ["sub", "iss", "aud", "exp", "iat", "auth_time", "nonce"]
 }
 ```
 
@@ -683,77 +635,309 @@ Index: `idx_cred_user_created` auf `(user_id, created_at)`.
 
 ```mermaid
 sequenceDiagram
-    participant App as Hauptanwendung
-    participant Key as Private Key (lokal)
-    participant Cert as X.509 Zertifikat
+    participant App as Main application
+    participant Key as Private key (local)
+    participant Cert as X.509 certificate
     participant Browser as Browser
-    participant TLS as TLS-Layer (mTLS)
-    participant X2FA as X2FA OIDC-Provider
+    participant TLS as TLS layer (mTLS)
+    participant X2FA as X2FA OIDC provider
     participant CA as Trusted CA
 
-    App->>App: client_id, state, nonce generieren<br/>+ PKCE (code_verifier, code_challenge)
+    App->>App: generate client_id, state, nonce<br/>+ PKCE (code_verifier, code_challenge)
     App->>Browser: 302 → /authorize?client_id=...&code_challenge=...&state=...
     Browser->>X2FA: GET /authorize
-    X2FA->>X2FA: client_id, redirect_uri validieren
-    X2FA->>Browser: 2FA-Dialog (WebAuthn / TOTP / Backup)
-    Browser->>X2FA: 2FA durchführen
-    X2FA->>X2FA: Authorization Code generieren (60s TTL)
+    X2FA->>X2FA: validate client_id, redirect_uri
+    X2FA->>Browser: 2FA dialog (WebAuthn / TOTP / Backup)
+    Browser->>X2FA: complete 2FA
+    X2FA->>X2FA: generate authorization code (60 s TTL)
     X2FA->>Browser: 302 → redirect_uri?code=ABC&state=...
     Browser->>App: code + state
-    App->>App: state prüfen (CSRF-Schutz)
+    App->>App: verify state (CSRF protection)
     
-    Note over App,X2FA: Token-Request mit mTLS
+    Note over App,X2FA: Token request with mTLS
     
-    App->>TLS: POST /token<br/>grant_type=authorization_code<br/>&code=ABC<br/>&code_verifier=...<br/>+ Client-Zertifikat im TLS-Handshake
-    TLS->>X2FA: Forward mit X-Client-Certificate Header
-    X2FA->>CA: Zertifikat validieren<br/>(Signatur, CN=client_id, Gültigkeit)
-    CA->>X2FA: ✅ Gültig
-    X2FA->>X2FA: Code validieren (TTL, PKCE, redirect_uri, einmalig)
-    X2FA->>App: ID-Token (ES256-signiert)
+    App->>TLS: POST /token<br/>grant_type=authorization_code<br/>&code=ABC<br/>&code_verifier=...<br/>+ client certificate in TLS handshake
+    TLS->>X2FA: forward with X-Client-Certificate header
+    X2FA->>CA: validate certificate<br/>(signature, CN=client_id, validity)
+    CA->>X2FA: ✅ valid
+    X2FA->>X2FA: validate code (TTL, PKCE, redirect_uri, single-use)
+    X2FA->>App: ID token (ES256-signed)
     
-    App->>X2FA: GET /.well-known/jwks.json (TLS + Pinning)
-    X2FA->>App: JWKS (OP Public Keys)
-    App->>App: ID-Token verifizieren<br/>(nonce, iss, aud, sub, exp)
+    App->>X2FA: GET /.well-known/jwks.json (TLS + pinning)
+    X2FA->>App: JWKS (OP public keys)
+    App->>App: verify ID token<br/>(nonce, iss, aud, sub, exp)
 ```
 
 ---
 
-## 11. Admin CLI
+## 11. Communication Diagrams
+
+### 11.1 FIDO2 Setup (Cross-Platform, all authenticators)
+
+```mermaid
+sequenceDiagram
+    participant User as User/Browser
+    participant App as Main app
+    participant X2FA as X2FA service
+    participant DB as Database
+    participant Auth as Authenticator<br/>(FaceID/YubiKey/Phone)
+
+    User->>App: Login with password
+    App->>App: 2FA not set up
+    App->>App: generate JWT (sub: user123, action: setup, return_url: ..., exp: +5 min)
+    App->>User: 302 redirect → 2fa.example.com/setup?token=JWT
+
+    User->>X2FA: GET /setup?token=JWT
+    X2FA->>X2FA: validate JWT
+    X2FA->>X2FA: generate challenge (32 bytes)
+    X2FA->>DB: persist challenge (expires_at: +5 min, used: false)
+
+    Note over X2FA: NO authenticatorAttachment restriction<br/>(cross-platform default)
+    X2FA->>User: HTML + inline JS<br/>(CSP nonce, challenge, detection JS)
+
+    Note over User: Detection:<br/>- Platform available? → FaceID button<br/>- Otherwise → "insert YubiKey" or "scan with smartphone"
+
+    User->>User: navigator.credentials.create()
+    User->>Auth: challenge + RP ID (2fa.example.com)
+
+    Note over Auth: Depends on authenticator:<br/>- FaceID: biometrics check<br/>- YubiKey: touch<br/>- Phone: hybrid/QR
+
+    Auth->>Auth: generate key pair (private in hardware)
+    Auth->>User: credential ID + public key + attestation + transport info
+
+    User->>X2FA: POST /setup/complete<br/>(credential_id, attestation, transport, token)
+
+    X2FA->>DB: validate challenge (unused, not expired)
+    X2FA->>X2FA: verify_registration_response()
+
+    X2FA->>DB: INSERT credential<br/>(transport: 'usb'|'nfc'|'internal'|'hybrid',<br/>authenticator_type: 'platform'|'roaming')
+
+    Note over X2FA: generate 10 backup codes<br/>bcrypt hash, persist
+
+    X2FA->>X2FA: return JWT<br/>(result: success, amr: ["webauthn_platform"] or ["webauthn_roaming"])
+
+    X2FA->>User: 302 redirect → app/callback?token=ReturnJWT
+    User->>App: receive callback
+    App->>User: 2FA active + show backup codes (once)
+```
+
+### 11.2 FIDO2 Verify (Multi-Device)
+
+```mermaid
+sequenceDiagram
+    participant User as User/Browser
+    participant App as Main app
+    participant X2FA as X2FA service
+    participant DB as Database
+    participant Auth as Authenticator<br/>(device X)
+
+    User->>App: Login with password
+    App->>App: 2FA required
+    App->>App: generate JWT (sub: user123, action: verify)
+    App->>User: 302 redirect → 2fa.example.com/verify?token=JWT
+
+    User->>X2FA: GET /verify?token=JWT
+    X2FA->>DB: SELECT credentials WHERE user_id=123
+    X2FA->>X2FA: generate challenge
+    X2FA->>DB: persist challenge
+
+    Note over X2FA: allowCredentials: all user keys<br/>(YubiKey, FaceID, hybrid)
+
+    X2FA->>User: HTML + inline JS<br/>(challenge, allowCredentials: [{id, type, transports}])
+
+    Note over User: User selects / is prompted:<br/>- FaceID (if available)<br/>- Insert YubiKey<br/>- Scan smartphone (hybrid)
+
+    User->>User: navigator.credentials.get()
+    User->>Auth: assertion request (with credential ID)
+
+    Note over Auth: biometrics/PIN/touch depending on device
+
+    Auth->>Auth: sign challenge
+    Auth->>User: assertion
+
+    User->>X2FA: POST /verify/complete<br/>(credential_id, assertion, authenticatorData, signature)
+
+    X2FA->>DB: load credential (public key + sign count)
+    X2FA->>X2FA: verify_authentication_response()<br/>+ sign count >= stored?
+
+    X2FA->>DB: UPDATE sign_count += 1, last_used_at=now()
+
+    X2FA->>X2FA: return JWT (verified: true, amr: ["webauthn_platform"] or ["webauthn_roaming"])
+
+    X2FA->>User: 302 redirect → app/callback
+    User->>App: callback → session → dashboard
+```
+
+### 11.3 TOTP Setup & Verify (Universal fallback)
+
+```mermaid
+sequenceDiagram
+    participant User as User/Browser
+    participant App as Main app
+    participant X2FA as X2FA service
+    participant DB as Database
+    participant Phone as TOTP app<br/>(smartphone)
+
+    Note over User: Scenario: Linux desktop<br/>or legacy browser
+
+    User->>App: set up 2FA
+    App->>App: detection: no WebAuthn available<br/>or user selects manual method
+    App->>User: redirect → 2fa.example.com/totp/setup?token=JWT
+
+    User->>X2FA: GET /totp/setup?token=JWT
+    X2FA->>X2FA: generate Base32 secret (32 random bytes)
+    X2FA->>X2FA: Fernet-encrypt with X2FA_SECRET
+    X2FA->>DB: INSERT TOTPSecret<br/>(user123, encrypted_secret, verified=0)
+
+    X2FA->>X2FA: generate QR code<br/>otpauth://totp/X2FA:user123?secret=BASE32&issuer=X2FA
+
+    X2FA->>User: HTML (QR code + secret as text + input field)
+
+    User->>Phone: scan QR or enter secret manually
+    Phone->>User: 6-digit code (e.g. 123456)
+
+    User->>X2FA: POST /totp/setup/verify (code=123456)
+
+    X2FA->>DB: load encrypted secret
+    X2FA->>X2FA: decrypt → Base32
+    X2FA->>X2FA: pyotp.TOTP(secret).verify("123456", valid_window=1)
+
+    X2FA->>DB: UPDATE verified=1
+    X2FA->>User: redirect → app (success)
+
+    Note over User: Later: login with TOTP
+
+    User->>App: login
+    App->>User: redirect → /totp/verify
+
+    User->>X2FA: GET /totp/verify
+    X2FA->>User: input field (plain HTML)
+
+    User->>Phone: read code (e.g. 654321)
+    User->>X2FA: POST /totp/verify (code=654321)
+
+    X2FA->>DB: load secret + check last_used_at (replay protection)
+    X2FA->>X2FA: validate
+    X2FA->>DB: last_used_at = now()
+
+    X2FA->>User: return JWT (verified, amr: ["totp"]) → redirect
+```
+
+### 11.4 Backup Code Verify (Emergency)
+
+```mermaid
+sequenceDiagram
+    participant User as User/Browser
+    participant App as Main app
+    participant X2FA as X2FA service
+    participant DB as Database
+
+    Note over User: Device lost (iPhone with FaceID)<br/>New device has no key
+
+    User->>App: login (password)
+    App->>User: redirect → 2fa.example.com/verify
+
+    User->>X2FA: GET /verify
+    X2FA->>DB: look up credentials for browser<br/>(no match - new device)
+
+    X2FA->>User: "No FIDO2 key for this device"<br/>link: "use backup code"
+
+    User->>X2FA: GET /backup/verify?token=JWT
+    X2FA->>User: input field: "8-character backup code"
+
+    Note over User: code from printout: A1B2C3D4
+
+    User->>X2FA: POST /backup/verify (code=A1B2C3D4)
+
+    X2FA->>X2FA: bcrypt(code) with salt
+    X2FA->>DB: SELECT * FROM backup_codes<br/>WHERE code_hash=HASH<br/>AND user_id=123<br/>AND used_at IS NULL
+
+    alt Match found
+        X2FA->>DB: UPDATE used_at=now()
+        X2FA->>X2FA: return JWT (verified, amr: ["backup"], remaining: 9)
+        X2FA->>User: redirect → app
+        App->>User: "Emergency login OK. Please set up new 2FA IMMEDIATELY."
+    else No match or already used
+        X2FA->>User: 403 "Invalid or already used code"
+    end
+```
+
+### 11.5 Hybrid Transport (Phone-as-Key for Linux)
+
+```mermaid
+sequenceDiagram
+    participant Linux as Linux PC (Browser)
+    participant X2FA as X2FA service
+    participant Phone as Smartphone (Chrome/Safari)
+    participant Auth as Phone authenticator<br/>(FaceID/fingerprint)
+
+    Note over Linux: Linux desktop without TPM<br/>or user prefers phone
+
+    Linux->>X2FA: GET /verify (or /setup)
+    X2FA->>Linux: HTML shows:<br/>1. "Scan QR code with smartphone"<br/>2. "Or use YubiKey"
+
+    Note over Linux,Phone: caBLE (Cloud Assisted BLE)<br/>or QR-based
+
+    Linux->>X2FA: request: "start hybrid session"
+    X2FA->>Linux: QR code (contains session ID + challenge)
+
+    Phone->>Linux: camera scans QR
+    Phone->>X2FA: connect (via Bluetooth or cloud relay)
+    X2FA->>Phone: transmit challenge
+
+    Phone->>Auth: WebAuthn request<br/>(FaceID on iPhone)
+    Auth->>Phone: assertion signed
+
+    Phone->>X2FA: transmit assertion<br/>(via caBLE/cloud)
+
+    X2FA->>X2FA: validate as with normal WebAuthn
+    X2FA->>Linux: "authenticated" (via WebSocket/SSE or polling)
+
+    Linux->>X2FA: redirect/completion
+    X2FA->>Linux: return JWT
+    Linux->>App: callback
+
+    Note over Linux: PC is logged in,<br/>authentication happened on phone
+```
+
+---
+
+## 12. Admin CLI
 
 ```bash
-# CA-Verwaltung
+# CA management
 flask add-ca "inqbus-internal-ca" /path/to/ca_cert.pem
 flask list-cas
 flask revoke-ca "inqbus-internal-ca"
 
-# Signing-Key generieren (EC P-256, ES256)
+# Generate signing key (EC P-256, ES256)
 flask init-keys
 
-# OIDC-Client registrieren (mit Zertifikat)
+# Register OIDC client (with certificate)
 flask add-client shop.example.com \
   --method tls_client_auth \
   --redirect-uri "https://shop.example.com/auth/callback" \
   --scopes "openid"
 
-# OIDC-Client für private_key_jwt
+# OIDC client for private_key_jwt
 flask add-client api.example.com \
   --method private_key_jwt \
   --redirect-uri "https://api.example.com/callback" \
   --jwks-uri "https://api.example.com/.well-known/jwks.json"
 
-# Clients auflisten
+# List clients
 flask list-clients
 
-# Client deaktivieren
+# Deactivate client
 flask revoke-client shop.example.com
 
-# Audit-Statistiken
+# Audit statistics
 flask stats
 
-# Alte Authorization Codes bereinigen (>1h, nonce-sicher)
+# Clean up old authorization codes (>1 h, nonce-safe)
 flask cleanup-codes
 
-# Client-Zertifikat generieren (für Entwickler)
+# Generate client certificate (for developers)
 flask issue-client-cert shop.example.com \
   --ca "inqbus-internal-ca" \
   --validity-days 90 \
@@ -762,37 +946,37 @@ flask issue-client-cert shop.example.com \
 
 ---
 
-## 12. Nutzerperspektive: Abläufe
+## 13. User Perspective: Flows
 
-### Szenario A: macOS/iOS (FaceID/TouchID)
-Login Haupt-App → Redirect `2fa.example.com/setup` → iOS-Popup "FaceID verwenden?" → Bestätigung → Gesicht scannt → 10 Backup-Codes angezeigt → Fertig.
+### Scenario A: macOS/iOS (FaceID/TouchID)
+Log in to main app → redirect to `2fa.example.com/setup` → iOS popup "Use FaceID?" → confirm → face scanned → 10 backup codes shown → done.
 
-### Szenario B: Windows Hello (TPM)
-Passwort eingeben → Windows Hello Popup (Fingerabdruck/PIN) → Sensor berühren → Sofortige Weiterleitung.
+### Scenario B: Windows Hello (TPM)
+Enter password → Windows Hello popup (fingerprint/PIN) → touch sensor → immediate redirect.
 
-### Szenario C: Linux Desktop (Hybrid/Phone-as-Key)
-Linux-PC ohne TPM → Nach 2FA-Start: QR-Code ("Mit Smartphone scannen") → Android/iPhone Kamera öffnet, scannt QR → FaceID am Phone → PC loggt ein (via caBLE/Cloud-Handshake).
+### Scenario C: Linux Desktop (Hybrid/Phone-as-Key)
+Linux PC without TPM → after 2FA start: QR code ("scan with smartphone") → Android/iPhone camera opens, scans QR → FaceID on phone → PC logs in (via caBLE/cloud handshake).
 
-### Szenario D: Linux Desktop (YubiKey)
-Linux-PC, YubiKey in USB → "YubiKey berühren" → Goldene Fläche berühren → Signatur erfolgt → Login.
+### Scenario D: Linux Desktop (YubiKey)
+Linux PC, YubiKey in USB → "touch YubiKey" → touch gold contact → signature completed → login.
 
-### Szenario E: Legacy-Browser/Headless (TOTP)
-Kein WebAuthn verfügbar → Redirect `/totp/verify` → Google Authenticator öffnen, 6-stelligen Code eingeben → Login.
+### Scenario E: Legacy browser/headless (TOTP)
+No WebAuthn available → redirect to `/totp/verify` → open Google Authenticator, enter 6-digit code → login.
 
-### Szenario F: Geräteverlust (Backup-Codes)
-Gerät verloren → Neues Gerät → Link "Backup-Code verwenden" → 8-stelligen Hex-Code eingeben → Login erfolgreich, Code verbraucht (9 verbleibend) → App erzwingt neues 2FA-Setup.
+### Scenario F: Lost device (backup codes)
+Device lost → new device → link "use backup code" → enter 8-character hex code → login successful, code consumed (9 remaining) → app forces new 2FA setup.
 
 ---
 
-## 13. Installationsprozess
+## 14. Installation
 
-### Variante A: SQLite + Caddy (Zero-Config)
+### Option A: SQLite + Caddy (Zero-Config)
 
 ```bash
 git clone <repo> /opt/x2fa && cd /opt/x2fa
 uv sync
 
-# Konfiguration
+# Configuration
 cat > src/x2fa/config_files/security_config.toml << EOF
 [production]
 SECRET_KEY  = "$(openssl rand -hex 32)"
@@ -805,23 +989,23 @@ DOMAIN = "2fa.example.com"
 TESTING = false
 EOF
 
-# Interne CA erstellen und registrieren
+# Create and register internal CA
 openssl req -x509 -newkey rsa:4096 -keyout /etc/x2fa/ca_key.pem \
   -out /etc/x2fa/ca_cert.pem -days 3650 -nodes \
-  -subj "/C=DE/O=Inqbus/CN=Inqbus-Internal-CA"
+  -subj "/C=US/O=MyOrg/CN=Internal-CA"
 chmod 600 /etc/x2fa/ca_key.pem
 
 ENV_FOR_DYNACONF=production flask add-ca "internal-ca" /etc/x2fa/ca_cert.pem
 
-# Signing-Key initialisieren
+# Initialize signing key
 ENV_FOR_DYNACONF=production flask init-keys
 
-# Ersten Client registrieren (Beispiel)
+# Register first client (example)
 ENV_FOR_DYNACONF=production flask add-client "shop.example.com" \
   --method tls_client_auth \
   --redirect-uri "https://shop.example.com/auth/callback"
 
-# Starten
+# Start
 ENV_FOR_DYNACONF=production gunicorn "x2fa.wsgi:app" --bind 127.0.0.1:5000
 ```
 
@@ -830,24 +1014,24 @@ Caddyfile:
 2fa.example.com {
     reverse_proxy localhost:5000
     tls {
-        # Automatische Let's Encrypt Zertifikate
+        # Automatic Let's Encrypt certificates
     }
 }
 ```
 
-### Variante B: PostgreSQL + nginx + mTLS (Enterprise)
+### Option B: PostgreSQL + nginx + mTLS (Enterprise)
 
 ```bash
-# PostgreSQL vorbereiten
+# Prepare PostgreSQL
 sudo -u postgres createdb x2fa && sudo -u postgres createuser x2fa -P
 
-# DB-Config
+# DB config
 cat > src/x2fa/config_files/db_config.toml << EOF
 [production]
 SQLALCHEMY_DATABASE_URI = "postgresql://x2fa:password@localhost/x2fa"
 EOF
 
-# Rate-Limiting: Redis für Distributed Setup
+# Rate limiting: Redis for distributed setup
 cat >> src/x2fa/config_files/ratelimit_config.toml << EOF
 [production]
 RATELIMIT_STORAGE_URI = "redis://localhost:6379/0"
@@ -858,7 +1042,7 @@ ENV_FOR_DYNACONF=production flask init-keys
 ENV_FOR_DYNACONF=production gunicorn "x2fa.wsgi:app" -w 4 --bind 127.0.0.1:5000
 ```
 
-nginx-Konfiguration (mit mTLS):
+nginx configuration (with mTLS):
 ```nginx
 server {
     listen 443 ssl http2;
@@ -867,13 +1051,13 @@ server {
     ssl_certificate     /etc/letsencrypt/live/2fa.example.com/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/2fa.example.com/privkey.pem;
     
-    # Client-Zertifikate prüfen
+    # Verify client certificates
     ssl_verify_client optional;
     ssl_client_certificate /etc/nginx/certs/ca_cert.pem;
     ssl_verify_depth 2;
     
     location /token {
-        ssl_verify_client on;  # Muss für Token-Endpunkt
+        ssl_verify_client on;  # required for token endpoint
         proxy_pass http://127.0.0.1:5000;
         proxy_set_header Host $host;
         proxy_set_header X-Client-Certificate $ssl_client_cert;
@@ -889,31 +1073,31 @@ server {
 }
 ```
 
-### Variante C: Client-Zertifikat generieren
+### Option C: Generate a client certificate
 
 ```bash
-# Für die Hauptanwendung (shop.example.com)
+# For the main application (shop.example.com)
 CLIENT_ID="shop.example.com"
 
-# Private Key und CSR
+# Private key and CSR
 openssl genrsa -out client_key.pem 2048
 openssl req -new -key client_key.pem -out client.csr \
-  -subj "/C=DE/O=Inqbus/CN=${CLIENT_ID}"
+  -subj "/C=US/O=MyOrg/CN=${CLIENT_ID}"
 
-# CA signiert (am X2FA-Server oder sicherer Offline-CA)
+# CA signs (on X2FA server or secure offline CA)
 openssl x509 -req -in client.csr -CA /etc/x2fa/ca_cert.pem \
   -CAkey /etc/x2fa/ca_key.pem -CAcreateserial \
   -out client_cert.pem -days 90 -sha256
 
-# Bundle für die App
+# Bundle for the app
 cat client_key.pem client_cert.pem > client_bundle.pem
 chmod 600 client_bundle.pem
 
-# client.csr löschen (sicherheitshalber)
+# Delete client.csr (security precaution)
 rm client.csr
 ```
 
-Verwendung in der Hauptanwendung (Python):
+Usage in the main application (Python):
 ```python
 import requests
 
@@ -926,19 +1110,19 @@ response = requests.post(
         "code_verifier": pkce_verifier
     },
     cert=("./client_cert.pem", "./client_key.pem"),
-    verify=True  # Server-Zertifikat prüfen
+    verify=True  # verify server certificate
 )
 ```
 
 ---
 
-## 14. Zusammenfassung
+## 15. Summary
 
-| Aspekt | Implementierung |
-|--------|----------------|
-| **Authentifizierung** | Keine Shared Secrets; X.509-Zertifikate (mTLS) oder private_key_jwt |
-| **Trust-Anchor** | Interne CA (Root-Zertifikat) in X2FA hinterlegt; Client-Zertifikate signiert von dieser CA |
-| **Key-Management** | Automatische Rotation von Client-Zertifikaten (90 Tage) und Signing-Keys |
-| **2FA-Methoden** | FIDO2 (Platform, Roaming, Hybrid), TOTP, Backup-Codes |
-| **OIDC-Sicherheit** | PKCE S256 enforced, 60s Code-TTL, ES256 ID-Tokens, nonce-Support |
-| **Skalierbarkeit** | PostgreSQL/MySQL, Redis für Rate-Limiting, stateless Token-Validierung |
+| Aspect | Implementation |
+|--------|---------------|
+| **Authentication** | No shared secrets; X.509 certificates (mTLS) or private_key_jwt |
+| **Trust anchor** | Internal CA (root certificate) registered in X2FA; client certificates signed by this CA |
+| **Key management** | Automatic rotation of client certificates (90 days) and signing keys |
+| **2FA methods** | FIDO2 (Platform, Roaming, Hybrid), TOTP, backup codes |
+| **OIDC security** | PKCE S256 enforced, 60 s code TTL, ES256 ID tokens, nonce support |
+| **Scalability** | PostgreSQL/MySQL, Redis for rate limiting, stateless token validation |

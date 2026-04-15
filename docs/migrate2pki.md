@@ -1,5 +1,12 @@
 # Migration Plan: client_secret → PKI (Self-Sovereign Keys)
 
+> **Migration complete (2026-04-15).** All six steps have been implemented and merged.
+> `client_secret` has been removed from the codebase. This document is retained for
+> historical reference. The current architecture is described in
+> `docs/x2fa_architecture_concept.md`.
+
+---
+
 Replaces shared-secret client authentication with X.509/mTLS and `private_key_jwt`.
 The migration is designed so that each step leaves the system in a working state.
 Steps 1+2 and Steps 3+4 are independent and can be developed in parallel.
