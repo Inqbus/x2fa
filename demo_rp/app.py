@@ -3,7 +3,12 @@
 X2FA Demo RP — simulates an OIDC relying party for manual testing.
 
 Prerequisites (run once after starting X2FA for the first time):
-    flask add-client demo-rp https://x2fa-demo-rp.dev.inqbus.de/callback --secret testsecret
+    # 1. Register a CA and issue a client certificate for the demo RP
+    flask add-ca demo-rp-ca /path/to/ca.cert.pem
+    flask issue-client-cert demo-rp --ca demo-rp-ca --output demo_rp/
+
+    # 2. Register the client (uses tls_client_auth by default)
+    flask add-client demo-rp https://x2fa-demo-rp.dev.inqbus.de/callback
 
 Usage:
     # Terminal 1 — X2FA
@@ -26,6 +31,7 @@ import hashlib
 import json
 import os
 import secrets
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -46,12 +52,13 @@ cfg = Dynaconf(
 # Configuration — must match the registered OIDC client in X2FA
 # ---------------------------------------------------------------------------
 
-X2FA_URL      = cfg.X2FA_URL
-DEMO_RP_URL   = cfg.DEMO_RP_URL
-CLIENT_ID     = "demo-rp"
-CLIENT_SECRET = cfg.CLIENT_SECRET
-REDIRECT_URI  = DEMO_RP_URL + "/callback"
-SECRET_KEY    = cfg.SECRET_KEY
+X2FA_URL          = cfg.X2FA_URL
+DEMO_RP_URL       = cfg.DEMO_RP_URL
+CLIENT_ID         = "demo-rp"
+REDIRECT_URI      = DEMO_RP_URL + "/callback"
+SECRET_KEY        = cfg.SECRET_KEY
+_CLIENT_CERT_PATH = Path(cfg.CLIENT_CERT_PATH)
+_CLIENT_KEY_PATH  = Path(cfg.CLIENT_KEY_PATH)
 
 SUPPORTED_UI  = {"de", "en"}
 SUPPORTED_X2FA = {"de", "en", "fr", "es", "pt", "it", "nl", "pl",
@@ -88,6 +95,38 @@ def _pkce_pair() -> tuple[str, str]:
         hashlib.sha256(verifier.encode()).digest()
     ).rstrip(b"=").decode()
     return verifier, challenge
+
+
+def _build_client_assertion() -> str:
+    """Builds a signed private_key_jwt with x5c for the token endpoint.
+
+    Reads the client cert and key from the paths configured in demo_rp_settings.toml.
+    The JWT is signed with the client's EC private key; the certificate is embedded
+    as x5c so X2FA can validate it against its registered CA.
+    """
+    from cryptography import x509
+    from cryptography.hazmat.primitives import serialization
+    from authlib.jose import JsonWebKey, jwt as jose_jwt
+
+    cert_pem = _CLIENT_CERT_PATH.read_bytes()
+    key_pem  = _CLIENT_KEY_PATH.read_bytes()
+
+    cert = x509.load_pem_x509_certificate(cert_pem)
+    cert_der = cert.public_bytes(serialization.Encoding.DER)
+    x5c = [base64.b64encode(cert_der).decode()]
+
+    now = int(time.time())
+    payload = {
+        "iss": CLIENT_ID,
+        "sub": CLIENT_ID,
+        "aud": f"{X2FA_URL}/token",
+        "exp": now + 60,
+        "iat": now,
+        "jti": secrets.token_urlsafe(16),
+    }
+    jwk = JsonWebKey.import_key(key_pem)
+    token = jose_jwt.encode({"alg": "ES256", "x5c": x5c}, payload, jwk)
+    return token.decode() if isinstance(token, bytes) else token
 
 
 def _decode_jwt_payload(token: str) -> dict:
@@ -172,14 +211,15 @@ def callback():
     if state != session.get("state"):
         return redirect(url_for("index", error=_("State mismatch — possible CSRF attack.")))
 
-    # Exchange authorization code for tokens
+    # Exchange authorization code for tokens using private_key_jwt
     body = urllib.parse.urlencode({
-        "grant_type":    "authorization_code",
-        "code":          code,
-        "redirect_uri":  REDIRECT_URI,
-        "client_id":     CLIENT_ID,
-        "client_secret": CLIENT_SECRET,
-        "code_verifier": session.pop("pkce_verifier", ""),
+        "grant_type":            "authorization_code",
+        "code":                  code,
+        "redirect_uri":          REDIRECT_URI,
+        "client_id":             CLIENT_ID,
+        "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+        "client_assertion":      _build_client_assertion(),
+        "code_verifier":         session.pop("pkce_verifier", ""),
     }).encode()
 
     req = urllib.request.Request(
@@ -311,7 +351,9 @@ TEMPLATE = """\
   <strong>{{ _("First-time setup") }}</strong> ({{ _("run once in the X2FA directory") }}):<br>
   <ul>
     <li><code>flask init-keys</code></li>
-    <li><code>flask add-client demo-rp {{ redirect_uri }} --secret testsecret</code></li>
+    <li><code>flask add-ca demo-rp-ca /path/to/ca.cert.pem</code></li>
+    <li><code>flask issue-client-cert demo-rp --ca demo-rp-ca --output demo_rp/</code></li>
+    <li><code>flask add-client demo-rp {{ redirect_uri }}</code></li>
   </ul>
 </div>
 

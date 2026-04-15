@@ -11,8 +11,6 @@ from flask import g
 from sqlalchemy import select
 
 from x2fa.constants import (
-    AUTH_METHOD_CLIENT_SECRET_BASIC,
-    AUTH_METHOD_CLIENT_SECRET_POST,
     AUTH_METHOD_PRIVATE_KEY_JWT,
     AUTH_METHOD_TLS_CLIENT_AUTH,
 )
@@ -38,8 +36,6 @@ class X2FAAuthorizationCodeGrant(AuthorizationCodeGrant):
     TOKEN_ENDPOINT_AUTH_METHODS = [
         AUTH_METHOD_TLS_CLIENT_AUTH,
         AUTH_METHOD_PRIVATE_KEY_JWT,
-        AUTH_METHOD_CLIENT_SECRET_POST,
-        AUTH_METHOD_CLIENT_SECRET_BASIC,
     ]
 
     def save_authorization_code(self, code, request):

@@ -1,6 +1,5 @@
 """Flask CLI commands for X2FA administration."""
 
-import secrets
 import click
 from flask import current_app
 from flask.cli import with_appcontext
@@ -9,8 +8,6 @@ from sqlalchemy import select, update
 
 from x2fa.constants import (
     NEVER_USED,
-    AUTH_METHOD_CLIENT_SECRET_POST,
-    AUTH_METHOD_CLIENT_SECRET_BASIC,
     AUTH_METHOD_TLS_CLIENT_AUTH,
     AUTH_METHOD_PRIVATE_KEY_JWT,
 )
@@ -89,32 +86,18 @@ def init_keys():
 @click.argument("redirect_uri")
 @click.option(
     "--method",
-    default=AUTH_METHOD_CLIENT_SECRET_POST,
+    default=AUTH_METHOD_TLS_CLIENT_AUTH,
     show_default=True,
-    type=click.Choice([
-        AUTH_METHOD_CLIENT_SECRET_POST,
-        AUTH_METHOD_TLS_CLIENT_AUTH,
-        AUTH_METHOD_PRIVATE_KEY_JWT,
-    ]),
+    type=click.Choice([AUTH_METHOD_TLS_CLIENT_AUTH, AUTH_METHOD_PRIVATE_KEY_JWT]),
     help="Token endpoint authentication method.",
-)
-@click.option(
-    "--secret", default=None,
-    help="Client secret (generated automatically for client_secret_post if omitted).",
 )
 @click.option("--scopes", default="openid app:setup", show_default=True)
 @click.option("--jwks-uri", default=None, help="JWKS URL (required for private_key_jwt).")
 @with_appcontext
-def add_client(client_id, redirect_uri, method, secret, scopes, jwks_uri):
+def add_client(client_id, redirect_uri, method, scopes, jwks_uri):
     """Registers a new OIDC client."""
     if method == AUTH_METHOD_PRIVATE_KEY_JWT and not jwks_uri:
         raise click.UsageError("--jwks-uri is required for private_key_jwt.")
-
-    if method == AUTH_METHOD_CLIENT_SECRET_POST:
-        if not secret:
-            secret = secrets.token_urlsafe(32)
-    else:
-        secret = ""  # no shared secret for PKI-based auth
 
     with db.session_scope() as db_session:
         existing = db_session.get(OIDCClient, client_id)
@@ -126,13 +109,11 @@ def add_client(client_id, redirect_uri, method, secret, scopes, jwks_uri):
             existing.redirect_uris = redirect_uri
             existing.allowed_scopes = scopes
             existing.token_endpoint_auth_method = method
-            existing.client_secret = secret
             existing.jwks_uri = jwks_uri
         else:
             db_session.add(
                 OIDCClient(
                     client_id=client_id,
-                    client_secret=secret,
                     redirect_uris=redirect_uri,
                     allowed_scopes=scopes,
                     token_endpoint_auth_method=method,
@@ -142,8 +123,6 @@ def add_client(client_id, redirect_uri, method, secret, scopes, jwks_uri):
 
     click.echo(f"Client ID:     {client_id}")
     click.echo(f"Auth method:   {method}")
-    if method == AUTH_METHOD_CLIENT_SECRET_POST:
-        click.echo(f"Client secret: {secret}")
     if jwks_uri:
         click.echo(f"JWKS URI:      {jwks_uri}")
     click.echo(f"Redirect URI:  {redirect_uri}")

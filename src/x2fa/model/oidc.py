@@ -1,10 +1,9 @@
-import secrets
 from datetime import datetime, timezone
 
 from sqlalchemy.sql.schema import Column
 from sqlalchemy.sql.sqltypes import LargeBinary, String, Integer, Boolean, DateTime, Text
 
-from x2fa.constants import NEVER_EXPIRES, AUTH_METHOD_CLIENT_SECRET_POST
+from x2fa.constants import NEVER_EXPIRES, AUTH_METHOD_TLS_CLIENT_AUTH
 from x2fa.model.base import Base
 
 
@@ -14,7 +13,6 @@ class OIDCClient(Base):
     __tablename__ = "oidc_client"
 
     client_id = Column(String(255), primary_key=True)
-    client_secret = Column(String(255), nullable=False)
     redirect_uris = Column(Text, nullable=False)  # newline-separated
     allowed_scopes = Column(
         String(255), nullable=False, default="openid app:setup"
@@ -25,7 +23,7 @@ class OIDCClient(Base):
     )
     # PKI auth fields (Step 3 of Self-Sovereign Keys migration)
     token_endpoint_auth_method = Column(
-        String(50), nullable=False, default=AUTH_METHOD_CLIENT_SECRET_POST
+        String(50), nullable=False, default=AUTH_METHOD_TLS_CLIENT_AUTH
     )
     client_cert_fingerprint = Column(String(255), nullable=True)  # optional SHA256 pinning
     jwks_uri = Column(String(255), nullable=True)                  # for private_key_jwt clients
@@ -42,12 +40,6 @@ class OIDCClient(Base):
     def check_redirect_uri(self, redirect_uri: str) -> bool:
         uris = [u.strip() for u in self.redirect_uris.splitlines() if u.strip()]
         return redirect_uri in uris
-
-    def has_client_secret(self) -> bool:
-        return bool(self.client_secret)
-
-    def check_client_secret(self, client_secret: str) -> bool:
-        return secrets.compare_digest(self.client_secret, client_secret)
 
     def check_grant_type(self, grant_type: str) -> bool:
         return grant_type == "authorization_code"

@@ -1,7 +1,9 @@
-# Demo RP configuration — override via env vars DEMO_RP_SECRET_KEY / DEMO_RP_CLIENT_SECRET
-SECRET_KEY     = "change-me-demo-rp-secret"
-CLIENT_SECRET  = "testsecret"
-HOST           = "127.0.0.1"
-PORT           = 5099
-X2FA_URL       = "https://x2fa.dev.inqbus.de"
-DEMO_RP_URL    = "https://x2fa-demo-rp.dev.inqbus.de"
+# Demo RP configuration — override via env vars DEMO_RP_SECRET_KEY etc.
+SECRET_KEY        = "change-me-demo-rp-secret"
+HOST              = "127.0.0.1"
+PORT              = 5099
+X2FA_URL          = "https://x2fa.dev.inqbus.de"
+DEMO_RP_URL       = "https://x2fa-demo-rp.dev.inqbus.de"
+# Paths to the client certificate and private key issued by flask issue-client-cert
+CLIENT_CERT_PATH  = "demo_rp_client.cert.pem"
+CLIENT_KEY_PATH   = "demo_rp_client.key.pem"

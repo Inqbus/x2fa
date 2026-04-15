@@ -69,7 +69,7 @@ def _register_ca_and_client(ca_pem, client_id, method):
             session.add(TrustedCA(name=f"ca-{client_id}", cert_pem=ca_pem))
             session.add(OIDCClient(
                 client_id=client_id,
-                client_secret="",
+
                 redirect_uris="https://rp/cb",
                 token_endpoint_auth_method=method,
             ))
@@ -254,7 +254,7 @@ class TestPrivateKeyJwtX5c:
             with db.session_scope() as session:
                 session.add(OIDCClient(
                     client_id=client_id,
-                    client_secret="",
+    
                     redirect_uris="https://rp/cb",
                     token_endpoint_auth_method=AUTH_METHOD_PRIVATE_KEY_JWT,
                 ))

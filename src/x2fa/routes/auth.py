@@ -47,8 +47,8 @@ def openid_configuration():
             "id_token_signing_alg_values_supported": ["ES256"],
             "scopes_supported": ["openid", "app:setup"],
             "token_endpoint_auth_methods_supported": [
-                "client_secret_post",
-                "client_secret_basic",
+                "tls_client_auth",
+                "private_key_jwt",
             ],
             "code_challenge_methods_supported": ["S256"],
             "grant_types_supported": ["authorization_code"],
