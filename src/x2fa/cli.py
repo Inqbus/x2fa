@@ -15,9 +15,20 @@ from x2fa.models import (
     OIDCClient,
     SigningKey,
     TOTPSecret,
+    TrustedCA,
 )
 
 from x2fa.init_app.database import db
+
+
+@click.command("init-db")
+@with_appcontext
+def init_db():
+    """Creates all database tables (safe to run on a fresh database)."""
+    from x2fa.init_app.database import db
+
+    db.reset_schema()
+    click.echo("Database tables created.")
 
 
 @click.command("init-keys")
@@ -192,6 +203,174 @@ def cleanup_codes():
     click.echo(f"Deleted: {count} authorization codes (older than 1 hour).")
 
 
+@click.command("add-ca")
+@click.argument("name")
+@click.argument("cert_path", type=click.Path(exists=True, readable=True))
+@with_appcontext
+def add_ca(name, cert_path):
+    """Registers a trusted CA certificate for mTLS client authentication."""
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+
+    cert_pem = open(cert_path).read()
+    try:
+        cert = x509.load_pem_x509_certificate(cert_pem.encode())
+    except Exception as exc:
+        raise click.ClickException(f"Not a valid PEM certificate: {exc}")
+
+    expires_at = cert.not_valid_after_utc
+    fingerprint = cert.fingerprint(hashes.SHA256()).hex(":")
+
+    with db.session_scope() as db_session:
+        existing = db_session.execute(
+            select(TrustedCA).where(TrustedCA.name == name)
+        ).scalars().first()
+        if existing:
+            raise click.ClickException(f"CA '{name}' already exists. Use revoke-ca first.")
+        db_session.add(TrustedCA(name=name, cert_pem=cert_pem, expires_at=expires_at))
+
+    click.echo(f"CA registered:  {name}")
+    click.echo(f"Expires:        {expires_at.date()}")
+    click.echo(f"Fingerprint:    {fingerprint}")
+
+
+@click.command("list-cas")
+@with_appcontext
+def list_cas():
+    """Lists all registered CA certificates."""
+    from datetime import datetime, timezone, timedelta
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes
+
+    now = datetime.now(timezone.utc)
+    warn_threshold = now + timedelta(days=30)
+
+    with db.session_scope() as db_session:
+        cas = db_session.execute(select(TrustedCA)).scalars().all()
+
+        if not cas:
+            click.echo("No CAs registered.")
+            return
+
+        for ca in cas:
+            status = "active" if ca.active else "revoked"
+            try:
+                cert = x509.load_pem_x509_certificate(ca.cert_pem.encode())
+                fingerprint = cert.fingerprint(hashes.SHA256()).hex(":")[:29] + "…"
+                expiry = cert.not_valid_after_utc
+                expiry_str = str(expiry.date())
+                if ca.active and expiry < now:
+                    expiry_str += "  *** EXPIRED ***"
+                elif ca.active and expiry < warn_threshold:
+                    expiry_str += "  (expires soon)"
+            except Exception:
+                fingerprint = "unparseable"
+                expiry_str = "unknown"
+
+        click.echo(f"  {ca.name:30s} [{status}]  expires {expiry_str}")
+        click.echo(f"  {'':30s}          {fingerprint}")
+
+
+@click.command("revoke-ca")
+@click.argument("name")
+@with_appcontext
+def revoke_ca(name):
+    """Deactivates a trusted CA (does not delete — audit trail is preserved)."""
+    with db.session_scope() as db_session:
+        ca = db_session.execute(
+            select(TrustedCA).where(TrustedCA.name == name)
+        ).scalars().first()
+        if not ca:
+            raise click.ClickException(f"CA '{name}' not found.")
+        if not ca.active:
+            click.echo(f"CA '{name}' is already revoked.")
+            return
+        ca.active = False
+
+    click.echo(f"CA '{name}' revoked.")
+    click.echo("Warning: verify that no active OIDC clients depend on this CA.")
+
+
+@click.command("issue-client-cert")
+@click.argument("client_id")
+@click.option("--ca", "ca_name", required=True, help="Name of the signing CA.")
+@click.option("--validity-days", default=90, show_default=True, help="Certificate validity in days.")
+@click.option(
+    "--output", default=".", show_default=True,
+    type=click.Path(file_okay=False, writable=True),
+    help="Directory to write the certificate files.",
+)
+@with_appcontext
+def issue_client_cert(client_id, ca_name, validity_days, output):
+    """Issues a client certificate signed by the named CA."""
+    import os
+    from datetime import datetime, timezone, timedelta
+    from cryptography import x509
+    from cryptography.x509.oid import NameOID
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+
+    with db.session_scope() as db_session:
+        ca = db_session.execute(
+            select(TrustedCA).where(TrustedCA.name == ca_name, TrustedCA.active == True)
+        ).scalars().first()
+        if not ca:
+            raise click.ClickException(f"Active CA '{ca_name}' not found.")
+        ca_cert_pem = ca.cert_pem
+
+    try:
+        ca_cert = x509.load_pem_x509_certificate(ca_cert_pem.encode())
+    except Exception as exc:
+        raise click.ClickException(f"Failed to parse CA certificate: {exc}")
+
+    # The CA private key is not stored in the DB — must be provided via file.
+    ca_key_path = click.prompt("Path to CA private key file")
+    try:
+        ca_key_pem = open(ca_key_path, "rb").read()
+        ca_key = serialization.load_pem_private_key(ca_key_pem, password=None)
+    except Exception as exc:
+        raise click.ClickException(f"Failed to load CA private key: {exc}")
+
+    client_key = ec.generate_private_key(ec.SECP256R1())
+    subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, client_id)])
+    now = datetime.now(timezone.utc)
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(subject)
+        .issuer_name(ca_cert.subject)
+        .public_key(client_key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now)
+        .not_valid_after(now + timedelta(days=validity_days))
+        .sign(ca_key, hashes.SHA256())
+    )
+
+    safe_id = client_id.replace("/", "_").replace(":", "_")
+    key_path  = os.path.join(output, f"{safe_id}.key.pem")
+    cert_path = os.path.join(output, f"{safe_id}.cert.pem")
+    ca_out    = os.path.join(output, f"{safe_id}.ca.pem")
+
+    key_pem = client_key.private_bytes(
+        serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption(),
+    )
+    with open(key_path, "wb") as f:
+        f.write(key_pem)
+    os.chmod(key_path, 0o600)
+
+    with open(cert_path, "wb") as f:
+        f.write(cert.public_bytes(serialization.Encoding.PEM))
+
+    with open(ca_out, "w") as f:
+        f.write(ca_cert_pem)
+
+    click.echo(f"Private key:    {key_path}  (mode 0600)")
+    click.echo(f"Certificate:    {cert_path}")
+    click.echo(f"CA certificate: {ca_out}")
+    click.echo(f"Valid for:      {validity_days} days")
+
+
 def register_commands(app):
     app.cli.add_command(init_keys)
     app.cli.add_command(add_client)
@@ -199,3 +378,8 @@ def register_commands(app):
     app.cli.add_command(revoke_client)
     app.cli.add_command(stats)
     app.cli.add_command(cleanup_codes)
+    app.cli.add_command(init_db)
+    app.cli.add_command(add_ca)
+    app.cli.add_command(list_cas)
+    app.cli.add_command(revoke_ca)
+    app.cli.add_command(issue_client_cert)
