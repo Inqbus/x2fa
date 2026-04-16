@@ -357,16 +357,11 @@ shown and no certificates are generated.
 
 ## 10. Implementation Order
 
-1. **Schema** — add two nullable columns to `OIDCClient`, update `init_app/database.py`
-   if needed.
-2. **Constants** — add four new method strings to `constants.py`.
-3. **Option B** — self-signed fingerprint auth (no secret management complexity).
-4. **Option E** — `client_secret_post` + `client_secret_basic` (simpler than JWT).
-5. **Option C** — `client_secret_jwt` (depends on Fernet secret infrastructure from E).
-6. **CLI** — extend `add-client` with new `--method` choices; add `update-client-cert`
-   and `rotate-client-secret` commands.
-7. **Installer TUI** — update `ClientScreen` RadioSet; make CA screen conditional.
-8. **Tests** — unit tests for each auth handler (mock the DB, test the crypto path).
+## Implementation Notes
+
+**Current status:** Only Option A (`tls_client_auth`, `private_key_jwt`) is implemented.
+The remaining options (B, C, E) are fully specified in this document but not yet implemented.
+See `docs/todo.md` for the current task list.
 
 ---
 

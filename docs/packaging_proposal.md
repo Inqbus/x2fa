@@ -25,66 +25,13 @@ the Debian package and the AppImage build from the published wheel.
 
 These are not cosmetic issues. Each one is a blocker for at least one packaging channel.
 
-### 2.1 Config path is hardcoded inside the package  *(blocks all channels)*
+### 2.1 Config path handled via `X2FA_CONFIG_DIR` *(resolved)*
 
-`src/x2fa/config.py`:
+Config is now loaded via `ConfigPool` from XDG locations: `~/.config/x2fa/` (non-root only). Environment variable `X2FA_CONFIG_DIR` can override the location for containers/CI/testing.
 
-```python
-root_path = Path(__file__).parent / "config_files"
-```
+### 2.2 .env file handling removed *(resolved)*
 
-When installed as a package, `Path(__file__).parent` is somewhere inside
-`site-packages` — a read-only directory that pip overwrites on every upgrade.
-Operator-edited TOML files would be silently destroyed by `pip install --upgrade x2fa`.
-
-**Fix:** Introduce `X2FA_CONFIG_DIR` with a fallback chain:
-
-```python
-# src/x2fa/config.py
-
-import os
-from pathlib import Path
-
-
-def _config_root() -> Path:
-    # 1. Explicit override — highest priority (containers, CI, tests)
-    if env := os.environ.get("X2FA_CONFIG_DIR"):
-        return Path(env)
-    # 2. System install
-    system = Path("/etc/x2fa")
-    if system.exists():
-        return system
-    # 3. Repo / development mode — current behaviour, unchanged
-    return Path(__file__).parent / "config_files"
-
-
-root_path = _config_root()
-```
-
-Dynaconf's `envvar_prefix` already allows every individual key to be overridden
-via environment variables (e.g. `X2FA_DOMAIN`, `X2FA_SECURITY__SECRET_KEY`), so
-containers that do not mount a config directory can be configured entirely through
-environment variables without touching the fallback chain.
-
-### 2.2 `wsgi.py` uses a repo-relative `.env` path  *(blocks PyPI, Debian, AppImage)*
-
-```python
-if os.path.exists("../../.env"):   # only works from src/x2fa/
-```
-
-**Fix:**
-
-```python
-_env_file = Path(os.environ.get("X2FA_CONFIG_DIR", "/etc/x2fa")) / ".env"
-if _env_file.exists():
-    with open(_env_file) as _f:
-        for _line in _f:
-            _line = _line.strip()
-            if not _line or _line.startswith("#") or "=" not in _line:
-                continue
-            _k, _, _v = _line.partition("=")
-            os.environ.setdefault(_k.strip(), _v.strip())
-```
+`.env` file loading was removed from `wsgi.py`. Configuration is now managed exclusively via TOML files and environment variables with the `X2FA_` prefix.
 
 ### 2.3 No database migration system  *(blocks stable upgrades on all channels)*
 
@@ -123,41 +70,20 @@ Until Alembic is added, operators upgrading from any previous version must run t
 ALTER TABLE statements from `INSTALL.md §8` by hand. This is acceptable for an
 internal/alpha release but must not ship in a public stable release.
 
-### 2.4 `installer/config_writer.py` writes into the repo tree  *(blocks all channels)*
+### 2.4 Template folder is discoverable via `importlib.resources` *(resolved)*
 
-```python
-config_dir = config.install_root / "src" / "x2fa" / "config_files"
+Flask's `Flask(__name__, template_folder=...)` pattern works correctly when templates are declared as package data in `pyproject.toml`:
+
+```toml
+[tool.setuptools.package-data]
+"x2fa" = ["templates/**/*.html"]
 ```
 
-For a packaged install there is no writable `src/x2fa/config_files/` directory.
+When installed, Flask discovers templates via the package's `__file__`. Multi-stage Docker builds copy templates into the wheel, so no source tree is required at runtime.
 
-**Fix:** Write to `X2FA_CONFIG_DIR` (defaulting to `/etc/x2fa/`):
+### 2.5 Installer writes to XDG config directory *(resolved)*
 
-```python
-def write_configs(config: InstallConfig) -> tuple[bool, str]:
-    config_dir = Path(
-        os.environ.get("X2FA_CONFIG_DIR") or "/etc/x2fa"
-    )
-    config_dir.mkdir(parents=True, exist_ok=True)
-    ...
-```
-
-The installer must also set `X2FA_CONFIG_DIR` in the environment before invoking
-`flask` subprocesses via `runner.py`, so the Flask app reads from the same directory.
-
-### 2.5 `app.py` hardcodes the template folder  *(minor — blocks Docker multi-stage builds)*
-
-```python
-app = Flask(__name__, template_folder=Path(__file__).parent / "templates")
-```
-
-When installed as a package, Flask can discover templates via `importlib.resources`
-if they are declared as package data. The explicit path still works for installed
-packages, but it breaks multi-stage Docker builds that copy only the installed wheel
-without the full source tree.
-
-**Fix:** Remove the `template_folder` argument and declare templates as package data
-in `pyproject.toml` (see §3.2). Flask finds them via the package's `__file__`.
+The installer in `installer/config_writer.py` now writes config files to `~/.config/x2fa/` (non-root only) instead of the source tree. Config files are read from the XDG location via `ConfigPool`.
 
 ---
 

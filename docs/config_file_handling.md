@@ -89,7 +89,6 @@ The installer:
 
 - Config dir (`~/.config/x2fa/`): current user, mode `0755`
 - Config files: current user, mode `0644`
-- CA private keys: current user, mode `0600` (keep offline)
 - Data dir (`~/.local/share/x2fa/`): current user, mode `0700`
 
 ### Separate CLI Entry Point
@@ -119,7 +118,12 @@ The installer:
 2. ✅ Updated `config.py` to use `ConfigPool` instead of Dynaconf
 3. ✅ Created template files (`*.toml.default`) in `src/x2fa/config_files/`
 4. ✅ Updated `config_writer.py` to write to `~/.config/x2fa/` with `tomli_w`
-5. ✅ Created `app_cli.py` with minimal extensions for CLI
-6. ✅ Created `wsgi_cli.py` entry point for CLI commands
-7. ✅ Updated `.env` files removed
-8. ✅ Clear error messages for missing config files
+5. ✅ Updated installer to add `[production]` section to configs
+6. ✅ Created `app_cli.py` for minimal CLI app (no routes)
+7. ✅ Created `wsgi_cli.py` entry point for CLI commands
+8. ✅ Removed `.env` file handling
+9. ✅ Clear error messages for missing config files
+
+## Remaining
+
+None. This configuration file handling architecture is complete.

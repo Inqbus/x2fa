@@ -2,7 +2,12 @@
 
 #### wishlist
 
-* config files in x2fa/config_files have to become templates/exmaples.
-* the installer does not overwrite  x2fa/config_files but copies or creates new config files under the appropriate config dir
-* fix that when flask start fails because of missing config it fails cracefully and say: run the installer.
-* 
+* When Flask CLI or web app starts and config files are missing, raise a clear RuntimeError with instructions to run the installer.
+* Move CA keys/certs from source tree to XDG data directory (`~/.local/share/x2fa/`)
+* Add Alembic migrations for safe schema upgrades (produces `ALTER TABLE` for existing installations, replaces destructive `flask init-db`)
+* Add support for additional OIDC client authentication methods:
+  * `self_signed_tls_client_auth` (self-signed cert fingerprint pinning)
+  * `client_secret_jwt` (HMAC-signed JWT)
+  * `client_secret_post` / `client_secret_basic` (shared secrets)
+* Externalize template folder path for multi-stage Docker builds (use `importlib.resources`)
+* Remove `client_secret` column and related code from `OIDCClient` model and CLI commands
