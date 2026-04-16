@@ -21,11 +21,12 @@ class OIDCClient(Base):
     created_at = Column(
         DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
     )
-    # PKI auth fields (Step 3 of Self-Sovereign Keys migration)
     token_endpoint_auth_method = Column(
         String(50), nullable=False, default=AUTH_METHOD_TLS_CLIENT_AUTH
     )
-    jwks_uri = Column(String(255), nullable=True)  # for private_key_jwt clients
+    jwks_uri = Column(String(255), nullable=True)            # private_key_jwt
+    client_cert_fingerprint = Column(String(95), nullable=True)  # self_signed_tls: SHA-256 hex
+    client_secret_encrypted = Column(LargeBinary, nullable=True) # client_secret_*: Fernet-encrypted
 
     # --- Authlib interface ---
 

@@ -27,8 +27,21 @@ METHOD_TOTP              = "totp"
 METHOD_BACKUP            = "backup"
 
 # Token endpoint authentication methods (RFC 7591 / RFC 7523)
-AUTH_METHOD_TLS_CLIENT_AUTH = "tls_client_auth"
-AUTH_METHOD_PRIVATE_KEY_JWT = "private_key_jwt"
+AUTH_METHOD_TLS_CLIENT_AUTH      = "tls_client_auth"
+AUTH_METHOD_PRIVATE_KEY_JWT      = "private_key_jwt"
+AUTH_METHOD_SELF_SIGNED_TLS      = "self_signed_tls_client_auth"
+AUTH_METHOD_CLIENT_SECRET_JWT    = "client_secret_jwt"
+AUTH_METHOD_CLIENT_SECRET_POST   = "client_secret_post"
+AUTH_METHOD_CLIENT_SECRET_BASIC  = "client_secret_basic"
+
+ALL_AUTH_METHODS = [
+    AUTH_METHOD_TLS_CLIENT_AUTH,
+    AUTH_METHOD_PRIVATE_KEY_JWT,
+    AUTH_METHOD_SELF_SIGNED_TLS,
+    AUTH_METHOD_CLIENT_SECRET_JWT,
+    AUTH_METHOD_CLIENT_SECRET_POST,
+    AUTH_METHOD_CLIENT_SECRET_BASIC,
+]
 
 # JWT client assertion type (RFC 7523)
 JWT_BEARER_ASSERTION_TYPE = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"

@@ -1,0 +1,10 @@
+[default]
+# SQLite database (installer sets path)
+SQLALCHEMY_DATABASE_URI = "sqlite:///{X2FA_DB_PATH}"
+
+[production]
+# SQLite database (installer sets path)
+SQLALCHEMY_DATABASE_URI = "sqlite:///{X2FA_DB_PATH}"
+
+[testing]
+SQLALCHEMY_DATABASE_URI = "sqlite:///test_cli.db"

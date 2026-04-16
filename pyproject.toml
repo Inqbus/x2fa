@@ -24,8 +24,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-postgres = ["psycopg2-binary>=2.9.0"]
-mysql = ["pymysql>=1.1.0"]
+postgres   = ["psycopg2-binary>=2.9.0"]
+mysql      = ["pymysql>=1.1.0"]
+installer  = ["textual>=0.60.0"]
+
+[project.scripts]
+x2fa-install = "installer.__main__:main"
 
 [dependency-groups]
 dev = [

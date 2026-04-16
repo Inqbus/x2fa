@@ -9,9 +9,20 @@ from sqlalchemy import select, update
 
 from x2fa.constants import (
     NEVER_USED,
+    ALL_AUTH_METHODS,
     AUTH_METHOD_TLS_CLIENT_AUTH,
     AUTH_METHOD_PRIVATE_KEY_JWT,
+    AUTH_METHOD_SELF_SIGNED_TLS,
+    AUTH_METHOD_CLIENT_SECRET_JWT,
+    AUTH_METHOD_CLIENT_SECRET_POST,
+    AUTH_METHOD_CLIENT_SECRET_BASIC,
 )
+
+_SECRET_METHODS = {
+    AUTH_METHOD_CLIENT_SECRET_JWT,
+    AUTH_METHOD_CLIENT_SECRET_POST,
+    AUTH_METHOD_CLIENT_SECRET_BASIC,
+}
 from x2fa.model import (
     AuditLog,
     BackupCode,
@@ -89,16 +100,42 @@ def init_keys():
     "--method",
     default=AUTH_METHOD_TLS_CLIENT_AUTH,
     show_default=True,
-    type=click.Choice([AUTH_METHOD_TLS_CLIENT_AUTH, AUTH_METHOD_PRIVATE_KEY_JWT]),
+    type=click.Choice(ALL_AUTH_METHODS),
     help="Token endpoint authentication method.",
 )
 @click.option("--scopes", default="openid app:setup", show_default=True)
 @click.option("--jwks-uri", default=None, help="JWKS URL (required for private_key_jwt).")
+@click.option(
+    "--cert", default=None,
+    type=click.Path(exists=True, readable=True),
+    help="Path to self-signed client cert PEM (required for self_signed_tls_client_auth).",
+)
 @with_appcontext
-def add_client(client_id, redirect_uri, method, scopes, jwks_uri):
+def add_client(client_id, redirect_uri, method, scopes, jwks_uri, cert):
     """Registers a new OIDC client."""
     if method == AUTH_METHOD_PRIVATE_KEY_JWT and not jwks_uri:
         raise click.UsageError("--jwks-uri is required for private_key_jwt.")
+    if method == AUTH_METHOD_SELF_SIGNED_TLS and not cert:
+        raise click.UsageError("--cert is required for self_signed_tls_client_auth.")
+
+    fingerprint = None
+    if method == AUTH_METHOD_SELF_SIGNED_TLS:
+        from cryptography import x509
+        from cryptography.hazmat.primitives import hashes
+        cert_pem = open(cert).read()
+        try:
+            cert_obj = x509.load_pem_x509_certificate(cert_pem.encode())
+        except Exception as exc:
+            raise click.ClickException(f"Not a valid PEM certificate: {exc}")
+        fingerprint = cert_obj.fingerprint(hashes.SHA256()).hex(":")
+
+    plaintext_secret = None
+    secret_encrypted = None
+    if method in _SECRET_METHODS:
+        from x2fa.services.crypto import CryptoService
+        plaintext_secret = secrets.token_hex(32)
+        crypto = CryptoService(current_app.config.x2fa_security.SECRET_KEY)
+        secret_encrypted = crypto.encrypt(plaintext_secret)
 
     with db.session_scope() as db_session:
         existing = db_session.get(OIDCClient, client_id)
@@ -111,6 +148,9 @@ def add_client(client_id, redirect_uri, method, scopes, jwks_uri):
             existing.allowed_scopes = scopes
             existing.token_endpoint_auth_method = method
             existing.jwks_uri = jwks_uri
+            existing.client_cert_fingerprint = fingerprint
+            if secret_encrypted is not None:
+                existing.client_secret_encrypted = secret_encrypted
         else:
             db_session.add(
                 OIDCClient(
@@ -119,6 +159,8 @@ def add_client(client_id, redirect_uri, method, scopes, jwks_uri):
                     allowed_scopes=scopes,
                     token_endpoint_auth_method=method,
                     jwks_uri=jwks_uri,
+                    client_cert_fingerprint=fingerprint,
+                    client_secret_encrypted=secret_encrypted,
                 )
             )
 
@@ -126,6 +168,10 @@ def add_client(client_id, redirect_uri, method, scopes, jwks_uri):
     click.echo(f"Auth method:   {method}")
     if jwks_uri:
         click.echo(f"JWKS URI:      {jwks_uri}")
+    if fingerprint:
+        click.echo(f"Fingerprint:   {fingerprint}")
+    if plaintext_secret:
+        click.echo(f"Client secret: {plaintext_secret}  <- record this now, it will not be shown again")
     click.echo(f"Redirect URI:  {redirect_uri}")
     click.echo(f"Scopes:        {scopes}")
 
@@ -280,8 +326,8 @@ def list_cas():
                 fingerprint = "unparseable"
                 expiry_str = "unknown"
 
-        click.echo(f"  {ca.name:30s} [{status}]  expires {expiry_str}")
-        click.echo(f"  {'':30s}          {fingerprint}")
+            click.echo(f"  {ca.name:30s} [{status}]  expires {expiry_str}")
+            click.echo(f"  {'':30s}          {fingerprint}")
 
 
 @click.command("revoke-ca")
@@ -384,6 +430,67 @@ def issue_client_cert(client_id, ca_name, validity_days, output):
     click.echo(f"Valid for:      {validity_days} days")
 
 
+@click.command("update-client-cert")
+@click.argument("client_id")
+@click.option(
+    "--cert", required=True,
+    type=click.Path(exists=True, readable=True),
+    help="Path to the new self-signed client cert PEM.",
+)
+@with_appcontext
+def update_client_cert(client_id, cert):
+    """Updates the pinned certificate fingerprint for a self_signed_tls_client_auth client."""
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes
+
+    cert_pem = open(cert).read()
+    try:
+        cert_obj = x509.load_pem_x509_certificate(cert_pem.encode())
+    except Exception as exc:
+        raise click.ClickException(f"Not a valid PEM certificate: {exc}")
+
+    fingerprint = cert_obj.fingerprint(hashes.SHA256()).hex(":")
+
+    with db.session_scope() as db_session:
+        client = db_session.get(OIDCClient, client_id)
+        if not client:
+            raise click.ClickException(f"Client '{client_id}' not found.")
+        if client.token_endpoint_auth_method != AUTH_METHOD_SELF_SIGNED_TLS:
+            raise click.ClickException(
+                f"Client '{client_id}' uses '{client.token_endpoint_auth_method}', "
+                "not self_signed_tls_client_auth."
+            )
+        client.client_cert_fingerprint = fingerprint
+
+    click.echo(f"Client '{client_id}' fingerprint updated.")
+    click.echo(f"Fingerprint: {fingerprint}")
+
+
+@click.command("rotate-client-secret")
+@click.argument("client_id")
+@with_appcontext
+def rotate_client_secret(client_id):
+    """Rotates the client secret for client_secret_jwt / _post / _basic clients."""
+    from x2fa.services.crypto import CryptoService
+
+    with db.session_scope() as db_session:
+        client = db_session.get(OIDCClient, client_id)
+        if not client:
+            raise click.ClickException(f"Client '{client_id}' not found.")
+        if client.token_endpoint_auth_method not in _SECRET_METHODS:
+            raise click.ClickException(
+                f"Client '{client_id}' uses '{client.token_endpoint_auth_method}', "
+                "which does not use a client secret."
+            )
+
+        plaintext_secret = secrets.token_hex(32)
+        crypto = CryptoService(current_app.config.x2fa_security.SECRET_KEY)
+        client.client_secret_encrypted = crypto.encrypt(plaintext_secret)
+
+    click.echo(f"Client '{client_id}' secret rotated.")
+    click.echo(f"New secret: {plaintext_secret}  <- record this now, it will not be shown again")
+
+
 def register_commands(app):
     app.cli.add_command(init_keys)
     app.cli.add_command(add_client)
@@ -396,3 +503,5 @@ def register_commands(app):
     app.cli.add_command(list_cas)
     app.cli.add_command(revoke_ca)
     app.cli.add_command(issue_client_cert)
+    app.cli.add_command(update_client_cert)
+    app.cli.add_command(rotate_client_secret)

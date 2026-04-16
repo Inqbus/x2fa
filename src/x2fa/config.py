@@ -2,45 +2,34 @@ from pathlib import Path
 
 from dynaconf import Dynaconf
 
-from x2fa.helpers.attr_dict import AttrDict
+from x2fa.helpers.config_pool import ConfigPool
 
-root_path = Path(__file__).parent / "config_files"
+# XDG config directory (LSB compliant, non-root only)
+CONFIG_DIR = Path.home() / ".config" / "x2fa"
 
-cfg = AttrDict(
-    x2fa=Dynaconf(
-        root_path=root_path,
-        settings_files=["x2fa_config.toml"],
-        environments=True,
-        load_dotenv=True,
-        envvar_prefix="X2FA",
-    ),
-    x2fa_babel=Dynaconf(
-        root_path=root_path,
-        settings_files=["babel_config.toml"],
-        environments=True,
-        load_dotenv=True,
-        envvar_prefix="X2FA_BABEL",
-    ),
-    x2fa_database=Dynaconf(
-        root_path=root_path,
-        settings_files=["db_config.toml"],
-        environments=True,
-        load_dotenv=True,
-        envvar_prefix="X2FA_DB",
-    ),
-    x2fa_ratelimit=Dynaconf(
-        root_path=root_path,
-        settings_files=["ratelimit_config.toml"],
-        environments=True,
-        load_dotenv=True,
-        envvar_prefix="X2FA_RATELIMIT",
-    ),
-    x2fa_security=Dynaconf(
-        root_path=root_path,
-        settings_files=["security_config.toml"],
-        environments=True,
-        load_dotenv=True,
-        envvar_prefix="X2FA_SECURITY",
-    ),
-)
+CONFIGS = {
+    "x2fa": ["x2fa_config.toml"],
+    "x2fa_babel": ["babel_config.toml"],
+    "x2fa_database": ["db_config.toml"],
+    "x2fa_ratelimit": ["ratelimit_config.toml"],
+    "x2fa_security": ["security_config.toml"],
+}
 
+pool = ConfigPool(CONFIG_DIR)
+
+for namespace, filenames in CONFIGS.items():
+    existing = [f for f in filenames if (CONFIG_DIR / f).exists()]
+
+    if existing:
+        dynaconf = Dynaconf(
+            root_path=CONFIG_DIR,
+            settings_files=existing,
+            environments=True,
+            load_dotenv=True,
+            envvar_prefix="X2FA",
+        )
+        pool.add_config(namespace, dynaconf)
+    else:
+        pool.add_missing(namespace, filenames[0])
+
+cfg = pool

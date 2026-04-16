@@ -15,6 +15,7 @@ X2FA is a FIDO2 microservice with OIDC provider that handles two-factor authenti
 - Revoke CA: `FLASK_APP=wsgi:app uv run flask revoke-ca <name>`
 - Issue client cert: `FLASK_APP=wsgi:app uv run flask issue-client-cert <client_id> --ca <name>`
 - Run demo RP: `cd demo_rp && uv run python app.py`
+- Run installer TUI: `uv run --extra installer python -m installer`
 
 ## Environment Setup
 - Requires Python 3.11+ and uv package manager
@@ -22,6 +23,7 @@ X2FA is a FIDO2 microservice with OIDC provider that handles two-factor authenti
 - Optional: `X2FA_DATABASE_URL`, `X2FA_ORIGIN`, `X2FA_HOST`, `X2FA_PORT`, `X2FA_ENV`
 - For testing: `X2FA_ORIGIN=http://localhost:5000` if running locally without HTTPS
 - Config is loaded via **Dynaconf** from `src/x2fa/config_files/*.toml` and environment variables (prefix `X2FA_`)
+- X2FA will never be run as root. A spcial non privileged user eg. x2fa will be used.
 
 ## Testing Notes
 - **29 unit tests** (all passing)

@@ -95,7 +95,7 @@ def jwks():
 
 
 @auth_bp.route("/authorize")
-@limiter.limit(cfg.x2fa_ratelimit.RATE_LIMIT_AUTHORIZE)
+@limiter.limit(cfg.x2fa_ratelimit.RATELIMIT_AUTHORIZE)
 def authorize():
     """
     OIDC Authorization Endpoint — two-phase flow:
@@ -223,7 +223,7 @@ def _oidc_error_redirect(error: str, description: str = ""):
 
 
 @auth_bp.route("/token", methods=["POST"])
-@limiter.limit(cfg.x2fa_ratelimit.RATE_LIMIT_TOKEN)
+@limiter.limit(cfg.x2fa_ratelimit.RATELIMIT_TOKEN)
 def token():
     """OIDC Token Endpoint — exchanges an authorization code for tokens."""
     return oauth.create_token_response()

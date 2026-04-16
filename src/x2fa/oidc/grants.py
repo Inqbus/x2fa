@@ -11,8 +11,14 @@ from flask import g
 from sqlalchemy import select
 
 from x2fa.constants import (
+    ALL_AUTH_METHODS,
     AUTH_METHOD_PRIVATE_KEY_JWT,
     AUTH_METHOD_TLS_CLIENT_AUTH,
+    AUTH_METHOD_SELF_SIGNED_TLS,
+    AUTH_METHOD_CLIENT_SECRET_JWT,
+    AUTH_METHOD_CLIENT_SECRET_POST,
+    AUTH_METHOD_CLIENT_SECRET_BASIC,
+    JWT_BEARER_ASSERTION_TYPE,
 )
 from x2fa.model import AuthorizationCode, OIDCClient, SigningKey, TrustedCA
 
@@ -33,10 +39,7 @@ class X2FAAuthorizationCodeGrant(AuthorizationCodeGrant):
                        → authenticate_user
     """
 
-    TOKEN_ENDPOINT_AUTH_METHODS = [
-        AUTH_METHOD_TLS_CLIENT_AUTH,
-        AUTH_METHOD_PRIVATE_KEY_JWT,
-    ]
+    TOKEN_ENDPOINT_AUTH_METHODS = ALL_AUTH_METHODS
 
     def save_authorization_code(self, code, request):
         """Persists the authorization code to the database."""
@@ -231,6 +234,146 @@ class X2FAPrivateKeyJwtAuth(JWTBearerClientAssertion):
 
     def validate_jti(self, claims, jti):
         return True
+
+
+def authenticate_via_self_signed_tls(query_client, request):
+    """Client authenticator for self_signed_tls_client_auth.
+
+    Reads the PEM-encoded client certificate from the X-Client-Certificate header,
+    computes its SHA-256 fingerprint, and looks up the matching OIDCClient.
+    No CA chain validation — the fingerprint IS the trust anchor.
+    """
+    from urllib.parse import unquote
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes
+    from sqlalchemy import select
+
+    cert_raw = request.headers.get("X-Client-Certificate")
+    if not cert_raw:
+        return None
+
+    try:
+        cert = x509.load_pem_x509_certificate(unquote(cert_raw).encode())
+    except Exception:
+        return None
+
+    fingerprint = cert.fingerprint(hashes.SHA256()).hex(":")
+    stmt = select(OIDCClient).where(
+        OIDCClient.client_cert_fingerprint == fingerprint,
+        OIDCClient.active == True,
+        OIDCClient.token_endpoint_auth_method == AUTH_METHOD_SELF_SIGNED_TLS,
+    )
+    return g.db_session.execute(stmt).scalars().first()
+
+
+def _verify_client_secret(query_client, client_id: str, secret: str, method: str):
+    """Constant-time secret comparison for client_secret_* auth methods."""
+    import hmac
+    from flask import current_app
+    from x2fa.services.crypto import CryptoService
+
+    client = query_client(client_id)
+    if not client or client.token_endpoint_auth_method != method:
+        return None
+    if not client.client_secret_encrypted:
+        return None
+
+    crypto = CryptoService(current_app.config.x2fa_security.SECRET_KEY)
+    stored = crypto.decrypt(client.client_secret_encrypted)
+    if hmac.compare_digest(stored, secret):
+        return client
+    return None
+
+
+def authenticate_via_client_secret_jwt(query_client, request):
+    """Client authenticator for client_secret_jwt (RFC 7523 §2.2, HS256).
+
+    Decodes the JWT assertion without verification to extract the client_id,
+    then Fernet-decrypts the stored secret and verifies the HMAC signature
+    plus required claims (iss, sub, aud, exp, jti).
+    """
+    import jwt as pyjwt
+
+    assertion = request.form.get("client_assertion")
+    assertion_type = request.form.get("client_assertion_type")
+    if assertion_type != JWT_BEARER_ASSERTION_TYPE or not assertion:
+        return None
+
+    try:
+        unverified = pyjwt.decode(assertion, options={"verify_signature": False})
+        client_id = unverified.get("sub") or unverified.get("iss")
+    except Exception:
+        return None
+
+    if not client_id:
+        return None
+
+    client = query_client(client_id)
+    if not client or client.token_endpoint_auth_method != AUTH_METHOD_CLIENT_SECRET_JWT:
+        return None
+    if not client.client_secret_encrypted:
+        return None
+
+    from flask import current_app
+    from x2fa.services.crypto import CryptoService
+
+    crypto = CryptoService(current_app.config.x2fa_security.SECRET_KEY)
+    secret = crypto.decrypt(client.client_secret_encrypted).encode()
+
+    domain = current_app.config.x2fa.DOMAIN
+    token_url = f"https://{domain}/token"
+
+    try:
+        pyjwt.decode(
+            assertion,
+            secret,
+            algorithms=["HS256"],
+            audience=token_url,
+            options={"require": ["iss", "sub", "aud", "exp", "jti"]},
+        )
+        return client
+    except pyjwt.PyJWTError:
+        return None
+
+
+def authenticate_via_client_secret_post(query_client, request):
+    """Client authenticator for client_secret_post.
+
+    Reads client_id and client_secret from the POST body and performs
+    a constant-time comparison against the Fernet-encrypted stored secret.
+    """
+    client_id = request.form.get("client_id")
+    client_secret = request.form.get("client_secret")
+    if not client_id or not client_secret:
+        return None
+    return _verify_client_secret(
+        query_client, client_id, client_secret, AUTH_METHOD_CLIENT_SECRET_POST
+    )
+
+
+def authenticate_via_client_secret_basic(query_client, request):
+    """Client authenticator for client_secret_basic.
+
+    Decodes HTTP Basic credentials (RFC 7617) and performs a constant-time
+    comparison against the Fernet-encrypted stored secret.
+    """
+    import base64
+    from urllib.parse import unquote as _unquote
+
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Basic "):
+        return None
+    try:
+        decoded = base64.b64decode(auth_header[6:]).decode("utf-8")
+        raw_id, raw_secret = decoded.split(":", 1)
+        client_id = _unquote(raw_id)
+        client_secret = _unquote(raw_secret)
+    except Exception:
+        return None
+
+    return _verify_client_secret(
+        query_client, client_id, client_secret, AUTH_METHOD_CLIENT_SECRET_BASIC
+    )
 
 
 def query_client(client_id: str):

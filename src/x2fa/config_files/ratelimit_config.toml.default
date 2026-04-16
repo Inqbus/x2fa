@@ -1,0 +1,22 @@
+[default]
+RATELIMIT_STORAGE_URI = "memory://"
+RATELIMIT_STRATEGY = "moving-window"  # prevents burst attacks at window boundaries
+RATELIMIT_HEADERS_ENABLED = true
+
+# Rate limits (Flask-Limiter format)
+RATELIMIT_AUTHORIZE        = "10 per minute; 100 per hour"
+RATELIMIT_TOKEN            = "20 per minute"
+RATELIMIT_SETUP_COMPLETE   = "5 per minute"
+RATELIMIT_TOTP_SETUP       = "5 per minute; 20 per hour"
+RATELIMIT_TOTP_VERIFY      = "5 per minute; 20 per hour"
+RATELIMIT_WEBAUTHN_VERIFY  = "10 per minute; 30 per hour"
+RATELIMIT_BACKUP_VERIFY    = "3 per minute; 10 per hour"
+
+# Security parameters
+CHALLENGE_TTL_MINUTES = 5
+
+[testing]
+RATELIMIT_STORAGE_URI = "memory://"
+
+[e2e]
+RATELIMIT_STORAGE_URI = "memory://"

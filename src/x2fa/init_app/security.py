@@ -3,7 +3,14 @@ import secrets
 from flask import Flask, g
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from x2fa.constants import AUTH_METHOD_TLS_CLIENT_AUTH, AUTH_METHOD_PRIVATE_KEY_JWT
+from x2fa.constants import (
+    AUTH_METHOD_TLS_CLIENT_AUTH,
+    AUTH_METHOD_PRIVATE_KEY_JWT,
+    AUTH_METHOD_SELF_SIGNED_TLS,
+    AUTH_METHOD_CLIENT_SECRET_JWT,
+    AUTH_METHOD_CLIENT_SECRET_POST,
+    AUTH_METHOD_CLIENT_SECRET_BASIC,
+)
 from x2fa.oidc import oauth
 from x2fa.oidc.grants import (
     S256OnlyCodeChallenge,
@@ -11,6 +18,10 @@ from x2fa.oidc.grants import (
     X2FAOpenIDCode,
     X2FAPrivateKeyJwtAuth,
     authenticate_via_mtls,
+    authenticate_via_self_signed_tls,
+    authenticate_via_client_secret_jwt,
+    authenticate_via_client_secret_post,
+    authenticate_via_client_secret_basic,
     query_client,
     save_token,
 )
@@ -30,6 +41,10 @@ def security(app: Flask):
     token_url = f"https://{domain}/token"
     oauth.register_client_auth_method(AUTH_METHOD_TLS_CLIENT_AUTH, authenticate_via_mtls)
     oauth.register_client_auth_method(AUTH_METHOD_PRIVATE_KEY_JWT, X2FAPrivateKeyJwtAuth(token_url))
+    oauth.register_client_auth_method(AUTH_METHOD_SELF_SIGNED_TLS, authenticate_via_self_signed_tls)
+    oauth.register_client_auth_method(AUTH_METHOD_CLIENT_SECRET_JWT, authenticate_via_client_secret_jwt)
+    oauth.register_client_auth_method(AUTH_METHOD_CLIENT_SECRET_POST, authenticate_via_client_secret_post)
+    oauth.register_client_auth_method(AUTH_METHOD_CLIENT_SECRET_BASIC, authenticate_via_client_secret_basic)
 
     # # Test-only blueprint for session injection (E2E Playwright tests)
     # if app.config.x2fa.ENV_FOR_DYNACONF == 'testing':
