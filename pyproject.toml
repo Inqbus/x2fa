@@ -21,6 +21,7 @@ dependencies = [
     "dynaconf>=3.2.13",
     "flask-babelplus>=2.2.0",
     "pytz>=2026.1.post1",
+    "tomli-w>=1.2.0",
 ]
 
 [project.optional-dependencies]

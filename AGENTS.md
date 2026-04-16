@@ -19,9 +19,8 @@ X2FA is a FIDO2 microservice with OIDC provider that handles two-factor authenti
 
 ## Environment Setup
 - Requires Python 3.11+ and uv package manager
-- **Required env vars**: `X2FA_SECRET` (≥32 chars), `X2FA_DOMAIN`
-- Optional: `X2FA_DATABASE_URL`, `X2FA_ORIGIN`, `X2FA_HOST`, `X2FA_PORT`, `X2FA_ENV`
-- For testing: `X2FA_ORIGIN=http://localhost:5000` if running locally without HTTPS
+- ENV_FOR_DYNACONF=Production
+- For testing: ENV_FOR_DYNACONF=testing
 - Config is loaded via **Dynaconf** from `src/x2fa/config_files/*.toml` and environment variables (prefix `X2FA_`)
 - X2FA will never be run as root. A spcial non privileged user eg. x2fa will be used.
 

@@ -30,3 +30,7 @@ class ConfigPool:
                 f"Run the installer first to generate configuration files."
             )
         raise AttributeError(f"Config namespace '{name}' not available")
+
+    def __iter__(self):
+        """Iterate over loaded config namespaces."""
+        return iter(self._loaded)
