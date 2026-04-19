@@ -3,27 +3,16 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
-def _get_default_paths() -> tuple[str, str, str, str]:
-    """Return XDG-compliant default paths. Pure computation — no I/O side effects.
-
-    Directory creation is handled by the components that actually write the files:
-    - ca.py::generate_ca() creates the CA key/cert parent directory.
-    - flask init-db (via SQLAlchemy) creates the DB file.
-    - config_writer.write_configs() creates ~/.config/x2fa/.
-    """
-    xdg_data = Path.home() / ".local" / "share" / "x2fa"
-    return (
-        str(xdg_data / "ca_key.pem"),
-        str(xdg_data / "ca_cert.pem"),
-        str(xdg_data / "db.sqlite"),
-        str(xdg_data),
-    )
-
-
 @dataclass
 class InstallConfig:
     # Installation root (X2FA repo root — assumed to be cwd)
     install_root: Path = field(default_factory=Path.cwd)
+
+    # Root directory for LSB/XDG paths (default: home directory).
+    # Override via --config-root to change where config and data files land.
+    # Config:  <config_root>/.config/x2fa/
+    # Data:    <config_root>/.local/share/x2fa/
+    config_root: Path = field(default_factory=Path.home)
 
     # ── Database ──────────────────────────────────────────────────────────
     db_type: str = "sqlite"  # sqlite | postgres | mysql
@@ -44,8 +33,8 @@ class InstallConfig:
     ca_name: str = "x2fa-internal-ca"
     ca_cn: str = "X2FA Internal CA"
     ca_validity_days: int = 3650
-    ca_key_path: str = field(default_factory=lambda: _get_default_paths()[0])
-    ca_cert_path: str = field(default_factory=lambda: _get_default_paths()[1])
+    ca_key_path: str = ""   # filled by __post_init__ from config_root
+    ca_cert_path: str = ""  # filled by __post_init__ from config_root
     ca_import_path: str = ""  # used when ca_action == "import"
 
     # ── First OIDC Client ─────────────────────────────────────────────────
@@ -60,11 +49,25 @@ class InstallConfig:
     generated_files: list[str] = field(default_factory=list)
     install_error: str | None = None
 
+    def __post_init__(self) -> None:
+        data = self._data_dir()
+        if not self.ca_key_path:
+            self.ca_key_path = str(data / "ca_key.pem")
+        if not self.ca_cert_path:
+            self.ca_cert_path = str(data / "ca_cert.pem")
+
+    def _data_dir(self) -> Path:
+        """XDG data directory: <config_root>/.local/share/x2fa/"""
+        return self.config_root / ".local" / "share" / "x2fa"
+
+    def _config_dir(self) -> Path:
+        """XDG config directory: <config_root>/.config/x2fa/"""
+        return self.config_root / ".config" / "x2fa"
+
     def effective_db_uri(self) -> str:
         if self.db_uri:
             return self.db_uri
-        default = _get_default_paths()[2]
-        return f"sqlite:///{default}"
+        return f"sqlite:///{self._data_dir() / 'db.sqlite'}"
 
     def effective_ca_cert(self) -> str:
         return (

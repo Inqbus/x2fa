@@ -1,8 +1,28 @@
+import argparse
+from pathlib import Path
+
 from .app import InstallerApp
 
 
 def main() -> None:
-    InstallerApp().run()
+    parser = argparse.ArgumentParser(
+        description="X2FA interactive installer",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "By default, config files are written to ~/.config/x2fa/ and\n"
+            "data files (CA key, DB) to ~/.local/share/x2fa/.\n"
+            "Use --config-root to relocate everything under a different base."
+        ),
+    )
+    parser.add_argument(
+        "--config-root",
+        type=Path,
+        default=None,
+        metavar="DIR",
+        help="Override the root directory for config and data files (default: ~)",
+    )
+    args = parser.parse_args()
+    InstallerApp(config_root=args.config_root).run()
 
 
 if __name__ == "__main__":

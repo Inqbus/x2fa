@@ -21,14 +21,8 @@ class DatabaseScreen(Screen):
                 yield RadioButton("PostgreSQL", id="postgres", value=db == "postgres")
                 yield RadioButton("MySQL / MariaDB", id="mysql", value=db == "mysql")
 
-            from ..models import _get_default_paths
-
-            default_db = _get_default_paths()[2]
-            db_hint = (
-                f"[dim]Database file: {default_db}[/]"
-                if Path(default_db).is_absolute()
-                else f"[dim]Database file: {default_db} (relative to install root)[/]"
-            )
+            default_db = str(cfg._data_dir() / "db.sqlite")
+            db_hint = f"[dim]Database file: {default_db}[/]"
             yield Static(
                 db_hint,
                 id="sqlite_hint",

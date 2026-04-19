@@ -21,6 +21,9 @@ class DirectScreenApp(App[None]):
     Inherits from App[None] rather than InstallerApp to avoid Textual's
     all-handler dispatch calling InstallerApp.on_mount (which would push
     MainMenuScreen on top of our test screen).
+
+    config_root=tmp_path redirects all XDG file writes into the pytest
+    temporary directory — no mocking of Path.home() required.
     """
 
     TITLE = "X2FA Installer Test"
@@ -28,7 +31,7 @@ class DirectScreenApp(App[None]):
 
     def __init__(self, screen_cls, tmp_path: Path, config_overrides: dict | None = None):
         super().__init__()
-        self.config = InstallConfig(install_root=tmp_path)
+        self.config = InstallConfig(install_root=tmp_path, config_root=tmp_path)
         self.config.domain = "test.example.com"
         self.config.client_id = "test-client"
         self.config.client_redirect_uri = "https://test.example.com/cb"

@@ -132,9 +132,12 @@ class InstallerApp(App[None]):
     TITLE = "X2FA Installer"
     CSS = APP_CSS
 
-    def __init__(self) -> None:
+    def __init__(self, config_root: Path | None = None) -> None:
         super().__init__()
-        self.config = InstallConfig(install_root=Path.cwd())
+        kwargs: dict = {"install_root": Path.cwd()}
+        if config_root is not None:
+            kwargs["config_root"] = config_root
+        self.config = InstallConfig(**kwargs)
 
     def on_mount(self) -> None:
         self.push_screen(MainMenuScreen())

@@ -7,7 +7,7 @@ from .models import InstallConfig
 
 def write_configs(config: InstallConfig) -> tuple[bool, str]:
     """Write all TOML config files to XDG config directory. Returns (success, log_message)."""
-    config_dir = Path.home() / ".config" / "x2fa"
+    config_dir = config._config_dir()
     config_dir.mkdir(parents=True, exist_ok=True, mode=0o755)
 
     template_dir = (

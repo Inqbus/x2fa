@@ -1,100 +1,87 @@
 """Tests for installer/models.py"""
 
-import os
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
-from installer.models import InstallConfig, _get_default_paths
+from installer.models import InstallConfig
 
 
-class TestGetDefaultPaths:
-    """Test _get_default_paths() XDG compliance."""
-
-    def test_returns_tuple(self):
-        """Returns 4-element tuple."""
-        paths = _get_default_paths()
-        assert isinstance(paths, tuple)
-        assert len(paths) == 4
-
-    def test_paths_are_strings(self):
-        """All paths are strings."""
-        paths = _get_default_paths()
-        for p in paths:
-            assert isinstance(p, str)
-
-    def test_paths_contain_xdg_data(self):
-        """Paths contain XDG data directory."""
-        paths = _get_default_paths()
-        for p in paths:
-            assert ".local/share/x2fa" in p or ".config/x2fa" in p
-
-    def test_paths_point_to_xdg_data(self):
-        """Default ca_key, ca_cert, db point to ~/.local/share/x2fa/."""
-        paths = _get_default_paths()
-        ca_key, ca_cert, db, _ = paths
-        
-        assert "ca_key.pem" in ca_key
-        assert "ca_cert.pem" in ca_cert
-        assert "db.sqlite" in db
-        assert ".local/share/x2fa" in ca_key
-        assert ".local/share/x2fa" in ca_cert
-        assert ".local/share/x2fa" in db
-
-
-class TestInstallConfig:
-    """Test InstallConfig dataclass."""
-
-    def test_default_paths(self):
-        """Defaults point to XDG directories."""
-        config = InstallConfig()
-        
-        assert ".local/share/x2fa" in config.ca_key_path
-        assert ".local/share/x2fa" in config.ca_cert_path
-        assert config.db_type == "sqlite"
-        assert config.proxy_type == "caddy"
-
-    def test_effective_db_uri_sqlite(self):
-        """effective_db_uri() returns correct SQLite path."""
-        config = InstallConfig()
-        uri = config.effective_db_uri()
-        
-        assert uri.startswith("sqlite:///")
-        assert ".local/share/x2fa/db.sqlite" in uri
-
-    def test_effective_db_uri_custom(self):
-        """effective_db_uri() returns custom URI if set."""
-        config = InstallConfig(db_uri="postgresql://user:pass@host/db")
-        uri = config.effective_db_uri()
-        
-        assert uri == "postgresql://user:pass@host/db"
-
-    def test_effective_ca_cert_generate(self):
-        """effective_ca_cert() returns ca_cert_path for generate."""
-        config = InstallConfig(ca_action="generate", ca_cert_path="/tmp/cert.pem")
-        cert = config.effective_ca_cert()
-        
-        assert cert == "/tmp/cert.pem"
-
-    def test_effective_ca_cert_import(self):
-        """effective_ca_cert() returns ca_import_path for import."""
-        config = InstallConfig(
-            ca_action="import",
-            ca_cert_path="/tmp/cert.pem",
-            ca_import_path="/custom/ca.pem"
-        )
-        cert = config.effective_ca_cert()
-        
-        assert cert == "/custom/ca.pem"
-
+class TestInstallConfigDefaults:
     def test_install_root_defaults_to_cwd(self):
-        """install_root defaults to current working directory."""
         config = InstallConfig()
         assert config.install_root == Path.cwd()
 
-    def test_install_root_can_be_custom(self):
-        """install_root can be set to custom path."""
-        custom = Path("/custom/path")
-        config = InstallConfig(install_root=custom)
-        assert config.install_root == custom
+    def test_config_root_defaults_to_home(self):
+        config = InstallConfig()
+        assert config.config_root == Path.home()
+
+    def test_ca_key_path_derived_from_config_root(self, tmp_path):
+        config = InstallConfig(config_root=tmp_path)
+        assert config.ca_key_path == str(tmp_path / ".local" / "share" / "x2fa" / "ca_key.pem")
+
+    def test_ca_cert_path_derived_from_config_root(self, tmp_path):
+        config = InstallConfig(config_root=tmp_path)
+        assert config.ca_cert_path == str(tmp_path / ".local" / "share" / "x2fa" / "ca_cert.pem")
+
+    def test_ca_key_path_can_be_overridden(self, tmp_path):
+        config = InstallConfig(config_root=tmp_path, ca_key_path="/custom/ca.key")
+        assert config.ca_key_path == "/custom/ca.key"
+
+    def test_ca_cert_path_can_be_overridden(self, tmp_path):
+        config = InstallConfig(config_root=tmp_path, ca_cert_path="/custom/ca.crt")
+        assert config.ca_cert_path == "/custom/ca.crt"
+
+    def test_db_type_defaults_to_sqlite(self):
+        assert InstallConfig().db_type == "sqlite"
+
+    def test_proxy_type_defaults_to_caddy(self):
+        assert InstallConfig().proxy_type == "caddy"
+
+
+class TestDirectoryHelpers:
+    def test_data_dir_under_config_root(self, tmp_path):
+        config = InstallConfig(config_root=tmp_path)
+        assert config._data_dir() == tmp_path / ".local" / "share" / "x2fa"
+
+    def test_config_dir_under_config_root(self, tmp_path):
+        config = InstallConfig(config_root=tmp_path)
+        assert config._config_dir() == tmp_path / ".config" / "x2fa"
+
+    def test_data_dir_default_points_into_home(self):
+        config = InstallConfig()
+        assert config._data_dir() == Path.home() / ".local" / "share" / "x2fa"
+
+    def test_config_dir_default_points_into_home(self):
+        config = InstallConfig()
+        assert config._config_dir() == Path.home() / ".config" / "x2fa"
+
+
+class TestEffectiveDbUri:
+    def test_sqlite_default_uses_data_dir(self, tmp_path):
+        config = InstallConfig(config_root=tmp_path)
+        uri = config.effective_db_uri()
+        assert uri.startswith("sqlite:///")
+        assert str(tmp_path / ".local" / "share" / "x2fa" / "db.sqlite") in uri
+
+    def test_custom_uri_returned_verbatim(self, tmp_path):
+        config = InstallConfig(config_root=tmp_path, db_uri="postgresql://u:p@localhost/x2fa")
+        assert config.effective_db_uri() == "postgresql://u:p@localhost/x2fa"
+
+
+class TestEffectiveCaCert:
+    def test_generate_returns_ca_cert_path(self, tmp_path):
+        config = InstallConfig(config_root=tmp_path, ca_action="generate",
+                               ca_cert_path="/tmp/cert.pem")
+        assert config.effective_ca_cert() == "/tmp/cert.pem"
+
+    def test_import_returns_ca_import_path(self, tmp_path):
+        config = InstallConfig(config_root=tmp_path, ca_action="import",
+                               ca_import_path="/custom/ca.pem")
+        assert config.effective_ca_cert() == "/custom/ca.pem"
+
+
+class TestInstallRootOverride:
+    def test_install_root_can_be_set(self, tmp_path):
+        config = InstallConfig(install_root=tmp_path)
+        assert config.install_root == tmp_path
