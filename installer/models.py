@@ -4,12 +4,14 @@ from pathlib import Path
 
 
 def _get_default_paths() -> tuple[str, str, str, str]:
-    """Return LSB/XDG-compliant default paths"""
+    """Return XDG-compliant default paths. Pure computation — no I/O side effects.
 
-    # Non-root: XDG Base Directory spec
-    # Config: ~/.config/x2fa/, Data: ~/.local/share/x2fa/
+    Directory creation is handled by the components that actually write the files:
+    - ca.py::generate_ca() creates the CA key/cert parent directory.
+    - flask init-db (via SQLAlchemy) creates the DB file.
+    - config_writer.write_configs() creates ~/.config/x2fa/.
+    """
     xdg_data = Path.home() / ".local" / "share" / "x2fa"
-    xdg_data.mkdir(parents=True, exist_ok=True)
     return (
         str(xdg_data / "ca_key.pem"),
         str(xdg_data / "ca_cert.pem"),

@@ -48,7 +48,7 @@ Screen {
 
 #buttons {
     layout: horizontal;
-    height: 5; 
+    height: auto;
     align: right middle;
     margin-top: 2;
     border-top: solid $panel-lighten-2;
@@ -57,8 +57,7 @@ Screen {
 
 Button {
     margin-left: 1;
-    width: auto;  
-    height: 3;
+    width: auto;
 }
 
 .hidden {

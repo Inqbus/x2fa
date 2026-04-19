@@ -103,7 +103,7 @@ class WelcomeScreen(Screen):
             with Container(id="buttons"):
                 yield Button("Quit", id="quit", variant="error")
                 if not blocking_failed:
-                    yield Button("Continue →", id="next", variant="primary")
+                    yield Button("Continue →", id="next", variant="success")
         yield Footer()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
