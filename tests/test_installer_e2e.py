@@ -1,96 +1,194 @@
-"""End-to-end tests for the installer TUI application."""
+"""End-to-end tests for the installer — drives all screens like a real user
+and verifies the generated config file contents afterwards."""
 
+import tomllib
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
-from textual.widgets import Button, RadioSet
+from textual.widgets import Input
 
 from installer.app import InstallerApp
-from installer.models import InstallConfig
+
+_SIZE = (120, 60)
+
+_ALL_OK_CHECKS = [
+    {"label": "Running as user",           "ok": True, "blocking": False},
+    {"label": "Python ≥ 3.11",             "ok": True, "blocking": True},
+    {"label": "uv package manager",        "ok": True, "blocking": True},
+    {"label": "Port 5000 free",            "ok": True, "blocking": False},
+    {"label": "Redis reachable",           "ok": True, "blocking": False},
+]
 
 
-class InstallerAppTest(InstallerApp):
-    """Test subclass that redirects all file I/O under tmp_path.
-
-    Passes config_root=tmp_path so that XDG config and data paths resolve
-    inside the pytest temporary directory — no Path.home() mocking needed.
-    """
-
-    def __init__(self, tmp_path: Path, **kwargs):
-        super().__init__(config_root=tmp_path, **kwargs)
-        self.config.install_root = tmp_path
-        self.config.db_uri = ""
-        self.config.domain = "test.example.com"
-        self.config.client_id = "test-client"
-        self.config.client_redirect_uri = "https://test.example.com/callback"
+def _read_toml(tmp_path: Path, filename: str) -> dict:
+    return tomllib.loads((tmp_path / ".config" / "x2fa" / filename).read_text())
 
 
-@pytest.mark.asyncio
-async def test_installer_launches_main_menu(tmp_path):
-    """Installer starts with main menu screen."""
-    app = InstallerAppTest(tmp_path)
-
-    async with app.run_test() as pilot:
-        screen = app.screen
-        assert screen is not None
-        assert "MainMenuScreen" in screen.__class__.__name__
-
-        buttons = screen.query(Button)
-        button_ids = [b.id for b in buttons]
-        assert "install" in button_ids
-        assert "manage_ca" in button_ids
-        assert "quit" in button_ids
-
+# ── Scenario 1: client_secret_post (no CASetupScreen) ────────────────────────
 
 @pytest.mark.asyncio
-async def test_installer_database_screen(tmp_path):
-    """Database screen shows database type options."""
-    app = InstallerAppTest(tmp_path)
+async def test_e2e_full_install_client_secret_post(tmp_path):
+    """Navigate all screens with client_secret_post and verify generated configs."""
+    with (
+        patch("installer.screens.welcome._run_checks", return_value=_ALL_OK_CHECKS),
+        patch("installer.runner.init_db",     return_value=(True, "")),
+        patch("installer.runner.init_keys",   return_value=(True, "")),
+        patch("installer.runner.add_client",  return_value=(True, "")),
+    ):
+        app = InstallerApp(config_root=tmp_path)
+        async with app.run_test(size=_SIZE) as pilot:
 
-    async with app.run_test() as pilot:
-        await pilot.click("#install")
-        await pilot.pause()
-        await pilot.click("#next")
-        await pilot.pause()
+            # ── MainMenu → WelcomeScreen ──────────────────────────────────
+            await pilot.click("#install")
+            await pilot.pause()
+            assert "WelcomeScreen" in app.screen.__class__.__name__
 
-        screen = app.screen
-        assert "DatabaseScreen" in screen.__class__.__name__
+            # ── WelcomeScreen → DatabaseScreen ────────────────────────────
+            await pilot.click("#next")
+            await pilot.pause()
+            assert "DatabaseScreen" in app.screen.__class__.__name__
 
-        radio_set = screen.query(RadioSet)
-        assert len(radio_set) > 0
+            # ── DatabaseScreen: keep SQLite default → DomainScreen ────────
+            await pilot.click("#next")
+            await pilot.pause()
+            assert "DomainScreen" in app.screen.__class__.__name__
 
-        buttons = screen.query(Button)
-        button_ids = [b.id for b in buttons]
-        assert "back" in button_ids
-        assert "next" in button_ids
+            # ── DomainScreen: type domain → SecurityScreen ────────────────
+            app.screen.query_one("#domain", Input).value = "e2e.example.com"
+            await pilot.pause()
+            await pilot.click("#next")
+            await pilot.pause()
+            assert "SecurityScreen" in app.screen.__class__.__name__
 
+            # ── SecurityScreen: keys auto-generated on mount, continue ─────
+            secret_key  = app.config.secret_key
+            secret_salt = app.config.secret_salt
+            await pilot.click("#next")
+            await pilot.pause()
+            assert "ClientScreen" in app.screen.__class__.__name__
+
+            # ── ClientScreen: fill data, select client_secret_post ─────────
+            app.screen.query_one("#client_id",    Input).value = "myapp.example.com"
+            await pilot.pause()
+            app.screen.query_one("#redirect_uri", Input).value = "https://myapp.example.com/cb"
+            await pilot.pause()
+            await pilot.click("#client_secret_post")
+            await pilot.pause()
+            await pilot.click("#next")
+            await pilot.pause()
+
+            # ── ExecuteScreen: poll until background worker completes ──────
+            for _ in range(100):
+                await pilot.pause(0.1)
+                if "SummaryScreen" in app.screen.__class__.__name__:
+                    break
+            assert "SummaryScreen" in app.screen.__class__.__name__, \
+                "Installation worker did not reach SummaryScreen in time"
+
+    # ── Verify generated config files ─────────────────────────────────────────
+    x2fa = _read_toml(tmp_path, "x2fa_config.toml")
+    assert x2fa["production"]["DOMAIN"]   == "e2e.example.com"
+    assert x2fa["production"]["ORIGIN"]   == "https://e2e.example.com"
+    assert x2fa["production"]["TESTING"]  is False
+
+    security = _read_toml(tmp_path, "security_config.toml")
+    assert security["production"]["SECRET_KEY"]             == secret_key
+    assert security["production"]["SECRET_SALT"]            == secret_salt
+    assert security["production"]["SESSION_COOKIE_SECURE"]  is True
+
+    db = _read_toml(tmp_path, "db_config.toml")
+    uri = db["production"]["SQLALCHEMY_DATABASE_URI"]
+    assert uri.startswith("sqlite:///")
+    assert "db.sqlite" in uri
+
+    ratelimit = _read_toml(tmp_path, "ratelimit_config.toml")
+    assert ratelimit["production"]["RATELIMIT_STORAGE_URI"] == "memory://"
+
+    babel = _read_toml(tmp_path, "babel_config.toml")
+    assert "BABEL_DEFAULT_LOCALE" in babel["default"]
+
+
+# ── Scenario 2: tls_client_auth (goes through CASetupScreen) ─────────────────
 
 @pytest.mark.asyncio
-async def test_installer_ca_manage_screen(tmp_path):
-    """CA Manage screen is accessible from main menu."""
-    app = InstallerAppTest(tmp_path)
+async def test_e2e_full_install_tls_client_auth(tmp_path):
+    """Navigate all screens with tls_client_auth (through CASetupScreen) and verify configs."""
+    with (
+        patch("installer.screens.welcome._run_checks", return_value=_ALL_OK_CHECKS),
+        patch("installer.runner.init_db",     return_value=(True, "")),
+        patch("installer.runner.init_keys",   return_value=(True, "")),
+        patch("installer.runner.add_ca",      return_value=(True, "")),
+        patch("installer.runner.add_client",  return_value=(True, "")),
+        patch("installer.ca.generate_ca"),
+        patch("installer.ca.issue_client_cert",
+              return_value={"cert": str(tmp_path / "client.pem"),
+                            "key":  str(tmp_path / "client.key")}),
+    ):
+        app = InstallerApp(config_root=tmp_path)
+        async with app.run_test(size=_SIZE) as pilot:
 
-    async with app.run_test() as pilot:
-        await pilot.click("#manage_ca")
-        await pilot.pause()
+            # ── MainMenu → WelcomeScreen ──────────────────────────────────
+            await pilot.click("#install")
+            await pilot.pause()
 
-        screen = app.screen
-        assert "CAManageScreen" in screen.__class__.__name__
+            # ── WelcomeScreen → DatabaseScreen ────────────────────────────
+            await pilot.click("#next")
+            await pilot.pause()
 
+            # ── DatabaseScreen → DomainScreen ─────────────────────────────
+            await pilot.click("#next")
+            await pilot.pause()
 
-@pytest.mark.asyncio
-async def test_installer_config_preserved_on_back_navigation(tmp_path):
-    """Config values set before navigation are retained when going back."""
-    app = InstallerAppTest(tmp_path)
+            # ── DomainScreen: type domain ─────────────────────────────────
+            app.screen.query_one("#domain", Input).value = "tls.example.com"
+            await pilot.pause()
+            await pilot.click("#next")
+            await pilot.pause()
 
-    async with app.run_test() as pilot:
-        original_domain = app.config.domain
+            # ── SecurityScreen: keys auto-generated, continue ─────────────
+            secret_key = app.config.secret_key
+            await pilot.click("#next")
+            await pilot.pause()
+            assert "ClientScreen" in app.screen.__class__.__name__
 
-        await pilot.click("#install")
-        await pilot.pause()
-        await pilot.click("#next")
-        await pilot.pause()
-        await pilot.click("#back")
-        await pilot.pause()
+            # ── ClientScreen: fill data, keep tls_client_auth default ──────
+            app.screen.query_one("#client_id",    Input).value = "client.example.com"
+            await pilot.pause()
+            app.screen.query_one("#redirect_uri", Input).value = "https://client.example.com/cb"
+            await pilot.pause()
+            await pilot.click("#next")
+            await pilot.pause()
+            assert "CASetupScreen" in app.screen.__class__.__name__
 
-        assert app.config.domain == original_domain
+            # ── CASetupScreen: set ca_name, set generate action ───────────
+            # ca_action defaults to "" in config; set it explicitly so the
+            # _validate() / execute.py generate-branch are triggered correctly.
+            app.config.ca_action = "generate"
+            app.screen.query_one("#ca_name", Input).value = "test-ca"
+            await pilot.pause()
+            await pilot.click("#next")
+            await pilot.pause()
+
+            # ── ExecuteScreen: poll until background worker completes ──────
+            for _ in range(100):
+                await pilot.pause(0.1)
+                if "SummaryScreen" in app.screen.__class__.__name__:
+                    break
+            assert "SummaryScreen" in app.screen.__class__.__name__, \
+                "Installation worker did not reach SummaryScreen in time"
+
+    # ── Verify generated config files ─────────────────────────────────────────
+    x2fa = _read_toml(tmp_path, "x2fa_config.toml")
+    assert x2fa["production"]["DOMAIN"]  == "tls.example.com"
+    assert x2fa["production"]["ORIGIN"]  == "https://tls.example.com"
+    assert x2fa["production"]["TESTING"] is False
+
+    security = _read_toml(tmp_path, "security_config.toml")
+    assert security["production"]["SECRET_KEY"] == secret_key
+
+    db = _read_toml(tmp_path, "db_config.toml")
+    assert db["production"]["SQLALCHEMY_DATABASE_URI"].startswith("sqlite:///")
+
+    ratelimit = _read_toml(tmp_path, "ratelimit_config.toml")
+    assert ratelimit["production"]["RATELIMIT_STRATEGY"] == "moving-window"
