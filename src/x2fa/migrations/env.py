@@ -9,8 +9,11 @@ import os
 import sys
 from pathlib import Path
 
-# Make the src package importable when running `alembic` from the project root.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+# Make the src layout importable when running the alembic CLI directly.
+# __file__ = src/x2fa/migrations/env.py → parent.parent.parent = src/
+_src = str(Path(__file__).resolve().parent.parent.parent)
+if _src not in sys.path:
+    sys.path.insert(0, _src)
 
 from logging.config import fileConfig
 

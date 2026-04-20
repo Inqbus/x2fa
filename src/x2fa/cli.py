@@ -64,18 +64,19 @@ def _run_alembic_upgrade():
     stamped at ``head`` before upgrading so Alembic does not try to re-create
     tables that already exist.
     """
+    from importlib.resources import files as _pkg_files
     from pathlib import Path
     from alembic import command
     from alembic.config import Config as AlembicConfig
     from sqlalchemy import create_engine, inspect
     from x2fa.config import cfg
 
-    project_root = Path(__file__).resolve().parent.parent.parent
-    ini_path = project_root / "migrations" / "alembic.ini"
+    migrations_dir = Path(str(_pkg_files("x2fa").joinpath("migrations")))
+    ini_path = migrations_dir / "alembic.ini"
 
     db_url = cfg.x2fa_database.SQLALCHEMY_DATABASE_URI
     alembic_cfg = AlembicConfig(str(ini_path))
-    alembic_cfg.set_main_option("script_location", str(project_root / "migrations"))
+    alembic_cfg.set_main_option("script_location", str(migrations_dir))
     alembic_cfg.set_main_option("sqlalchemy.url", db_url)
 
     engine = create_engine(db_url)

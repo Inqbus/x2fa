@@ -1,5 +1,5 @@
-import os
 import tomli_w
+from importlib.resources import files as _pkg_files
 from pathlib import Path
 
 from installer.models import InstallConfig
@@ -42,9 +42,7 @@ def write_configs(config: InstallConfig) -> tuple[bool, str]:
     config_dir = config._config_dir()
     config_dir.mkdir(parents=True, exist_ok=True, mode=0o755)
 
-    template_dir = (
-        Path(__file__).resolve().parent.parent / "src" / "x2fa" / "config_files"
-    )
+    template_dir = Path(str(_pkg_files("x2fa").joinpath("config_files")))
 
     written: list[str] = []
     try:

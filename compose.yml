@@ -1,0 +1,61 @@
+# X2FA Docker Compose — production service
+#
+# First-time setup
+# ────────────────
+# Run the installer TUI once to generate config and database:
+#
+#   docker compose run --rm --service-ports installer
+#
+# The TUI writes config files into the x2fa-config volume and the SQLite
+# database into the x2fa-data volume.  After the installer completes,
+# start the service normally:
+#
+#   docker compose up -d x2fa
+#
+# Upgrading
+# ─────────
+# Pull the new image, then restart:
+#
+#   docker compose pull
+#   docker compose up -d x2fa
+
+services:
+
+  x2fa:
+    build: .
+    image: x2fa:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5000:5000"   # expose only to localhost; TLS is handled by the proxy
+    volumes:
+      - x2fa-config:/home/x2fa/.config/x2fa   # TOML config files written by the installer
+      - x2fa-data:/home/x2fa/.local/share/x2fa # SQLite DB, CA key, signing keys
+    environment:
+      ENV_FOR_DYNACONF: production
+    healthcheck:
+      test: ["CMD", "python3", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:5000/.well-known/openid-configuration')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # One-off installer service — run with:  docker compose run --rm installer
+  # Requires a TTY:  docker compose run --rm -it installer
+  installer:
+    build: .
+    image: x2fa:latest
+    volumes:
+      - x2fa-config:/home/x2fa/.config/x2fa
+      - x2fa-data:/home/x2fa/.local/share/x2fa
+    environment:
+      ENV_FOR_DYNACONF: production
+    command: ["x2fa-install"]
+    profiles:
+      - installer   # not started by `docker compose up`; run explicitly
+
+volumes:
+  x2fa-config:
+    driver: local
+  x2fa-data:
+    driver: local

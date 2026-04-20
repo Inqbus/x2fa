@@ -1,0 +1,29 @@
+.git/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# Dev and test files
+tests/
+old_tests/
+docs/
+demo_rp/
+AGENTS.md
+
+# Local state
+*.sqlite
+db.sqlite
+db/
+session-*.md
+test_cli.db
+
+# Secrets and generated artifacts that must not enter the image
+*.pem
+*.key
+installer_session.json

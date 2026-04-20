@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "x2fa"
 version = "2.0.0"
@@ -45,9 +49,17 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["src", "."]
+include = ["x2fa*", "installer*"]
 
 [tool.setuptools.package-data]
-"x2fa" = ["templates/*", "config_files/*"]
+"x2fa" = [
+    "templates/*",
+    "config_files/*",
+    "migrations/alembic.ini",
+    "migrations/script.py.mako",
+    "migrations/env.py",
+    "migrations/versions/*.py",
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["src", "."]
