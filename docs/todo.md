@@ -11,4 +11,4 @@
   * `client_secret_jwt` (HMAC-signed JWT)
   * `client_secret_post` / `client_secret_basic` (shared secrets)
 * ✅ Externalize template folder path for multi-stage Docker builds (use `importlib.resources`)
-* Remove `client_secret` column and related code from `OIDCClient` model and CLI commands
+* ~~Remove `client_secret` column~~ — superseded by `client_secret_encrypted` (Fernet-encrypted); old plaintext column is gone
