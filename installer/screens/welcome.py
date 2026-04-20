@@ -142,6 +142,6 @@ class WelcomeScreen(Screen):
             case "quit":
                 self.app.exit()
             case "next":
-                from .database import DatabaseScreen
+                from installer.screens.database import DatabaseScreen
 
                 self.app.push_screen(DatabaseScreen())

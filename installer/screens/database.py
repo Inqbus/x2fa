@@ -130,6 +130,6 @@ class DatabaseScreen(Screen):
                         severity="error",
                     )
                     return
-                from .domain import DomainScreen
+                from installer.screens.domain import DomainScreen
 
                 self.app.push_screen(DomainScreen())

@@ -133,5 +133,5 @@ class SecurityScreen(Screen):
                 if not cfg.secret_key or not cfg.secret_salt:
                     self.notify("Keys cannot be empty.", severity="error")
                     return
-                from .client import ClientScreen
+                from installer.screens.client import ClientScreen
                 self.app.push_screen(ClientScreen())

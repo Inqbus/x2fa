@@ -5,7 +5,7 @@ from textual.containers import Container
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Static
 
-from .models import InstallConfig
+from installer.models import InstallConfig
 
 APP_CSS = """
 Screen {
@@ -119,10 +119,10 @@ class MainMenuScreen(Screen):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         match event.button.id:
             case "install":
-                from .screens.welcome import WelcomeScreen
+                from installer.screens.welcome import WelcomeScreen
                 self.app.push_screen(WelcomeScreen())
             case "manage_ca":
-                from .screens.ca_manage import CAManageScreen
+                from installer.screens.ca_manage import CAManageScreen
                 self.app.push_screen(CAManageScreen())
             case "quit":
                 self.app.exit()

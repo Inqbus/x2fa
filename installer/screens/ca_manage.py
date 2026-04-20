@@ -105,7 +105,7 @@ class CAManageScreen(Screen):
 
     @work(thread=True)
     def _refresh_ca_list(self) -> None:
-        from ..runner import list_cas
+        from installer.runner import list_cas
         install_root = self.app.config.install_root
         ok, output = list_cas(install_root)
         self.call_from_thread(self._update_ca_list, ok, output)
@@ -165,7 +165,7 @@ class CAManageScreen(Screen):
 
     @work(thread=True)
     def _execute_add(self, name: str, cert_path: str) -> None:
-        from ..runner import add_ca
+        from installer.runner import add_ca
         log = self.query_one("#action_log", Log)
         install_root = self.app.config.install_root
 
@@ -185,8 +185,8 @@ class CAManageScreen(Screen):
         self, old_name: str, new_name: str, cn: str,
         validity_days: int, key_path: str, cert_path: str,
     ) -> None:
-        from ..ca import generate_ca
-        from ..runner import add_ca, revoke_ca
+        from installer.ca import generate_ca
+        from installer.runner import add_ca, revoke_ca
         log = self.query_one("#action_log", Log)
         install_root = self.app.config.install_root
 
@@ -223,7 +223,7 @@ class CAManageScreen(Screen):
 
     @work(thread=True)
     def _execute_revoke(self, name: str) -> None:
-        from ..runner import revoke_ca
+        from installer.runner import revoke_ca
         log = self.query_one("#action_log", Log)
         install_root = self.app.config.install_root
 

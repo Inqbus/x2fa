@@ -95,7 +95,7 @@ class ExecuteScreen(Screen):
         self._log.write_line(line)
 
     def _on_done(self) -> None:
-        from .summary import SummaryScreen
+        from installer.screens.summary import SummaryScreen
 
         self.app.push_screen(SummaryScreen())
 
@@ -108,9 +108,9 @@ class ExecuteScreen(Screen):
 
     @work(thread=True)
     def _run_installation(self) -> None:
-        from ..ca import generate_ca, issue_client_cert
-        from ..config_writer import write_configs
-        from ..runner import add_ca, add_client, init_db, init_keys
+        from installer.ca import generate_ca, issue_client_cert
+        from installer.config_writer import write_configs
+        from installer.runner import add_ca, add_client, init_db, init_keys
 
         cfg = self.app.config
         method = cfg.client_auth_method

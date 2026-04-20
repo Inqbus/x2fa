@@ -97,5 +97,5 @@ class ReviewScreen(Screen):
             case "back":
                 self.app.pop_screen()
             case "confirm":
-                from .execute import ExecuteScreen
+                from installer.screens.execute import ExecuteScreen
                 self.app.push_screen(ExecuteScreen())

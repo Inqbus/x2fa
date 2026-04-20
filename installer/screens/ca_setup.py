@@ -220,7 +220,7 @@ class CASetupScreen(Screen):
                 self.app.pop_screen()
             case "next":
                 if self._validate():
-                    from .review import ReviewScreen
+                    from installer.screens.review import ReviewScreen
                     self.app.push_screen(ReviewScreen())
 
 

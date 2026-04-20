@@ -224,8 +224,8 @@ class ClientScreen(Screen):
                 if not self._validate():
                     return
                 if self.app.config.client_auth_method in _PKI_CA_METHODS:
-                    from .ca_setup import CASetupScreen
+                    from installer.screens.ca_setup import CASetupScreen
                     self.app.push_screen(CASetupScreen())
                 else:
-                    from .review import ReviewScreen
+                    from installer.screens.review import ReviewScreen
                     self.app.push_screen(ReviewScreen())

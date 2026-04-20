@@ -1,7 +1,15 @@
 import argparse
+import sys
 from pathlib import Path
 
-from .app import InstallerApp
+# Ensure the project root is on sys.path so that `installer` is importable
+# regardless of how this script is invoked (uv run installer, python -m installer,
+# or python installer/__main__.py directly).
+_project_root = str(Path(__file__).resolve().parent.parent)
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
+from installer.app import InstallerApp
 
 
 def main() -> None:

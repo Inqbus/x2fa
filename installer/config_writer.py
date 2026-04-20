@@ -2,7 +2,7 @@ import os
 import tomli_w
 from pathlib import Path
 
-from .models import InstallConfig
+from installer.models import InstallConfig
 
 
 def write_configs(config: InstallConfig) -> tuple[bool, str]:

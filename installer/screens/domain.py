@@ -103,5 +103,5 @@ class DomainScreen(Screen):
                 if not self.app.config.domain:
                     self.notify("Enter a domain name.", severity="error")
                     return
-                from .security import SecurityScreen
+                from installer.screens.security import SecurityScreen
                 self.app.push_screen(SecurityScreen())
