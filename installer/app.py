@@ -3,7 +3,7 @@ from pathlib import Path
 from textual.app import App, ComposeResult
 from textual.containers import Container
 from textual.screen import Screen
-from textual.widgets import Button, Footer, Header, Static
+from textual.widgets import Button, Collapsible, Footer, Header, Markdown, Static
 
 from installer.models import InstallConfig
 
@@ -88,7 +88,45 @@ Checkbox {
 """
 
 
+_MAIN_HELP_TEXT = """\
+## X2FA Installer
+
+This installer walks through every configuration step and sets up X2FA automatically.
+
+### Fresh Installation
+
+Runs the full setup wizard:
+
+1. **Preflight checks** — Python ≥ 3.11, uv, port 5000, Redis
+2. **Database** — SQLite (default), PostgreSQL, or MySQL
+3. **Domain & Proxy** — public hostname and reverse proxy type
+4. **Security** — auto-generates `SECRET_KEY` and `SECRET_SALT`; optional Redis URI
+5. **First OIDC Client** — client ID, redirect URI, authentication method
+6. **Certificate Authority** *(PKI methods only)* — generate or import a CA
+7. **Review** — read-only summary before anything is written
+8. **Execute** — writes config files, initialises the database, registers the CA and client
+9. **Summary** — start command, generated files, reverse proxy snippet, next-steps checklist
+
+Config files are written to `~/.config/x2fa/`.
+Data files (CA key, database) are written to `~/.local/share/x2fa/`.
+
+Use `--config-root <dir>` to relocate everything under a different base directory.
+
+### Manage CAs
+
+Add, list, revoke, or renew Certificate Authorities without re-running the full installer.
+Use this when a CA is expiring or when you want to add a second CA for a new client.
+
+### F1 Help
+
+Every screen has a contextual help panel. Press `F1` (or click the panel title) to
+expand it. The panel explains every field, the available options, and recommended values.
+"""
+
+
 class MainMenuScreen(Screen):
+    BINDINGS = [("f1", "toggle_help", "Help")]
+
     CSS = """
     #logo {
         text-align: center;
@@ -103,6 +141,9 @@ class MainMenuScreen(Screen):
     }
     """
 
+    def action_toggle_help(self) -> None:
+        self.query_one("#help_panel", Collapsible).collapsed ^= True
+
     def compose(self) -> ComposeResult:
         yield Header()
         with Container(id="panel"):
@@ -111,6 +152,8 @@ class MainMenuScreen(Screen):
                 id="logo",
                 markup=True,
             )
+            with Collapsible(title="Help  (F1)", id="help_panel", collapsed=True):
+                yield Markdown(_MAIN_HELP_TEXT)
             yield Button("⚙   Fresh Installation",  id="install",   variant="primary")
             yield Button("🔑  Manage CAs",           id="manage_ca", variant="default")
             yield Button("✕   Quit",                 id="quit",      variant="error")
