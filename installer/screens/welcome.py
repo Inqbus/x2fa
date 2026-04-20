@@ -40,10 +40,11 @@ def _run_checks() -> list[dict]:
     is_root = os.geteuid() == 0
     checks.append(
         {
-            "label": f"Running as {'root' if is_root else 'user'}",
+            "label": f"Running as {'root' if is_root else 'non-root user'}",
             "ok": True,
             "blocking": False,
-            "hint": "Root access required for /etc/x2fa paths" if not is_root else "",
+            # Informational note — only relevant for non-root users
+            "info": "Use --config-root or run as root for system-wide /etc/x2fa paths" if not is_root else None,
         }
     )
 
@@ -54,12 +55,20 @@ def _run_checks() -> list[dict]:
             "label": f"Python ≥ 3.11  (found {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro})",
             "ok": ok,
             "blocking": True,
+            "hint": "Upgrade Python or run: uv python install 3.11",
         }
     )
 
     # uv
     ok = shutil.which("uv") is not None
-    checks.append({"label": "uv package manager", "ok": ok, "blocking": True})
+    checks.append(
+        {
+            "label": "uv package manager",
+            "ok": ok,
+            "blocking": True,
+            "hint": "Install uv: curl -LsSf https://astral.sh/uv/install.sh | sh",
+        }
+    )
 
     # Port 5000
     try:
@@ -69,14 +78,10 @@ def _run_checks() -> list[dict]:
         port_ok = True
     except OSError:
         port_ok = False
-    checks.append(
-        {
-            "label": "Port 5000 free",
-            "ok": port_ok,
-            "blocking": False,
-            "hint": "Stop any service using this port before starting X2FA",
-        }
-    )
+    entry: dict = {"label": "Port 5000 free", "ok": port_ok, "blocking": False}
+    if not port_ok:
+        entry["hint"] = "Stop the process using this port: lsof -ti:5000 | xargs kill"
+    checks.append(entry)
 
     # Redis (warn only)
     try:
@@ -87,14 +92,14 @@ def _run_checks() -> list[dict]:
         redis_ok = True
     except Exception:
         redis_ok = False
-    checks.append(
-        {
-            "label": "Redis reachable on localhost:6379",
-            "ok": redis_ok,
-            "blocking": False,
-            "hint": "Needed in production; memory:// rate-limiter used otherwise",
-        }
-    )
+    entry = {
+        "label": "Redis reachable on localhost:6379" if redis_ok else "Redis not reachable on localhost:6379",
+        "ok": redis_ok,
+        "blocking": False,
+    }
+    if not redis_ok:
+        entry["hint"] = "Optional — only required for multiple Gunicorn workers; memory:// is used otherwise"
+    checks.append(entry)
 
     return checks
 
@@ -117,13 +122,18 @@ class WelcomeScreen(Screen):
 
             for c in checks:
                 if c["ok"]:
-                    mark, cls = "[green]✓[/]", "check-ok"
+                    mark = "[green]✓[/]"
                 elif c["blocking"]:
-                    mark, cls = "[red]✗[/]", "check-err"
+                    mark = "[red]✗[/]"
                 else:
-                    mark, cls = "[yellow]⚠[/]", "check-warn"
-                hint = f"\n    [dim]{c['hint']}[/]" if "hint" in c else ""
-                yield Static(f"  {mark}  {c['label']}{hint}", markup=True)
+                    mark = "[yellow]⚠[/]"
+                # hints: shown only on failure; info: shown only on success
+                note = ""
+                if not c["ok"] and c.get("hint"):
+                    note = f"\n    [dim]{c['hint']}[/]"
+                elif c["ok"] and c.get("info"):
+                    note = f"\n    [dim]{c['info']}[/]"
+                yield Static(f"  {mark}  {c['label']}{note}", markup=True)
 
             if blocking_failed:
                 yield Static(
