@@ -38,6 +38,18 @@ uv sync --extra mysql
 ```
 Connection URI format: `mysql+pymysql://user:password@host/dbname`
 
+### Connection URI
+
+Shown when PostgreSQL or MySQL is selected. Provide the full SQLAlchemy connection
+string including credentials, host, port, and database name.
+
+| Backend | Example URI |
+|---|---|
+| PostgreSQL | `postgresql://x2fa:pass@localhost/x2fa` |
+| MySQL | `mysql+pymysql://x2fa:pass@localhost/x2fa` |
+
+The database and user must already exist. The installer does not create them.
+
 ### Schema management
 
 The installer runs `flask init-db` which calls Alembic `upgrade head` to create all

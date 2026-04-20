@@ -5,6 +5,32 @@ from textual.screen import Screen
 from textual.widgets import Button, Collapsible, Footer, Header, Markdown, Static
 
 _HELP_TEXT = """\
+## Installation Summary
+
+### Start command
+
+Copy and run this command to start X2FA. For permanent deployment, paste it into a
+systemd unit file (see `INSTALL.md` for a ready-to-use template).
+
+### Generated files
+
+Lists every file written during installation: CA key, CA cert, client cert, client key.
+These paths are also printed in the Execute screen log.
+
+**CA private key**: store it securely. It is only needed to issue new client certificates.
+After copying it to a safe location, you may restrict its permissions to `0400`.
+
+**Client cert + key**: copy both files to the relying-party application server.
+The cert goes to the TLS client cert field; the key is the corresponding private key.
+
+### Reverse proxy config
+
+A ready-to-use configuration snippet for your chosen proxy. Paste it into your proxy's
+config file and reload the proxy. For `tls_client_auth` the snippet includes the mTLS
+`client_auth` / `ssl_verify_client` directives.
+
+---
+
 ## Next Steps
 
 Follow this checklist in order after the installer completes:

@@ -7,7 +7,22 @@ _PKI_CA_METHODS = {"tls_client_auth", "private_key_jwt"}
 _SECRET_METHODS = {"client_secret_jwt", "client_secret_post", "client_secret_basic"}
 
 _HELP_TEXT = """\
-## Authentication method
+## First OIDC Client
+
+### Client ID
+
+A unique identifier for the relying-party application. Convention: use the application's
+domain name (e.g. `shop.example.com`). The relying party sends this value as `client_id`
+in every OIDC request. It is also used as the Common Name (CN) of the issued client
+certificate for `tls_client_auth`.
+
+### Redirect URI
+
+The URL X2FA redirects the user to after a successful authentication. Must match exactly
+the callback URL registered in the relying-party application — scheme, host, port, and
+path all count. Example: `https://shop.example.com/auth/callback`.
+
+### Authentication method
 
 Choose how the relying-party application identifies itself when it calls `/token`.
 
@@ -39,6 +54,20 @@ Not recommended for production — a leaked secret immediately compromises the c
 **client_secret_jwt**: Like the above but wraps the secret in a signed JWT, adding a
 nonce and expiry to each request. Preferable to `_post`/`_basic` when a shared secret
 is unavoidable.
+
+### Method-specific fields
+
+**Certificate output directory** (`tls_client_auth`): Directory where the issued
+`<client_id>.cert.pem` and `<client_id>.key.pem` files are written. Must be writable.
+Copy these two files to the relying-party server after installation.
+
+**JWKS URI** (`private_key_jwt`): The URL of the relying party's JSON Web Key Set
+endpoint. X2FA fetches the public key from this URL to verify JWT assertions.
+Example: `https://shop.example.com/.well-known/jwks.json`
+
+**Self-signed certificate path** (`self_signed_tls_client_auth`): Absolute path to an
+existing PEM certificate file on this machine. The installer reads it once to extract
+and store the SHA-256 fingerprint. The file is not copied or moved.
 """
 
 
