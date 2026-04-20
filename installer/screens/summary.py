@@ -7,10 +7,17 @@ from textual.widgets import Button, Collapsible, Footer, Header, Markdown, Stati
 _HELP_TEXT = """\
 ## Installation Summary
 
+### systemd service
+
+The installer writes `~/.config/systemd/user/x2fa.service`.
+Enable and start it with the commands shown in the **systemd** section below.
+
+`loginctl enable-linger` ensures the service starts on boot even without an
+interactive login — required for headless servers.
+
 ### Start command
 
-Copy and run this command to start X2FA. For permanent deployment, paste it into a
-systemd unit file (see `INSTALL.md` for a ready-to-use template).
+Copy and run this command to start X2FA manually (without systemd).
 
 ### Generated files
 
@@ -39,7 +46,7 @@ Follow this checklist in order after the installer completes:
    - For `tls_client_auth`: the proxy must request and forward client certificates.
    - Restart / reload the proxy after updating its config.
 
-2. **Start X2FA** with the command shown below.
+2. **Enable X2FA** as a systemd user service (see the **systemd** section below).
    Verify it is reachable at `https://<domain>/.well-known/openid-configuration`.
 
 3. **Configure your relying-party application** with:
@@ -121,7 +128,22 @@ class SummaryScreen(Screen):
             with Collapsible(title="Next Steps  (F1)", id="help_panel", collapsed=False):
                 yield Markdown(_HELP_TEXT)
 
-            yield Static("Start command:", classes="field-label")
+            # systemd user service
+            unit_path = cfg.config_root / ".config" / "systemd" / "user" / "x2fa.service"
+            yield Static("systemd user service:", classes="field-label")
+            yield Static(
+                f"  {unit_path}\n"
+                "\n"
+                "  # Enable and start (runs as the current user):\n"
+                "  systemctl --user daemon-reload\n"
+                "  systemctl --user enable --now x2fa.service\n"
+                "\n"
+                "  # Auto-start on boot without interactive login (servers):\n"
+                "  loginctl enable-linger",
+                classes="hint",
+            )
+
+            yield Static("Manual start command (without systemd):", classes="field-label")
             yield Static(
                 "  ENV_FOR_DYNACONF=production "
                 "uv run gunicorn 'x2fa.wsgi:app' --bind 127.0.0.1:5000",
@@ -150,10 +172,11 @@ class SummaryScreen(Screen):
 
             yield Static("Next steps:", classes="field-label")
             yield Static(
-                "  1. Configure and start your reverse proxy.\n"
-                "  2. Start X2FA with the command above.\n"
-                "  3. Configure your application with the OIDC client credentials.\n"
-                "  4. Run `flask issue-client-cert <id> --ca <name>` to add more clients.",
+                "  1. Configure and reload your reverse proxy.\n"
+                "  2. systemctl --user daemon-reload && systemctl --user enable --now x2fa.service\n"
+                "  3. loginctl enable-linger  (headless servers — auto-start on boot)\n"
+                "  4. Configure your application with the OIDC client credentials.\n"
+                "  5. Run `flask issue-client-cert <id> --ca <name>` to add more clients.",
                 classes="hint",
             )
 

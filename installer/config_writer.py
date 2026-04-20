@@ -4,6 +4,38 @@ from pathlib import Path
 
 from installer.models import InstallConfig
 
+_SYSTEMD_UNIT = """\
+[Unit]
+Description=X2FA FIDO2 Authentication Microservice
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory={install_root}
+Environment=ENV_FOR_DYNACONF=production
+ExecStart=uv run gunicorn 'x2fa.wsgi:app' --bind 127.0.0.1:5000
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+"""
+
+
+def write_systemd_unit(config: InstallConfig) -> tuple[bool, str]:
+    """Write ~/.config/systemd/user/x2fa.service. Returns (success, log_message)."""
+    unit_dir = config.config_root / ".config" / "systemd" / "user"
+    unit_path = unit_dir / "x2fa.service"
+    try:
+        unit_dir.mkdir(parents=True, exist_ok=True)
+        unit_path.write_text(
+            _SYSTEMD_UNIT.format(install_root=config.install_root)
+        )
+        unit_path.chmod(0o644)
+        return True, f"Service file written: {unit_path}"
+    except OSError as exc:
+        return False, f"Failed to write systemd unit: {exc}"
+
 
 def write_configs(config: InstallConfig) -> tuple[bool, str]:
     """Write all TOML config files to XDG config directory. Returns (success, log_message)."""

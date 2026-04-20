@@ -13,6 +13,7 @@ _PKI_CA_METHODS = {"tls_client_auth", "private_key_jwt"}
 
 _STEPS = [
     ("config", "Write configuration files"),
+    ("systemd", "Write systemd user service"),
     ("initdb", "Initialize database"),
     ("initkeys", "Generate signing keys"),
     ("ca", "Set up Certificate Authority"),
@@ -36,6 +37,7 @@ _HELP_TEXT = """\
 | Step | What it does | Idempotent? |
 |---|---|---|
 | Write configuration files | Writes `x2fa_config.toml`, `security_config.toml`, `db_config.toml`, and `ratelimit_config.toml` to `~/.config/x2fa/` | Yes — overwrites |
+| Write systemd user service | Writes `~/.config/systemd/user/x2fa.service` | Yes — overwrites |
 | Initialize database | Runs `flask init-db` → Alembic `upgrade head` (creates all tables) | Yes on fresh DB; safe on existing DB |
 | Generate signing keys | Runs `flask init-keys` → writes EC key pair to `~/.local/share/x2fa/` | Skips if key already exists |
 | Set up Certificate Authority | Generates or imports the CA key and certificate | Overwrites on generate |
@@ -119,7 +121,7 @@ class ExecuteScreen(Screen):
     @work(thread=True)
     def _run_installation(self) -> None:
         from installer.ca import generate_ca, issue_client_cert
-        from installer.config_writer import write_configs
+        from installer.config_writer import write_configs, write_systemd_unit
         from installer.runner import add_ca, add_client, init_db, init_keys
 
         cfg = self.app.config
@@ -149,17 +151,21 @@ class ExecuteScreen(Screen):
         if not run("config", "Write configuration files", lambda: write_configs(cfg)):
             return
 
-        # 2 — init-db
+        # 2 — systemd user service
+        if not run("systemd", "Write systemd user service", lambda: write_systemd_unit(cfg)):
+            return
+
+        # 4 — init-db
         if not run("initdb", "Initialize database", lambda: init_db(cfg.install_root)):
             return
 
-        # 3 — init-keys
+        # 5 — init-keys
         if not run(
             "initkeys", "Generate signing keys", lambda: init_keys(cfg.install_root)
         ):
             return
 
-        # 4 — CA  (PKI methods only)
+        # 6 — CA  (PKI methods only)
         ca_cert = None
         if needs_ca:
             if cfg.ca_action == "generate":
