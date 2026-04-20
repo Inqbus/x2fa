@@ -78,7 +78,11 @@ def _run_checks() -> list[dict]:
         port_ok = True
     except OSError:
         port_ok = False
-    entry: dict = {"label": "Port 5000 free", "ok": port_ok, "blocking": False}
+    entry: dict = {
+        "label": "Port 5000 free" if port_ok else "Port 5000 occupied",
+        "ok": port_ok,
+        "blocking": False,
+    }
     if not port_ok:
         entry["hint"] = "Stop the process using this port: lsof -ti:5000 | xargs kill"
     checks.append(entry)
