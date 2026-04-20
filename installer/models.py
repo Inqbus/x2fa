@@ -53,6 +53,9 @@ class InstallConfig:
     client_self_signed_cert_path: str = ""  # self_signed_tls_client_auth
     client_cert_output_dir: str = ""   # tls_client_auth — filled by __post_init__
 
+    # ── Deployment options ────────────────────────────────────────────────
+    enable_systemd: bool = True   # attempt systemctl --user enable --now after install
+
     # ── Results (filled during ExecuteScreen) ─────────────────────────────
     generated_files: list[str] = field(default_factory=list)
     install_error: str | None = None

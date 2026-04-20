@@ -3,7 +3,7 @@
 from textual.app import ComposeResult
 from textual.containers import Container
 from textual.screen import Screen
-from textual.widgets import Button, Footer, Header, Static
+from textual.widgets import Button, Checkbox, Footer, Header, Static
 
 
 class ReviewScreen(Screen):
@@ -87,10 +87,22 @@ class ReviewScreen(Screen):
                 else:
                     yield Static(f"  Cert:     {cfg.ca_import_path or '(not set)'}", classes="review-row")
 
+            # ── Deployment ─────────────────────────────────────────────────
+            yield Static("DEPLOYMENT", classes="review-section")
+            yield Checkbox(
+                "Enable and start systemd service automatically after install",
+                id="enable_systemd",
+                value=cfg.enable_systemd,
+            )
+
             with Container(id="buttons"):
                 yield Button("← Back", id="back")
                 yield Button("Confirm & Install →", id="confirm", variant="success")
         yield Footer()
+
+    def on_checkbox_changed(self, event: Checkbox.Changed) -> None:
+        if event.checkbox.id == "enable_systemd":
+            self.app.config.enable_systemd = event.value
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         match event.button.id:

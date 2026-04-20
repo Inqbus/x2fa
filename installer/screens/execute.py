@@ -20,12 +20,14 @@ _STEPS = [
     ("add_ca", "Register CA in X2FA"),
     ("client", "Register OIDC client"),
     ("cert", "Issue client certificate"),
+    ("systemd_activate", "Enable systemd service"),
 ]
 
 _ICONS = {
     "pending": "[dim]○[/]",
     "running": "[yellow]▶[/]",
     "ok": "[green]✓[/]",
+    "warn": "[yellow]⚠[/]",
     "error": "[red]✗[/]",
     "skip": "[dim]–[/]",
 }
@@ -246,6 +248,24 @@ class ExecuteScreen(Screen):
         else:
             set_step("cert", "skip", "Issue client certificate  (skipped)")
 
+        # Final — activate systemd user service (non-blocking)
+        _activate_label = "Enable systemd service"
+        if cfg.enable_systemd:
+            set_step("systemd_activate", "running", _activate_label)
+            ok, msg = _try_activate_systemd()
+            if ok:
+                set_step("systemd_activate", "ok", _activate_label)
+                log(f"  {msg}")
+            else:
+                set_step("systemd_activate", "warn", f"{_activate_label}  (manual steps needed)")
+                log(f"[yellow]  systemd activation failed: {msg}[/]")
+                log("  Run manually:")
+                log("    systemctl --user daemon-reload")
+                log("    systemctl --user enable --now x2fa.service")
+                log("    loginctl enable-linger  # for auto-start on boot")
+        else:
+            set_step("systemd_activate", "skip", f"{_activate_label}  (disabled)")
+
         self.app.call_from_thread(self._on_done)
 
     # ── Button ────────────────────────────────────────────────────────────
@@ -279,6 +299,37 @@ class ExecuteScreen(Screen):
         self.query_one("#abort", Button).label = "Abort"
         # Re-run
         self._run_installation()
+
+
+# ── systemd activation helper ────────────────────────────────────────────────
+
+def _try_activate_systemd() -> tuple[bool, str]:
+    """Attempt systemctl --user daemon-reload + enable --now x2fa.service.
+
+    Returns (success, message).  Never raises.
+    """
+    try:
+        r = subprocess.run(
+            ["systemctl", "--user", "daemon-reload"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if r.returncode != 0:
+            return False, (r.stderr.strip() or "daemon-reload failed")
+
+        r2 = subprocess.run(
+            ["systemctl", "--user", "enable", "--now", "x2fa.service"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if r2.returncode != 0:
+            return False, (r2.stderr.strip() or "enable --now failed")
+
+        return True, "x2fa.service enabled and started"
+    except FileNotFoundError:
+        return False, "systemctl not found"
+    except subprocess.TimeoutExpired:
+        return False, "systemctl timed out"
+    except Exception as exc:
+        return False, str(exc)
 
 
 # ── Clipboard helper ──────────────────────────────────────────────────────────
