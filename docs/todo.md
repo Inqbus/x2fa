@@ -2,9 +2,8 @@
 
 #### wishlist
 
-* Write unit tests for installer (`installer/screens/*.py`, `installer/config_writer.py`, `installer/runner.py`, `installer/models.py`)
-  * ✅ `test_installer_models.py` - 11 tests for InstallConfig and XDG paths
-* When Flask CLI or web app starts and config files are missing, raise a clear RuntimeError with instructions to run the installer.
+* ✅ Write unit tests for installer (`installer/screens/*.py`, `installer/config_writer.py`, `installer/runner.py`, `installer/models.py`)
+* ✅ When Flask CLI or web app starts and config files are missing, raise a clear RuntimeError with instructions to run the installer.
 * Move CA keys/certs from source tree to XDG data directory (`~/.local/share/x2fa/`)
 * Add Alembic migrations for safe schema upgrades (produces `ALTER TABLE` for existing installations, replaces destructive `flask init-db`)
 * Add support for additional OIDC client authentication methods:
