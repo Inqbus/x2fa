@@ -29,7 +29,7 @@ problems at runtime. Review the hint and decide whether to fix it first.
 |---|---|---|
 | Python ≥ 3.11 | Blocking | Upgrade Python. `uv python install 3.11` works. |
 | uv package manager | Blocking | Install uv: `curl -LsSf https://astral.sh/uv/install.sh | sh` |
-| Running as non-root user | Blocking | Create a dedicated user: `sudo useradd -r -s /sbin/nologin x2fa` |
+| Running as non-root user | Blocking | Click **Set up x2fa user →** to create the account automatically |
 | Port 5000 free | Warning | Stop the conflicting service: `lsof -ti:5000 | xargs kill` |
 | Redis reachable | Warning | Optional — only required when running multiple Gunicorn workers |
 """
@@ -116,6 +116,7 @@ class WelcomeScreen(Screen):
     def compose(self) -> ComposeResult:
         checks = _run_checks()
         blocking_failed = any(not c["ok"] and c["blocking"] for c in checks)
+        running_as_root = os.geteuid() == 0
 
         yield Header()
         with Container(id="panel"):
@@ -146,7 +147,11 @@ class WelcomeScreen(Screen):
 
             with Container(id="buttons"):
                 yield Button("← Back", id="back")
-                if not blocking_failed:
+                if running_as_root:
+                    yield Button("Set up x2fa user →", id="setup_user", variant="warning")
+                elif blocking_failed:
+                    pass  # other blocking issues — no actionable button
+                else:
                     yield Button("Continue →", id="next", variant="success")
         yield Footer()
 
@@ -154,7 +159,9 @@ class WelcomeScreen(Screen):
         match event.button.id:
             case "back":
                 self.app.pop_screen()
+            case "setup_user":
+                from installer.screens.user_setup import UserSetupScreen
+                self.app.push_screen(UserSetupScreen())
             case "next":
                 from installer.screens.database import DatabaseScreen
-
                 self.app.push_screen(DatabaseScreen())
