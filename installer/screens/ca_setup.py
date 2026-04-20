@@ -75,6 +75,7 @@ class CASetupScreen(Screen):
             yield Static("Certificate Authority", classes="screen-title")
             with Collapsible(title="Help  (F1)", id="help_panel", collapsed=True):
                 yield Markdown(_HELP_TEXT)
+            yield Static("[dim]* Required[/]", markup=True, classes="hint")
 
             yield Static("Action:", classes="field-label")
             with RadioSet(id="ca_action"):
@@ -91,7 +92,7 @@ class CASetupScreen(Screen):
 
             # ── Generate fields ────────────────────────────────────────────
             with Container(id="gen_fields", classes=gen_cls):
-                yield Static("CA name (used in flask CLI):", classes="field-label")
+                yield Static("CA name (used in flask CLI) [bold red]*[/]:", markup=True, classes="field-label")
                 yield Input(
                     value=cfg.ca_name, placeholder="x2fa-internal-ca", id="ca_name"
                 )
@@ -117,7 +118,7 @@ class CASetupScreen(Screen):
                     if cfg.ca_key_path.startswith(("/etc", str(Path.home())))
                     else "[dim]Keep offline after install.[/]"
                 )
-                yield Static("Private key output path:", classes="field-label")
+                yield Static("Private key output path [bold red]*[/]:", markup=True, classes="field-label")
                 yield Input(
                     value=cfg.ca_key_path,
                     placeholder="/etc/x2fa/ca_key.pem",
@@ -130,7 +131,7 @@ class CASetupScreen(Screen):
                     if cfg.ca_cert_path.startswith(("/etc", str(Path.home())))
                     else ""
                 )
-                yield Static("Certificate output path:", classes="field-label")
+                yield Static("Certificate output path [bold red]*[/]:", markup=True, classes="field-label")
                 yield Input(
                     value=cfg.ca_cert_path,
                     placeholder="/etc/x2fa/ca_cert.pem",
@@ -140,13 +141,13 @@ class CASetupScreen(Screen):
 
             # ── Import fields ──────────────────────────────────────────────
             with Container(id="imp_fields", classes=imp_cls):
-                yield Static("CA name (used in flask CLI):", classes="field-label")
+                yield Static("CA name (used in flask CLI) [bold red]*[/]:", markup=True, classes="field-label")
                 yield Input(
                     value=cfg.ca_name, placeholder="x2fa-internal-ca", id="ca_name_imp"
                 )
 
                 yield Static(
-                    "Path to existing CA certificate (PEM):", classes="field-label"
+                    "Path to existing CA certificate (PEM) [bold red]*[/]:", markup=True, classes="field-label"
                 )
                 yield Input(
                     value=cfg.ca_import_path,

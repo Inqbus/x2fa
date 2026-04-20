@@ -57,8 +57,9 @@ class DomainScreen(Screen):
             yield Static("Domain & Reverse Proxy", classes="screen-title")
             with Collapsible(title="Help  (F1)", id="help_panel", collapsed=True):
                 yield Markdown(_HELP_TEXT)
+            yield Static("[dim]* Required[/]", markup=True, classes="hint")
 
-            yield Static("Domain (no https://, no trailing slash):", classes="field-label")
+            yield Static("Domain (no https://, no trailing slash) [bold red]*[/]:", markup=True, classes="field-label")
             yield Input(value=cfg.domain, placeholder="2fa.example.com", id="domain")
             yield Static(origin_hint, id="origin_hint", markup=True, classes="hint")
 

@@ -60,6 +60,9 @@ class DatabaseScreen(Screen):
             yield Static("Database", classes="screen-title")
             with Collapsible(title="Help  (F1)", id="help_panel", collapsed=True):
                 yield Markdown(_HELP_TEXT)
+            yield Static("[dim]* Required[/]", markup=True,
+                         classes="hint" if db != "sqlite" else "hint hidden",
+                         id="req_legend")
             yield Static("Backend:", classes="field-label")
             with RadioSet(id="db_type"):
                 yield RadioButton(
@@ -78,8 +81,9 @@ class DatabaseScreen(Screen):
             )
             # URI input (shown for PG / MySQL)
             yield Static(
-                "Connection URI:",
+                "Connection URI [bold red]*[/]:",
                 id="uri_label",
+                markup=True,
                 classes="field-label" if db != "sqlite" else "field-label hidden",
             )
             yield Input(
@@ -104,6 +108,7 @@ class DatabaseScreen(Screen):
         sqlite = selected == "sqlite"
 
         self.query_one("#sqlite_hint").set_class(not sqlite, "hidden")
+        self.query_one("#req_legend").set_class(sqlite, "hidden")
         self.query_one("#uri_label").set_class(sqlite, "hidden")
         uri = self.query_one("#db_uri", Input)
         uri.set_class(sqlite, "hidden")

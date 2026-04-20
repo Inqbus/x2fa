@@ -70,14 +70,15 @@ class ClientScreen(Screen):
                 yield Markdown(_HELP_TEXT)
             yield Static(
                 "[dim]Register the first relying-party app. "
-                "Additional clients can be added later with `flask add-client`.[/]",
+                "Additional clients can be added later with `flask add-client`.[/]  "
+                "[dim]* Required[/]",
                 markup=True, classes="hint",
             )
 
-            yield Static("Client ID (typically the app domain):", classes="field-label")
+            yield Static("Client ID (typically the app domain) [bold red]*[/]:", markup=True, classes="field-label")
             yield Input(value=cfg.client_id, placeholder="shop.example.com", id="client_id")
 
-            yield Static("Redirect URI:", classes="field-label")
+            yield Static("Redirect URI [bold red]*[/]:", markup=True, classes="field-label")
             yield Input(
                 value=cfg.client_redirect_uri,
                 placeholder="https://shop.example.com/auth/callback",
@@ -127,7 +128,7 @@ class ClientScreen(Screen):
             )
 
             # ── private_key_jwt ───────────────────────────────────────────
-            yield Static("JWKS URI:", id="jwks_label",
+            yield Static("JWKS URI [bold red]*[/]:", id="jwks_label", markup=True,
                          classes=_show(is_jwt, "field-label"))
             yield Input(
                 value=cfg.client_jwks_uri,
@@ -137,7 +138,7 @@ class ClientScreen(Screen):
             )
 
             # ── self_signed_tls_client_auth ────────────────────────────────
-            yield Static("Self-signed certificate (PEM):", id="ss_cert_label",
+            yield Static("Self-signed certificate (PEM) [bold red]*[/]:", id="ss_cert_label", markup=True,
                          classes=_show(is_ss, "field-label"))
             yield Input(
                 value=cfg.client_self_signed_cert_path,

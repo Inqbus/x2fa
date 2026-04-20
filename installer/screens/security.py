@@ -56,15 +56,16 @@ class SecurityScreen(Screen):
             yield Static("Security", classes="screen-title")
             with Collapsible(title="Help  (F1)", id="help_panel", collapsed=True):
                 yield Markdown(_HELP_TEXT)
+            yield Static("[dim]* Required  (auto-generated if empty)[/]", markup=True, classes="hint")
 
-            yield Static("SECRET_KEY  (64 hex chars — auto-generated):", classes="field-label")
+            yield Static("SECRET_KEY  (64 hex chars) [bold red]*[/]:", markup=True, classes="field-label")
             yield Input(value=cfg.secret_key, id="secret_key")
             yield Static(
                 "[dim]Changing this after install invalidates all sessions and encrypted TOTP secrets.[/]",
                 markup=True, classes="hint",
             )
 
-            yield Static("SECRET_SALT  (32 hex chars — auto-generated):", classes="field-label")
+            yield Static("SECRET_SALT  (32 hex chars) [bold red]*[/]:", markup=True, classes="field-label")
             yield Input(value=cfg.secret_salt, id="secret_salt")
             yield Static(
                 "[dim]Used for IP anonymisation in the audit log. Keep secret.[/]",
@@ -79,7 +80,7 @@ class SecurityScreen(Screen):
                 id="use_redis",
             )
             redis_cls = "field-label" if cfg.use_redis else "field-label hidden"
-            yield Static("Redis URI:", id="redis_label", classes=redis_cls)
+            yield Static("Redis URI [bold red]*[/]:", id="redis_label", markup=True, classes=redis_cls)
             yield Input(
                 value=cfg.redis_uri,
                 placeholder="redis://localhost:6379/0",
