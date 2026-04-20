@@ -81,7 +81,9 @@ class ExecuteScreen(Screen):
             yield Log(id="log", auto_scroll=True, highlight=True)
             with Container(id="buttons"):
                 yield Button("Copy log", id="copy", variant="default")
-                yield Button("Abort", id="abort", variant="error")
+                yield Button("← Back",  id="back", variant="default")
+                yield Button("↺ Retry", id="retry", variant="warning", disabled=True)
+                yield Button("Abort",   id="abort", variant="error")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -110,6 +112,7 @@ class ExecuteScreen(Screen):
         self._write(f"\n[red bold]Failed:[/] {label}")
         self._write(f"[red]{message}[/]")
         self.query_one("#abort", Button).label = "Quit"
+        self.query_one("#retry", Button).disabled = False
 
     # ── Background worker ─────────────────────────────────────────────────
 
@@ -249,8 +252,27 @@ class ExecuteScreen(Screen):
                     self.notify("Log copied to clipboard.")
                 else:
                     self.app.push_screen(_LogOverlay(text))
+            case "back":
+                self.app.pop_screen()
+            case "retry":
+                self._reset_and_retry()
             case "abort":
                 self.app.exit()
+
+    def _reset_and_retry(self) -> None:
+        # Reset step icons to pending
+        for step_id, label in _STEPS:
+            self.query_one(f"#step-{step_id}", Static).update(
+                f"  {_ICONS['pending']}  {label}"
+            )
+        # Clear log
+        self._log.clear()
+        self._plain_lines = []
+        # Reset buttons
+        self.query_one("#retry", Button).disabled = True
+        self.query_one("#abort", Button).label = "Abort"
+        # Re-run
+        self._run_installation()
 
 
 # ── Clipboard helper ──────────────────────────────────────────────────────────

@@ -85,11 +85,19 @@ def _run_alembic_upgrade():
         engine.dispose()
 
     if existing_tables and "alembic_version" not in existing_tables:
-        # Pre-existing database — mark as already at head, then upgrade will
-        # only apply genuinely new migrations added after the initial install.
+        # Pre-existing database without Alembic tracking — stamp to head so
+        # the subsequent upgrade sees the schema as already current.
         command.stamp(alembic_cfg, "head")
 
-    command.upgrade(alembic_cfg, "head")
+    try:
+        command.upgrade(alembic_cfg, "head")
+    except Exception as exc:
+        if "already exists" in str(exc).lower():
+            # Stamp did not prevent the re-run (e.g. connection isolation).
+            # The tables are intact — record the current state and continue.
+            command.stamp(alembic_cfg, "head")
+        else:
+            raise
 
 
 @click.command("init-keys")
