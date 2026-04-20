@@ -29,7 +29,7 @@ problems at runtime. Review the hint and decide whether to fix it first.
 |---|---|---|
 | Python ≥ 3.11 | Blocking | Upgrade Python. `uv python install 3.11` works. |
 | uv package manager | Blocking | Install uv: `curl -LsSf https://astral.sh/uv/install.sh | sh` |
-| Running as root/user | Info | No action needed — informational only |
+| Running as non-root user | Blocking | Create a dedicated user: `sudo useradd -r -s /sbin/nologin x2fa` |
 | Port 5000 free | Warning | Stop the conflicting service: `lsof -ti:5000 | xargs kill` |
 | Redis reachable | Warning | Optional — only required when running multiple Gunicorn workers |
 """
@@ -40,11 +40,10 @@ def _run_checks() -> list[dict]:
     is_root = os.geteuid() == 0
     checks.append(
         {
-            "label": f"Running as {'root' if is_root else 'non-root user'}",
-            "ok": True,
-            "blocking": False,
-            # Informational note — only relevant for non-root users
-            "info": "Use --config-root or run as root for system-wide /etc/x2fa paths" if not is_root else None,
+            "label": "Running as non-root user" if not is_root else "Running as root",
+            "ok": not is_root,
+            "blocking": True,
+            "hint": "X2FA must not run as root. Create a dedicated user, e.g.: sudo useradd -r -s /sbin/nologin x2fa",
         }
     )
 
