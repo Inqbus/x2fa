@@ -57,18 +57,38 @@ def db_upgrade():
 
 
 def _run_alembic_upgrade():
-    """Run ``alembic upgrade head`` programmatically."""
+    """Run ``alembic upgrade head`` programmatically.
+
+    If the database already has tables but no ``alembic_version`` tracking row
+    (e.g. re-running the installer on an existing installation), the schema is
+    stamped at ``head`` before upgrading so Alembic does not try to re-create
+    tables that already exist.
+    """
     from pathlib import Path
     from alembic import command
     from alembic.config import Config as AlembicConfig
+    from sqlalchemy import create_engine, inspect
     from x2fa.config import cfg
 
     project_root = Path(__file__).resolve().parent.parent.parent
     ini_path = project_root / "migrations" / "alembic.ini"
 
+    db_url = cfg.x2fa_database.SQLALCHEMY_DATABASE_URI
     alembic_cfg = AlembicConfig(str(ini_path))
     alembic_cfg.set_main_option("script_location", str(project_root / "migrations"))
-    alembic_cfg.set_main_option("sqlalchemy.url", cfg.x2fa_database.SQLALCHEMY_DATABASE_URI)
+    alembic_cfg.set_main_option("sqlalchemy.url", db_url)
+
+    engine = create_engine(db_url)
+    try:
+        existing_tables = set(inspect(engine).get_table_names())
+    finally:
+        engine.dispose()
+
+    if existing_tables and "alembic_version" not in existing_tables:
+        # Pre-existing database — mark as already at head, then upgrade will
+        # only apply genuinely new migrations added after the initial install.
+        command.stamp(alembic_cfg, "head")
+
     command.upgrade(alembic_cfg, "head")
 
 
