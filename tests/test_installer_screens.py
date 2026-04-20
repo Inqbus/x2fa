@@ -48,11 +48,11 @@ class DirectScreenApp(App[None]):
 
 class TestWelcomeScreen:
     @pytest.mark.asyncio
-    async def test_quit_button_always_present(self, tmp_path):
+    async def test_back_button_always_present(self, tmp_path):
         from installer.screens.welcome import WelcomeScreen
         app = DirectScreenApp(WelcomeScreen, tmp_path)
         async with app.run_test(size=_SIZE):
-            assert "quit" in {b.id for b in app.screen.query(Button)}
+            assert "back" in {b.id for b in app.screen.query(Button)}
 
     @pytest.mark.asyncio
     async def test_continue_shown_when_all_checks_pass(self, tmp_path):

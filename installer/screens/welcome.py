@@ -132,15 +132,15 @@ class WelcomeScreen(Screen):
                 )
 
             with Container(id="buttons"):
-                yield Button("Quit", id="quit", variant="error")
+                yield Button("← Back", id="back")
                 if not blocking_failed:
                     yield Button("Continue →", id="next", variant="success")
         yield Footer()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         match event.button.id:
-            case "quit":
-                self.app.exit()
+            case "back":
+                self.app.pop_screen()
             case "next":
                 from installer.screens.database import DatabaseScreen
 
