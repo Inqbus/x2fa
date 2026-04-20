@@ -13,7 +13,22 @@ from textual.widgets import Button, Collapsible, Footer, Header, Markdown, Stati
 _HELP_TEXT = """\
 ## Preflight Checks
 
-These checks run automatically before the installer proceeds.
+This installer configures X2FA itself — secrets, database connection, domain,
+OIDC clients, and certificates. **System-level setup is the admin's responsibility
+and must be completed before running this installer.**
+
+### Prerequisites (admin's responsibility)
+
+Before running the installer, ensure the following are already in place:
+
+- **Dedicated system user** — X2FA should run as an unprivileged user (e.g. `x2fa`).
+  Create it with: `sudo useradd --system --shell /sbin/nologin --create-home --home-dir /var/lib/x2fa x2fa`
+  Then run this installer as that user: `sudo -u x2fa uv run installer`
+- **Reverse proxy** — nginx, Caddy, or similar must be installed and configured to
+  forward requests to `127.0.0.1:5000`. The Summary screen provides a ready-to-use
+  config snippet.
+- **Database server** — required only for PostgreSQL or MySQL backends. SQLite (the
+  default) needs no preparation.
 
 ### Check types
 
@@ -29,7 +44,7 @@ problems at runtime. Review the hint and decide whether to fix it first.
 |---|---|---|
 | Python ≥ 3.11 | Blocking | Upgrade Python. `uv python install 3.11` works. |
 | uv package manager | Blocking | Install uv: `curl -LsSf https://astral.sh/uv/install.sh | sh` |
-| Running as non-root user | Blocking | Click **Set up x2fa user →** to create the account automatically |
+| Running as root | Warning | Create a dedicated user and re-run as that user (see Prerequisites above) |
 | Port 5000 free | Warning | Stop the conflicting service: `lsof -ti:5000 | xargs kill` |
 | Redis reachable | Warning | Optional — only required when running multiple Gunicorn workers |
 """
@@ -37,15 +52,25 @@ problems at runtime. Review the hint and decide whether to fix it first.
 
 def _run_checks() -> list[dict]:
     checks = []
+
+    # Root check (warning only — the installer can proceed, but it is unusual)
+    import pwd
     is_root = os.geteuid() == 0
-    checks.append(
-        {
-            "label": "Running as non-root user" if not is_root else "Running as root",
-            "ok": not is_root,
-            "blocking": True,
-            "hint": "X2FA must not run as root. Create a dedicated user, e.g.: sudo useradd -r -s /sbin/nologin x2fa",
-        }
-    )
+    try:
+        username = pwd.getpwuid(os.geteuid()).pw_name
+    except KeyError:
+        username = str(os.geteuid())
+    entry: dict = {
+        "label": "Running as root" if is_root else f"Running as {username}",
+        "ok": not is_root,
+        "blocking": False,
+    }
+    if is_root:
+        entry["hint"] = (
+            "X2FA should not run as root. "
+            "Create a dedicated user and re-run: sudo -u x2fa uv run installer"
+        )
+    checks.append(entry)
 
     # Python version
     ok = sys.version_info >= (3, 11)
@@ -116,7 +141,6 @@ class WelcomeScreen(Screen):
     def compose(self) -> ComposeResult:
         checks = _run_checks()
         blocking_failed = any(not c["ok"] and c["blocking"] for c in checks)
-        running_as_root = os.geteuid() == 0
 
         yield Header()
         with Container(id="panel"):
@@ -147,11 +171,7 @@ class WelcomeScreen(Screen):
 
             with Container(id="buttons"):
                 yield Button("← Back", id="back")
-                if running_as_root:
-                    yield Button("Set up x2fa user →", id="setup_user", variant="warning")
-                elif blocking_failed:
-                    pass  # other blocking issues — no actionable button
-                else:
+                if not blocking_failed:
                     yield Button("Continue →", id="next", variant="success")
         yield Footer()
 
@@ -159,9 +179,6 @@ class WelcomeScreen(Screen):
         match event.button.id:
             case "back":
                 self.app.pop_screen()
-            case "setup_user":
-                from installer.screens.user_setup import UserSetupScreen
-                self.app.push_screen(UserSetupScreen())
             case "next":
                 from installer.screens.database import DatabaseScreen
                 self.app.push_screen(DatabaseScreen())

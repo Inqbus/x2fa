@@ -13,11 +13,11 @@ from installer.app import InstallerApp
 _SIZE = (120, 60)
 
 _ALL_OK_CHECKS = [
-    {"label": "Running as user",           "ok": True, "blocking": False},
-    {"label": "Python ≥ 3.11",             "ok": True, "blocking": True},
-    {"label": "uv package manager",        "ok": True, "blocking": True},
-    {"label": "Port 5000 free",            "ok": True, "blocking": False},
-    {"label": "Redis reachable",           "ok": True, "blocking": False},
+    {"label": "Running as x2fa",    "ok": True, "blocking": False},
+    {"label": "Python ≥ 3.11",      "ok": True, "blocking": True},
+    {"label": "uv package manager", "ok": True, "blocking": True},
+    {"label": "Port 5000 free",     "ok": True, "blocking": False},
+    {"label": "Redis reachable",    "ok": True, "blocking": False},
 ]
 
 

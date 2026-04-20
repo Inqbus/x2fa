@@ -1,5 +1,7 @@
 """Execute screen — runs all install steps sequentially with live progress output."""
 
+import re
+
 from textual import work
 from textual.app import ComposeResult
 from textual.containers import Container
@@ -77,11 +79,13 @@ class ExecuteScreen(Screen):
                     )
             yield Log(id="log", auto_scroll=True, highlight=True)
             with Container(id="buttons"):
+                yield Button("Copy log", id="copy", variant="default")
                 yield Button("Abort", id="abort", variant="error")
         yield Footer()
 
     def on_mount(self) -> None:
         self._log = self.query_one("#log", Log)
+        self._plain_lines: list[str] = []
         self._run_installation()
 
     # ── UI helpers (must be called on the main thread) ────────────────────
@@ -93,6 +97,8 @@ class ExecuteScreen(Screen):
 
     def _write(self, line: str) -> None:
         self._log.write_line(line)
+        # Strip Rich markup tags for the plain-text clipboard copy.
+        self._plain_lines.append(re.sub(r"\[/?[^\]]*\]", "", line))
 
     def _on_done(self) -> None:
         from installer.screens.summary import SummaryScreen
@@ -235,5 +241,9 @@ class ExecuteScreen(Screen):
     # ── Button ────────────────────────────────────────────────────────────
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "abort":
-            self.app.exit()
+        match event.button.id:
+            case "copy":
+                self.app.copy_to_clipboard("\n".join(self._plain_lines))
+                self.notify("Log copied to clipboard.")
+            case "abort":
+                self.app.exit()

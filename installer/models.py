@@ -1,6 +1,14 @@
+import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+
+# Fields excluded from session persistence.
+# - install_root: derived from cwd at runtime
+# - config_root: CLI argument; saving it causes the session file location to follow a
+#   stale path (e.g. a pytest tmp dir) instead of always resolving via Path.home()
+# - generated_files, install_error: transient results from a previous run
+_SESSION_EXCLUDE = {"install_root", "config_root", "generated_files", "install_error"}
 
 
 @dataclass
@@ -43,7 +51,7 @@ class InstallConfig:
     client_auth_method: str = "tls_client_auth"
     client_jwks_uri: str = ""  # private_key_jwt
     client_self_signed_cert_path: str = ""  # self_signed_tls_client_auth
-    client_cert_output_dir: str = "."  # tls_client_auth
+    client_cert_output_dir: str = ""   # tls_client_auth — filled by __post_init__
 
     # ── Results (filled during ExecuteScreen) ─────────────────────────────
     generated_files: list[str] = field(default_factory=list)
@@ -55,6 +63,8 @@ class InstallConfig:
             self.ca_key_path = str(data / "ca_key.pem")
         if not self.ca_cert_path:
             self.ca_cert_path = str(data / "ca_cert.pem")
+        if not self.client_cert_output_dir:
+            self.client_cert_output_dir = str(data)
 
     def _data_dir(self) -> Path:
         """XDG data directory: <config_root>/.local/share/x2fa/"""
@@ -73,3 +83,44 @@ class InstallConfig:
         return (
             self.ca_cert_path if self.ca_action == "generate" else self.ca_import_path
         )
+
+    # ── Session persistence ───────────────────────────────────────────────
+
+    @staticmethod
+    def session_file(config_root: Path | None = None) -> Path:
+        """Location of the installer session file.
+
+        Uses *config_root* when supplied (so test fixtures stay isolated),
+        otherwise falls back to the user's home directory.
+        """
+        root = config_root if config_root is not None else Path.home()
+        return root / ".local" / "share" / "x2fa" / "installer_session.json"
+
+    def save_session(self) -> None:
+        """Persist all user-entered fields to the session file."""
+        data: dict = {}
+        for f in self.__dataclass_fields__:
+            if f in _SESSION_EXCLUDE:
+                continue
+            val = getattr(self, f)
+            data[f] = str(val) if isinstance(val, Path) else val
+        sf = self.session_file(self.config_root)
+        sf.parent.mkdir(parents=True, exist_ok=True)
+        sf.write_text(json.dumps(data, indent=2))
+
+    @classmethod
+    def load_session(cls, install_root: Path, config_root: Path | None = None) -> "InstallConfig":
+        """Load a previously saved session, falling back to defaults on any error."""
+        sf = cls.session_file(config_root)
+        if sf.exists():
+            try:
+                data = json.loads(sf.read_text())
+                data.pop("config_root", None)   # never restore; always use runtime arg
+                kwargs_cr = {"config_root": config_root} if config_root is not None else {}
+                return cls(install_root=install_root, **kwargs_cr, **data)
+            except Exception:
+                pass
+        kwargs: dict = {"install_root": install_root}
+        if config_root is not None:
+            kwargs["config_root"] = config_root
+        return cls(**kwargs)

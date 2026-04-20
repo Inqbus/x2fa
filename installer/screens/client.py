@@ -109,8 +109,7 @@ class ClientScreen(Screen):
 
             yield Static("Redirect URI [bold red]*[/]:", markup=True, classes="field-label")
             yield Input(
-                value=cfg.client_redirect_uri,
-                placeholder="https://shop.example.com/auth/callback",
+                value=cfg.client_redirect_uri or "https://",
                 id="redirect_uri",
             )
 
@@ -145,13 +144,14 @@ class ClientScreen(Screen):
             yield Static("Certificate output directory:", id="cert_dir_label",
                          classes=_show(is_tls, "field-label"))
             yield Input(
-                value=cfg.client_cert_output_dir or ".",
-                placeholder="./certs",
+                value=cfg.client_cert_output_dir,
                 id="cert_out_dir",
                 classes=_show(is_tls),
             )
             yield Static(
-                "[dim]The installer issues a client cert signed by the CA configured in the next step.[/]",
+                "[dim]The client cert and key will be written here as "
+                "[bold]{client_id}.cert.pem[/] and [bold]{client_id}.key.pem[/]. "
+                "Default: ~/.local/share/x2fa/ (alongside the CA files).[/]",
                 id="cert_hint", markup=True,
                 classes=_show(is_tls, "hint"),
             )
@@ -196,6 +196,13 @@ class ClientScreen(Screen):
                 yield Button("Continue →", id="next", variant="primary")
         yield Footer()
 
+    # ── Lifecycle ─────────────────────────────────────────────────────────
+
+    def on_mount(self) -> None:
+        # Sync the pre-filled "https://" back to config when the field was empty.
+        if not self.app.config.client_redirect_uri:
+            self.app.config.client_redirect_uri = "https://"
+
     # ── Events ────────────────────────────────────────────────────────────
 
     def on_radio_set_changed(self, event: RadioSet.Changed) -> None:
@@ -231,8 +238,11 @@ class ClientScreen(Screen):
         if not cfg.client_id:
             self.notify("Client ID is required.", severity="error")
             return False
-        if not cfg.client_redirect_uri:
+        if not cfg.client_redirect_uri or cfg.client_redirect_uri == "https://":
             self.notify("Redirect URI is required.", severity="error")
+            return False
+        if not cfg.client_redirect_uri.startswith("https://"):
+            self.notify("Redirect URI must start with https://", severity="error")
             return False
         if cfg.client_auth_method == "private_key_jwt" and not cfg.client_jwks_uri:
             self.notify("JWKS URI is required for private_key_jwt.", severity="error")

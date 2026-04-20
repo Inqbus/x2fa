@@ -177,10 +177,22 @@ class InstallerApp(App[None]):
 
     def __init__(self, config_root: Path | None = None) -> None:
         super().__init__()
-        kwargs: dict = {"install_root": Path.cwd()}
-        if config_root is not None:
-            kwargs["config_root"] = config_root
-        self.config = InstallConfig(**kwargs)
+        self.config = InstallConfig.load_session(
+            install_root=Path.cwd(),
+            config_root=config_root,
+        )
+
+    def push_screen(self, screen, *args, **kwargs):
+        self.config.save_session()
+        return super().push_screen(screen, *args, **kwargs)
+
+    def pop_screen(self):
+        self.config.save_session()
+        return super().pop_screen()
+
+    async def action_quit(self) -> None:
+        self.config.save_session()
+        await super().action_quit()
 
     def on_mount(self) -> None:
         self.push_screen(MainMenuScreen())
