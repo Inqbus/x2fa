@@ -1,12 +1,13 @@
 """Execute screen — runs all install steps sequentially with live progress output."""
 
 import re
+import subprocess
 
 from textual import work
 from textual.app import ComposeResult
 from textual.containers import Container
-from textual.screen import Screen
-from textual.widgets import Button, Collapsible, Footer, Header, Log, Markdown, Static
+from textual.screen import ModalScreen, Screen
+from textual.widgets import Button, Collapsible, Footer, Header, Log, Markdown, Static, TextArea
 
 _PKI_CA_METHODS = {"tls_client_auth", "private_key_jwt"}
 
@@ -243,7 +244,71 @@ class ExecuteScreen(Screen):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         match event.button.id:
             case "copy":
-                self.app.copy_to_clipboard("\n".join(self._plain_lines))
-                self.notify("Log copied to clipboard.")
+                text = "\n".join(self._plain_lines)
+                if _copy_to_clipboard(text):
+                    self.notify("Log copied to clipboard.")
+                else:
+                    self.app.push_screen(_LogOverlay(text))
             case "abort":
                 self.app.exit()
+
+
+# ── Clipboard helper ──────────────────────────────────────────────────────────
+
+def _copy_to_clipboard(text: str) -> bool:
+    """Try system clipboard tools, then Textual's OSC 52. Return True on success."""
+    _TOOLS = [
+        ["wl-copy"],                           # Wayland
+        ["xclip", "-selection", "clipboard"],  # X11
+        ["xsel", "--clipboard", "--input"],    # X11 alternative
+    ]
+    for cmd in _TOOLS:
+        try:
+            subprocess.run(cmd, input=text, text=True,
+                           capture_output=True, timeout=2)
+            return True
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            continue
+    return False
+
+
+# ── Fallback overlay ──────────────────────────────────────────────────────────
+
+class _LogOverlay(ModalScreen):
+    """Full-screen read-only overlay showing the log when clipboard is unavailable."""
+
+    CSS = """
+    _LogOverlay {
+        align: center middle;
+    }
+    #overlay_panel {
+        width: 90%;
+        height: 80%;
+        border: round $accent;
+        padding: 1 2;
+        background: $surface;
+    }
+    #overlay_panel Static {
+        color: $text-muted;
+        margin-bottom: 1;
+    }
+    TextArea {
+        height: 1fr;
+    }
+    """
+
+    def __init__(self, text: str) -> None:
+        super().__init__()
+        self._text = text
+
+    def compose(self) -> ComposeResult:
+        with Container(id="overlay_panel"):
+            yield Static(
+                "Clipboard not available — select and copy manually  (Esc to close)",
+                markup=False,
+            )
+            yield TextArea(self._text, read_only=True, id="log_text")
+
+    def on_key(self, event) -> None:
+        if event.key == "escape":
+            self.dismiss()
