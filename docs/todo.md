@@ -10,5 +10,5 @@
   * `self_signed_tls_client_auth` (self-signed cert fingerprint pinning)
   * `client_secret_jwt` (HMAC-signed JWT)
   * `client_secret_post` / `client_secret_basic` (shared secrets)
-* Externalize template folder path for multi-stage Docker builds (use `importlib.resources`)
+* ✅ Externalize template folder path for multi-stage Docker builds (use `importlib.resources`)
 * Remove `client_secret` column and related code from `OIDCClient` model and CLI commands

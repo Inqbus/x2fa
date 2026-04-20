@@ -1,6 +1,6 @@
 """X2FA Flask App-Factory for CLI (minimal extensions, partial configs)."""
 
-from pathlib import Path
+from importlib.resources import files
 
 from flask import Flask
 
@@ -14,7 +14,7 @@ from x2fa.init_app.security import security
 
 def create_app_cli() -> Flask:
     """Create minimal Flask app for CLI commands (no routes)."""
-    app = Flask(__name__, template_folder=Path(__file__).parent / "templates")
+    app = Flask(__name__, template_folder=str(files("x2fa").joinpath("templates")))
 
     config(app)
     db.init_app(app)

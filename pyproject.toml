@@ -44,5 +44,8 @@ dev = [
 [tool.setuptools.packages.find]
 where = ["src", "."]
 
+[tool.setuptools.package-data]
+"x2fa" = ["templates/*", "config_files/*"]
+
 [tool.pytest.ini_options]
 pythonpath = ["src", "."]
