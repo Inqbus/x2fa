@@ -31,7 +31,8 @@ uv run --extra installer python -m installer
 ```
 
 The installer is a terminal UI that walks through every configuration step and runs all
-Flask CLI commands automatically. The screens are:
+Flask CLI commands automatically. Press `F1` on any screen to open a contextual help
+panel explaining every option. The screens are:
 
 1. **Preflight checks** — verifies Python ≥ 3.11, uv, port 5000 availability, Redis
 2. **Database** — SQLite (default), PostgreSQL, or MySQL
@@ -42,13 +43,50 @@ Flask CLI commands automatically. The screens are:
    [Client Authentication Methods](#client-authentication-methods) below)
 6. **Certificate Authority** *(PKI methods only)* — generate a new self-signed CA or
    import an existing one
-7. **Execute** — writes config files, initialises the database and signing keys, registers
+7. **Review** — read-only summary of all collected settings; last chance to go back
+8. **Execute** — writes config files, initialises the database and signing keys, registers
    the CA and client, issues the client certificate
-8. **Summary** — start command, generated file paths, reverse proxy snippet
+9. **Summary** — start command, generated file paths, reverse proxy snippet, next-steps
+   checklist
 
-When the execute step completes, all configuration is written to
-`src/x2fa/config_files/*.toml`. No environment variables are required at runtime beyond
-`ENV_FOR_DYNACONF=production`.
+When the execute step completes, configuration files are written to `~/.config/x2fa/`
+and data files (CA key, database) to `~/.local/share/x2fa/`. No environment variables
+are required at runtime beyond `ENV_FOR_DYNACONF=production`.
+
+### `--config-root` flag
+
+```bash
+uv run --extra installer python -m installer --config-root /opt/x2fa
+```
+
+Relocates **all** config and data paths under the given directory instead of the XDG
+defaults:
+
+| Default (XDG) | With `--config-root /opt/x2fa` |
+|---|---|
+| `~/.config/x2fa/x2fa_config.toml` | `/opt/x2fa/.config/x2fa/x2fa_config.toml` |
+| `~/.local/share/x2fa/db.sqlite` | `/opt/x2fa/.local/share/x2fa/db.sqlite` |
+| `~/.local/share/x2fa/ca_key.pem` | `/opt/x2fa/.local/share/x2fa/ca_key.pem` |
+
+Useful for:
+- Running X2FA as a dedicated system user (e.g. `--config-root /etc/x2fa`)
+- **Multi-instance deployments** — two X2FA instances on the same host use different
+  config roots:
+
+  ```bash
+  python -m installer --config-root /opt/x2fa-staging
+  python -m installer --config-root /opt/x2fa-production
+  ```
+
+  Start each instance with the matching root:
+
+  ```bash
+  CONFIG_ROOT=/opt/x2fa-staging ENV_FOR_DYNACONF=production \
+      uv run gunicorn 'x2fa.wsgi:app' --bind 127.0.0.1:5001
+
+  CONFIG_ROOT=/opt/x2fa-production ENV_FOR_DYNACONF=production \
+      uv run gunicorn 'x2fa.wsgi:app' --bind 127.0.0.1:5000
+  ```
 
 ---
 
@@ -186,7 +224,10 @@ If you prefer to configure X2FA by hand:
 
 ### 6.1 Write configuration files
 
-Edit `src/x2fa/config_files/x2fa_config.toml`:
+Config files live in `~/.config/x2fa/` (or `<config-root>/.config/x2fa/` if
+`--config-root` was used). Create the directory and write the following files:
+
+**`~/.config/x2fa/x2fa_config.toml`**:
 
 ```toml
 [production]
@@ -194,7 +235,7 @@ DOMAIN = "your.domain.com"
 ORIGIN = "https://your.domain.com"
 ```
 
-Edit `src/x2fa/config_files/security_config.toml`:
+**`~/.config/x2fa/security_config.toml`**:
 
 ```toml
 [production]
@@ -213,7 +254,7 @@ python3 -c "import secrets; print(secrets.token_hex(32))"  # SECRET_KEY
 python3 -c "import secrets; print(secrets.token_hex(16))"  # SECRET_SALT
 ```
 
-Edit `src/x2fa/config_files/db_config.toml` if you are not using SQLite:
+**`~/.config/x2fa/db_config.toml`** (only needed if not using SQLite):
 
 ```toml
 [production]
@@ -227,8 +268,16 @@ FLASK_APP=wsgi:app ENV_FOR_DYNACONF=production uv run flask init-db
 FLASK_APP=wsgi:app ENV_FOR_DYNACONF=production uv run flask init-keys
 ```
 
-`init-db` is **destructive** (drops and recreates all tables). Only run it on a fresh
-installation or when you explicitly want to reset the database.
+**`flask init-db`** runs Alembic `upgrade head` to create all tables. Safe on a fresh
+database. Also safe to re-run on an existing database — Alembic will apply only the
+missing migrations without touching existing data.
+
+**`flask db-upgrade`** is an alias that does the same as `init-db` but with a name that
+makes its intent clear on existing installations: apply pending schema migrations without
+resetting the database.
+
+Use `init-db` for fresh installs and CI. Use `db-upgrade` when upgrading an existing
+production installation.
 
 ### 6.3 Register a Certificate Authority
 
@@ -316,14 +365,14 @@ uv sync --extra mysql      # pymysql
 
 Set `SQLALCHEMY_DATABASE_URI` accordingly in `db_config.toml`.
 
-For existing SQLite databases, the two new columns added for extended auth methods must
-be applied manually if upgrading from a version before they existed:
+For existing installations, apply schema changes with:
 
 ```bash
-sqlite3 /path/to/db.sqlite \
-  "ALTER TABLE oidc_client ADD COLUMN client_cert_fingerprint TEXT;
-   ALTER TABLE oidc_client ADD COLUMN client_secret_encrypted BLOB;"
+ENV_FOR_DYNACONF=production uv run flask db-upgrade
 ```
+
+This runs Alembic `upgrade head` and applies only the pending migrations — it never
+drops tables or discards data.
 
 ---
 

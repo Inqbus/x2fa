@@ -2,7 +2,40 @@
 from textual.app import ComposeResult
 from textual.containers import Container
 from textual.screen import Screen
-from textual.widgets import Button, Footer, Header, Static
+from textual.widgets import Button, Collapsible, Footer, Header, Markdown, Static
+
+_HELP_TEXT = """\
+## Next Steps
+
+Follow this checklist in order after the installer completes:
+
+1. **Configure your reverse proxy** using the snippet shown below.
+   - For `tls_client_auth`: the proxy must request and forward client certificates.
+   - Restart / reload the proxy after updating its config.
+
+2. **Start X2FA** with the command shown below.
+   Verify it is reachable at `https://<domain>/.well-known/openid-configuration`.
+
+3. **Configure your relying-party application** with:
+   - `issuer`: `https://<domain>`
+   - `client_id`: the Client ID you entered in the installer
+   - `redirect_uri`: the Redirect URI you entered
+   - For `tls_client_auth`: the `.cert.pem` and `.key.pem` files from the bundle above
+   - For `client_secret_*`: the secret printed in the installation log
+
+4. **Test the authentication flow** end-to-end before going live.
+
+5. **Back up** `~/.config/x2fa/` and `~/.local/share/x2fa/ca_key.pem`.
+   The CA private key is not stored in the database — losing it means you cannot
+   issue new client certificates for this CA.
+
+### Adding more clients later
+
+```
+flask add-client <client_id> <redirect_uri> --method tls_client_auth
+flask issue-client-cert <client_id> --ca <ca_name> --output ./certs
+```
+"""
 
 _PROXY_SNIPPETS = {
     "caddy": """\
@@ -42,6 +75,11 @@ server {{
 
 
 class SummaryScreen(Screen):
+    BINDINGS = [("f1", "toggle_help", "Help")]
+
+    def action_toggle_help(self) -> None:
+        self.query_one("#help_panel", Collapsible).collapsed ^= True
+
     def compose(self) -> ComposeResult:
         cfg = self.app.config
 
@@ -54,6 +92,8 @@ class SummaryScreen(Screen):
         with Container(id="panel"):
             yield Static("[green bold]✓  Installation complete[/]", markup=True,
                          classes="screen-title")
+            with Collapsible(title="Next Steps  (F1)", id="help_panel", collapsed=False):
+                yield Markdown(_HELP_TEXT)
 
             yield Static("Start command:", classes="field-label")
             yield Static(

@@ -8,7 +8,31 @@ import sys
 from textual.app import ComposeResult
 from textual.containers import Container
 from textual.screen import Screen
-from textual.widgets import Button, Footer, Header, Static
+from textual.widgets import Button, Collapsible, Footer, Header, Markdown, Static
+
+_HELP_TEXT = """\
+## Preflight Checks
+
+These checks run automatically before the installer proceeds.
+
+### Check types
+
+**Blocking** (red ✗): The installer cannot continue until this is fixed.
+The Continue button is hidden when any blocking check fails.
+
+**Warning** (yellow ⚠): Installation can proceed, but the condition may cause
+problems at runtime. Review the hint and decide whether to fix it first.
+
+### Checks performed
+
+| Check | Type | What to do if it fails |
+|---|---|---|
+| Python ≥ 3.11 | Blocking | Upgrade Python. `uv python install 3.11` works. |
+| uv package manager | Blocking | Install uv: `curl -LsSf https://astral.sh/uv/install.sh | sh` |
+| Running as root/user | Info | No action needed — informational only |
+| Port 5000 free | Warning | Stop the conflicting service: `lsof -ti:5000 | xargs kill` |
+| Redis reachable | Warning | Optional — only required when running multiple Gunicorn workers |
+"""
 
 
 def _run_checks() -> list[dict]:
@@ -76,6 +100,11 @@ def _run_checks() -> list[dict]:
 
 
 class WelcomeScreen(Screen):
+    BINDINGS = [("f1", "toggle_help", "Help")]
+
+    def action_toggle_help(self) -> None:
+        self.query_one("#help_panel", Collapsible).collapsed ^= True
+
     def compose(self) -> ComposeResult:
         checks = _run_checks()
         blocking_failed = any(not c["ok"] and c["blocking"] for c in checks)
@@ -83,6 +112,8 @@ class WelcomeScreen(Screen):
         yield Header()
         with Container(id="panel"):
             yield Static("Preflight Checks", classes="screen-title")
+            with Collapsible(title="Help  (F1)", id="help_panel", collapsed=True):
+                yield Markdown(_HELP_TEXT)
 
             for c in checks:
                 if c["ok"]:

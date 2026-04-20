@@ -3,10 +3,67 @@ from pathlib import Path
 from textual.app import ComposeResult
 from textual.containers import Container
 from textual.screen import Screen
-from textual.widgets import Button, Footer, Header, Input, RadioButton, RadioSet, Static
+from textual.widgets import Button, Collapsible, Footer, Header, Input, Markdown, RadioButton, RadioSet, Static
+
+_HELP_TEXT = """\
+## Certificate Authority setup
+
+A Certificate Authority (CA) is required for `tls_client_auth` and `private_key_jwt`.
+X2FA uses the CA to issue client certificates and to verify them at the `/token` endpoint.
+
+### Generate vs Import
+
+**Generate new CA** (recommended for most installations): The installer creates a new
+EC-P256 self-signed CA key and certificate. Keep the private key offline after install —
+it is only needed when issuing new client certificates.
+
+**Import existing CA**: Use this when you already have a CA (e.g. an enterprise PKI or
+HSM-backed CA). Only the certificate (PEM) is imported; the private key stays with you.
+When you need to issue a new client certificate later, run:
+```
+flask issue-client-cert <client_id> --ca <name>
+```
+and supply the CA key path interactively.
+
+### CA Common Name (CN)
+
+Use a descriptive human-readable name, **not** a hostname. Examples:
+- `MyApp Internal CA`
+- `Acme Corp X2FA CA`
+
+The CN appears in client certificate chains and in `flask list-cas` output.
+
+### Validity
+
+Longer validity = less maintenance burden. Shorter = better rotation hygiene.
+
+| Value | Duration | Recommendation |
+|---|---|---|
+| 365 | 1 year | Too short for a CA; prefer ≥ 3 years |
+| 1825 | 5 years | Good default for internal use |
+| 3650 | 10 years | Reasonable for offline root CAs |
+| 7300 | 20 years | Maximum recommended |
+
+When a CA expires, existing mTLS connections stop working immediately. Plan renewal
+before expiry — the `Manage CAs` main-menu option handles this without reinstalling.
+
+### Key and certificate paths
+
+The CA private key must be **readable only by the X2FA process user** (mode 0600).
+The CA certificate must be **readable by the reverse proxy** to verify client certs.
+
+Typical locations:
+- Running as root: `/etc/x2fa/ca_key.pem` and `/etc/x2fa/ca_cert.pem`
+- Running as a user: `~/.local/share/x2fa/ca_key.pem` and `~/.local/share/x2fa/ca_cert.pem`
+"""
 
 
 class CASetupScreen(Screen):
+    BINDINGS = [("f1", "toggle_help", "Help")]
+
+    def action_toggle_help(self) -> None:
+        self.query_one("#help_panel", Collapsible).collapsed ^= True
+
     def compose(self) -> ComposeResult:
         cfg = self.app.config
         action = cfg.ca_action or "generate"
@@ -16,6 +73,9 @@ class CASetupScreen(Screen):
         yield Header()
         with Container(id="panel"):
             yield Static("Certificate Authority", classes="screen-title")
+            with Collapsible(title="Help  (F1)", id="help_panel", collapsed=True):
+                yield Markdown(_HELP_TEXT)
+
             yield Static("Action:", classes="field-label")
             with RadioSet(id="ca_action"):
                 yield RadioButton(
@@ -44,6 +104,12 @@ class CASetupScreen(Screen):
                     value=str(cfg.ca_validity_days),
                     placeholder="3650",
                     id="ca_validity_days",
+                )
+                yield Static(
+                    _validity_hint(cfg.ca_validity_days),
+                    id="validity_hint",
+                    markup=True,
+                    classes="hint",
                 )
 
                 hint = (
@@ -119,8 +185,13 @@ class CASetupScreen(Screen):
             case "ca_validity_days":
                 try:
                     cfg.ca_validity_days = int(event.value)
+                    self.query_one("#validity_hint", Static).update(
+                        _validity_hint(cfg.ca_validity_days)
+                    )
                 except ValueError:
-                    pass
+                    self.query_one("#validity_hint", Static).update(
+                        "[dim]Enter a number of days.[/]"
+                    )
             case "ca_key_path":
                 cfg.ca_key_path = event.value
             case "ca_cert_path":
@@ -149,6 +220,17 @@ class CASetupScreen(Screen):
                 self.app.pop_screen()
             case "next":
                 if self._validate():
-                    from .execute import ExecuteScreen
+                    from .review import ReviewScreen
+                    self.app.push_screen(ReviewScreen())
 
-                    self.app.push_screen(ExecuteScreen())
+
+def _validity_hint(days: int) -> str:
+    if days <= 0:
+        return "[dim]Enter a number of days.[/]"
+    years = days / 365
+    warn = (
+        "  [yellow]⚠ Short validity — CA expires quickly, consider ≥ 365 days[/]"
+        if days < 365
+        else ""
+    )
+    return f"[dim]≈ {years:.1f} years{warn}[/]"

@@ -1,10 +1,45 @@
 from textual.app import ComposeResult
 from textual.containers import Container
 from textual.screen import Screen
-from textual.widgets import Button, Footer, Header, Input, RadioButton, RadioSet, Static
+from textual.widgets import Button, Collapsible, Footer, Header, Input, Markdown, RadioButton, RadioSet, Static
 
 _PKI_CA_METHODS = {"tls_client_auth", "private_key_jwt"}
 _SECRET_METHODS = {"client_secret_jwt", "client_secret_post", "client_secret_basic"}
+
+_HELP_TEXT = """\
+## Authentication method
+
+Choose how the relying-party application identifies itself when it calls `/token`.
+
+| Method | Trust model | Shared secret? | Recommended |
+|---|---|---|---|
+| `tls_client_auth` | CA-signed mTLS certificate | No | **Yes** |
+| `private_key_jwt` | JWT signed with client's EC key, verified via JWKS | No | Yes |
+| `self_signed_tls_client_auth` | SHA-256 fingerprint of a self-signed cert | No | Acceptable |
+| `client_secret_jwt` | HMAC-signed JWT (HS256) | Yes | With caution |
+| `client_secret_post` | Secret in POST body | Yes | No |
+| `client_secret_basic` | HTTP Basic authentication | Yes | No |
+
+**tls_client_auth** (recommended): The installer generates a CA and issues a client
+certificate. The relying party presents it at `/token`; the reverse proxy verifies it
+and forwards it in `X-Client-Certificate`. No secret is ever transmitted.
+
+**private_key_jwt**: The relying party generates its own EC key pair and signs JWT
+assertions with it. X2FA fetches the matching public key from the JWKS URI.
+No certificate infrastructure is needed on the X2FA side.
+
+**self_signed_tls_client_auth**: Provide the path to an existing self-signed certificate.
+The installer pins its SHA-256 fingerprint. No CA is needed. Suitable when the client
+already has a self-signed cert and you do not want to run a CA.
+
+**client_secret_post / client_secret_basic**: A 64-char random secret is auto-generated
+and printed once. The relying party sends it on every request. Only acceptable behind TLS.
+Not recommended for production — a leaked secret immediately compromises the client.
+
+**client_secret_jwt**: Like the above but wraps the secret in a signed JWT, adding a
+nonce and expiry to each request. Preferable to `_post`/`_basic` when a shared secret
+is unavoidable.
+"""
 
 
 def _show(visible: bool, *base_classes: str) -> str:
@@ -14,6 +49,11 @@ def _show(visible: bool, *base_classes: str) -> str:
 
 
 class ClientScreen(Screen):
+    BINDINGS = [("f1", "toggle_help", "Help")]
+
+    def action_toggle_help(self) -> None:
+        self.query_one("#help_panel", Collapsible).collapsed ^= True
+
     def compose(self) -> ComposeResult:
         cfg = self.app.config
         method = cfg.client_auth_method or "tls_client_auth"
@@ -26,6 +66,8 @@ class ClientScreen(Screen):
         yield Header()
         with Container(id="panel"):
             yield Static("First OIDC Client", classes="screen-title")
+            with Collapsible(title="Help  (F1)", id="help_panel", collapsed=True):
+                yield Markdown(_HELP_TEXT)
             yield Static(
                 "[dim]Register the first relying-party app. "
                 "Additional clients can be added later with `flask add-client`.[/]",
@@ -185,5 +227,5 @@ class ClientScreen(Screen):
                     from .ca_setup import CASetupScreen
                     self.app.push_screen(CASetupScreen())
                 else:
-                    from .execute import ExecuteScreen
-                    self.app.push_screen(ExecuteScreen())
+                    from .review import ReviewScreen
+                    self.app.push_screen(ReviewScreen())

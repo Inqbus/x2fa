@@ -4,7 +4,7 @@ from textual import work
 from textual.app import ComposeResult
 from textual.containers import Container
 from textual.screen import Screen
-from textual.widgets import Button, Footer, Header, Log, Static
+from textual.widgets import Button, Collapsible, Footer, Header, Log, Markdown, Static
 
 _PKI_CA_METHODS = {"tls_client_auth", "private_key_jwt"}
 
@@ -27,11 +27,47 @@ _ICONS = {
 }
 
 
+_HELP_TEXT = """\
+## Installation Steps
+
+| Step | What it does | Idempotent? |
+|---|---|---|
+| Write configuration files | Writes `x2fa_config.toml`, `security_config.toml`, `db_config.toml`, and `ratelimit_config.toml` to `~/.config/x2fa/` | Yes — overwrites |
+| Initialize database | Runs `flask init-db` → Alembic `upgrade head` (creates all tables) | Yes on fresh DB; safe on existing DB |
+| Generate signing keys | Runs `flask init-keys` → writes EC key pair to `~/.local/share/x2fa/` | Skips if key already exists |
+| Set up Certificate Authority | Generates or imports the CA key and certificate | Overwrites on generate |
+| Register CA in X2FA | Runs `flask add-ca` to store the CA cert in the database | Fails if name already registered |
+| Register OIDC client | Runs `flask add-client` with the chosen auth method | Fails if client_id already registered |
+| Issue client certificate | Runs `flask issue-client-cert` (tls_client_auth only) | Creates new cert each run |
+
+### Recovering from a failed step
+
+If a step fails, the error message is shown in the log below.
+The most common causes:
+
+- **Write configuration files**: Permission error — check that `~/.config/x2fa/` is
+  writable by the current user.
+- **Initialize database**: Connection refused for PostgreSQL/MySQL — verify the URI
+  and that the database server is running.
+- **Register CA / client**: Already registered — safe to ignore if re-running the
+  installer on an existing installation. Use `flask revoke-ca` or `flask revoke-client`
+  first if you want to replace an existing entry.
+- **Issue client certificate**: CA key not found or not readable — verify the key path.
+"""
+
+
 class ExecuteScreen(Screen):
+    BINDINGS = [("f1", "toggle_help", "Help")]
+
+    def action_toggle_help(self) -> None:
+        self.query_one("#help_panel", Collapsible).collapsed ^= True
+
     def compose(self) -> ComposeResult:
         yield Header()
         with Container(id="panel"):
             yield Static("Installing X2FA", classes="screen-title")
+            with Collapsible(title="Help  (F1)", id="help_panel", collapsed=True):
+                yield Markdown(_HELP_TEXT)
             with Container(id="steps"):
                 for step_id, label in _STEPS:
                     yield Static(

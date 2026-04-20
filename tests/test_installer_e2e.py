@@ -77,6 +77,11 @@ async def test_e2e_full_install_client_secret_post(tmp_path):
             await pilot.pause()
             await pilot.click("#next")
             await pilot.pause()
+            assert "ReviewScreen" in app.screen.__class__.__name__
+
+            # ── ReviewScreen: confirm and proceed ─────────────────────────
+            await pilot.click("#confirm")
+            await pilot.pause()
 
             # ── ExecuteScreen: poll until background worker completes ──────
             for _ in range(100):
@@ -168,6 +173,11 @@ async def test_e2e_full_install_tls_client_auth(tmp_path):
             app.screen.query_one("#ca_name", Input).value = "test-ca"
             await pilot.pause()
             await pilot.click("#next")
+            await pilot.pause()
+            assert "ReviewScreen" in app.screen.__class__.__name__
+
+            # ── ReviewScreen: confirm and proceed ─────────────────────────
+            await pilot.click("#confirm")
             await pilot.pause()
 
             # ── ExecuteScreen: poll until background worker completes ──────
@@ -261,6 +271,11 @@ async def test_e2e_full_install_private_key_jwt_postgres(tmp_path):
             await pilot.pause()
             await pilot.click("#next")
             await pilot.pause()
+            assert "ReviewScreen" in app.screen.__class__.__name__
+
+            # ── ReviewScreen: confirm and proceed ─────────────────────────
+            await pilot.click("#confirm")
+            await pilot.pause()
 
             # ── Wait for SummaryScreen ────────────────────────────────────
             for _ in range(100):
@@ -343,6 +358,11 @@ async def test_e2e_full_install_tls_ca_import(tmp_path):
             await pilot.pause()
             await pilot.click("#next")
             await pilot.pause()
+            assert "ReviewScreen" in app.screen.__class__.__name__
+
+            # ── ReviewScreen: confirm and proceed ─────────────────────────
+            await pilot.click("#confirm")
+            await pilot.pause()
 
             # ── Wait for SummaryScreen ────────────────────────────────────
             for _ in range(100):
@@ -418,8 +438,12 @@ async def test_e2e_full_install_self_signed_tls(tmp_path):
             await pilot.pause()
             await pilot.click("#next")
             await pilot.pause()
-            # Must go directly to ExecuteScreen, not CASetupScreen
-            assert "CASetupScreen" not in app.screen.__class__.__name__
+            # Must go to ReviewScreen (not CASetupScreen)
+            assert "ReviewScreen" in app.screen.__class__.__name__
+
+            # ── ReviewScreen: confirm and proceed ─────────────────────────
+            await pilot.click("#confirm")
+            await pilot.pause()
 
             # ── Wait for SummaryScreen ────────────────────────────────────
             for _ in range(100):
@@ -488,6 +512,11 @@ async def test_e2e_full_install_client_secret_jwt_redis(tmp_path):
             await pilot.click("#client_secret_jwt")
             await pilot.pause()
             await pilot.click("#next")
+            await pilot.pause()
+            assert "ReviewScreen" in app.screen.__class__.__name__
+
+            # ── ReviewScreen: confirm and proceed ─────────────────────────
+            await pilot.click("#confirm")
             await pilot.pause()
 
             # ── Wait for SummaryScreen ────────────────────────────────────

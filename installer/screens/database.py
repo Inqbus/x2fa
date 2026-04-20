@@ -3,16 +3,63 @@ from pathlib import Path
 from textual.app import ComposeResult
 from textual.containers import Container
 from textual.screen import Screen
-from textual.widgets import Button, Footer, Header, Input, RadioButton, RadioSet, Static
+from textual.widgets import Button, Collapsible, Footer, Header, Input, Markdown, RadioButton, RadioSet, Static
+
+_HELP_TEXT = """\
+## Database
+
+X2FA stores users, credentials, OIDC clients, and audit events in a relational database.
+
+### SQLite (default)
+
+Zero configuration. The database is a single file stored at
+`~/.local/share/x2fa/db.sqlite` (or inside `--config-root` if set).
+
+**Limitations:**
+- Only one writer at a time — suitable for a single Gunicorn process or low-traffic
+  multi-worker setups
+- No built-in replication or high-availability
+- Suitable for most single-server deployments (up to ~50k users)
+
+### PostgreSQL
+
+Recommended for high-availability or multi-server deployments. Requires the optional
+`postgres` extra — install it before running the installer:
+```
+uv sync --extra postgres
+```
+Connection URI format: `postgresql://user:password@host/dbname`
+
+### MySQL / MariaDB
+
+Supported via `pymysql`. Install with:
+```
+uv sync --extra mysql
+```
+Connection URI format: `mysql+pymysql://user:password@host/dbname`
+
+### Schema management
+
+The installer runs `flask init-db` which calls Alembic `upgrade head` to create all
+tables. On existing installations, use `flask db-upgrade` instead — it applies only
+the missing migrations without touching existing data.
+"""
 
 
 class DatabaseScreen(Screen):
+    BINDINGS = [("f1", "toggle_help", "Help")]
+
+    def action_toggle_help(self) -> None:
+        self.query_one("#help_panel", Collapsible).collapsed ^= True
+
     def compose(self) -> ComposeResult:
         cfg = self.app.config
         db = cfg.db_type or "sqlite"
         yield Header()
         with Container(id="panel"):
             yield Static("Database", classes="screen-title")
+            with Collapsible(title="Help  (F1)", id="help_panel", collapsed=True):
+                yield Markdown(_HELP_TEXT)
             yield Static("Backend:", classes="field-label")
             with RadioSet(id="db_type"):
                 yield RadioButton(

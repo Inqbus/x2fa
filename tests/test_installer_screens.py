@@ -328,16 +328,14 @@ class TestClientScreen:
             assert "CASetupScreen" in app.screen.__class__.__name__
 
     @pytest.mark.asyncio
-    async def test_secret_method_navigates_to_execute(self, tmp_path):
+    async def test_secret_method_navigates_to_review(self, tmp_path):
         from installer.screens.client import ClientScreen
-        from installer.screens.execute import ExecuteScreen
         app = DirectScreenApp(ClientScreen, tmp_path,
                               config_overrides={"client_auth_method": "client_secret_post"})
-        with patch.object(ExecuteScreen, "_run_installation"):
-            async with app.run_test(size=_SIZE) as pilot:
-                await pilot.click("#next")
-                await pilot.pause()
-                assert "ExecuteScreen" in app.screen.__class__.__name__
+        async with app.run_test(size=_SIZE) as pilot:
+            await pilot.click("#next")
+            await pilot.pause()
+            assert "ReviewScreen" in app.screen.__class__.__name__
 
 
 # ── CASetupScreen ─────────────────────────────────────────────────────────────
@@ -386,30 +384,26 @@ class TestCASetupScreen:
             assert "CASetupScreen" in app.screen.__class__.__name__
 
     @pytest.mark.asyncio
-    async def test_continue_with_valid_generate_navigates_to_execute(self, tmp_path):
+    async def test_continue_with_valid_generate_navigates_to_review(self, tmp_path):
         from installer.screens.ca_setup import CASetupScreen
-        from installer.screens.execute import ExecuteScreen
         app = DirectScreenApp(CASetupScreen, tmp_path, config_overrides={
             "ca_action": "generate",
             "ca_key_path": str(tmp_path / "ca_key.pem"),
             "ca_cert_path": str(tmp_path / "ca_cert.pem"),
         })
-        with patch.object(ExecuteScreen, "_run_installation"):
-            async with app.run_test(size=_SIZE) as pilot:
-                await pilot.click("#next")
-                await pilot.pause()
-                assert "ExecuteScreen" in app.screen.__class__.__name__
+        async with app.run_test(size=_SIZE) as pilot:
+            await pilot.click("#next")
+            await pilot.pause()
+            assert "ReviewScreen" in app.screen.__class__.__name__
 
     @pytest.mark.asyncio
-    async def test_continue_with_valid_import_navigates_to_execute(self, tmp_path):
+    async def test_continue_with_valid_import_navigates_to_review(self, tmp_path):
         from installer.screens.ca_setup import CASetupScreen
-        from installer.screens.execute import ExecuteScreen
         app = DirectScreenApp(CASetupScreen, tmp_path, config_overrides={
             "ca_action": "import",
             "ca_import_path": "/existing/ca.pem",
         })
-        with patch.object(ExecuteScreen, "_run_installation"):
-            async with app.run_test(size=_SIZE) as pilot:
-                await pilot.click("#next")
-                await pilot.pause()
-                assert "ExecuteScreen" in app.screen.__class__.__name__
+        async with app.run_test(size=_SIZE) as pilot:
+            await pilot.click("#next")
+            await pilot.pause()
+            assert "ReviewScreen" in app.screen.__class__.__name__
