@@ -158,10 +158,17 @@ def test_init_db_creates_tables():
     """init-db creates all tables so subsequent commands work on a fresh DB."""
     runner = CliRunner()
 
-    # Drop all tables first to simulate a fresh database
+    # Drop all tables (including alembic_version) to simulate a fresh database.
+    # Base.metadata.drop_all only drops app tables; alembic_version must be
+    # dropped separately so Alembic doesn't skip the upgrade thinking it's
+    # already at head.
     with create_app().app_context():
+        from sqlalchemy import text
         from x2fa.model import Base
         Base.metadata.drop_all(db.engine)
+        with db.engine.connect() as conn:
+            conn.execute(text("DROP TABLE IF EXISTS alembic_version"))
+            conn.commit()
 
     result = runner.invoke(_cli(), ["init-db"])
 

@@ -1,108 +1,71 @@
-import logging
+"""Alembic environment — wired to x2fa's SQLAlchemy Base.metadata.
+
+Does NOT depend on Flask-Migrate. The DB URL is read from the x2fa
+config pool (ENV_FOR_DYNACONF=production by default) or can be
+overridden on the Alembic command line with -x sqlalchemy.url=<url>.
+"""
+
+import os
+import sys
+from pathlib import Path
+
+# Make the src package importable when running `alembic` from the project root.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+
 from logging.config import fileConfig
 
-from flask import current_app
-
 from alembic import context
+from sqlalchemy import create_engine, pool
 
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
+# Import all models so their tables are registered on Base.metadata.
+from x2fa.model import Base  # noqa: F401 — side-effect import registers all tables
+
 config = context.config
 
-# Interpret the config file for Python logging.
-# This line sets up loggers basically.
-fileConfig(config.config_file_name)
-logger = logging.getLogger('alembic.env')
+if config.config_file_name is not None:
+    fileConfig(config.config_file_name)
 
 
-def get_engine():
-    try:
-        # this works with Flask-SQLAlchemy<3 and Alchemical
-        return current_app.extensions['migrate'].db.get_engine()
-    except (TypeError, AttributeError):
-        # this works with Flask-SQLAlchemy>=3
-        return current_app.extensions['migrate'].db.engine
+def _db_url() -> str:
+    """Return the database URL.
 
-
-def get_engine_url():
-    try:
-        return get_engine().url.render_as_string(hide_password=False).replace(
-            '%', '%%')
-    except AttributeError:
-        return str(get_engine().url).replace('%', '%%')
-
-
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
-config.set_main_option('sqlalchemy.url', get_engine_url())
-target_db = current_app.extensions['migrate'].db
-
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
-
-
-def get_metadata():
-    if hasattr(target_db, 'metadatas'):
-        return target_db.metadatas[None]
-    return target_db.metadata
-
-
-def run_migrations_offline():
-    """Run migrations in 'offline' mode.
-
-    This configures the context with just a URL
-    and not an Engine, though an Engine is acceptable
-    here as well.  By skipping the Engine creation
-    we don't even need a DBAPI to be available.
-
-    Calls to context.execute() here emit the given string to the
-    script output.
-
+    Priority:
+    1. ``-x sqlalchemy.url=<url>`` passed on the Alembic CLI
+    2. ``sqlalchemy.url`` set in alembic.ini [alembic] section
+    3. The x2fa config pool (reads db_config.toml for ENV_FOR_DYNACONF)
     """
-    url = config.get_main_option("sqlalchemy.url")
-    context.configure(
-        url=url, target_metadata=get_metadata(), literal_binds=True
-    )
+    # -x key=value arguments are read via context.get_x_argument()
+    x_args = context.get_x_argument(as_dictionary=True)
+    if "sqlalchemy.url" in x_args:
+        return x_args["sqlalchemy.url"]
 
+    ini_url = config.get_main_option("sqlalchemy.url")
+    if ini_url:
+        return ini_url
+
+    os.environ.setdefault("ENV_FOR_DYNACONF", "production")
+    from x2fa.config import cfg  # imported late so ENV is set first
+
+    return cfg.x2fa_database.SQLALCHEMY_DATABASE_URI
+
+
+def run_migrations_offline() -> None:
+    """Run migrations without a live DB connection (generates SQL)."""
+    context.configure(
+        url=_db_url(),
+        target_metadata=Base.metadata,
+        literal_binds=True,
+        dialect_opts={"paramstyle": "named"},
+    )
     with context.begin_transaction():
         context.run_migrations()
 
 
-def run_migrations_online():
-    """Run migrations in 'online' mode.
-
-    In this scenario we need to create an Engine
-    and associate a connection with the context.
-
-    """
-
-    # this callback is used to prevent an auto-migration from being generated
-    # when there are no changes to the schema
-    # reference: http://alembic.zzzcomputing.com/en/latest/cookbook.html
-    def process_revision_directives(context, revision, directives):
-        if getattr(config.cmd_opts, 'autogenerate', False):
-            script = directives[0]
-            if script.upgrade_ops.is_empty():
-                directives[:] = []
-                logger.info('No changes in schema detected.')
-
-    conf_args = current_app.extensions['migrate'].configure_args
-    if conf_args.get("process_revision_directives") is None:
-        conf_args["process_revision_directives"] = process_revision_directives
-
-    connectable = get_engine()
-
+def run_migrations_online() -> None:
+    """Run migrations against a live database connection."""
+    connectable = create_engine(_db_url(), poolclass=pool.NullPool)
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection,
-            target_metadata=get_metadata(),
-            **conf_args
-        )
-
+        context.configure(connection=connection, target_metadata=Base.metadata)
         with context.begin_transaction():
             context.run_migrations()
 

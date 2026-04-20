@@ -39,11 +39,37 @@ from x2fa.init_app.database import db
 @click.command("init-db")
 @with_appcontext
 def init_db():
-    """Creates all database tables (safe to run on a fresh database)."""
-    from x2fa.init_app.database import db
+    """Creates all database tables on a fresh database.
 
-    db.reset_schema()
+    Uses Alembic migrations internally so the schema version is tracked.
+    For existing installations use `flask db-upgrade` instead.
+    """
+    _run_alembic_upgrade()
     click.echo("Database tables created.")
+
+
+@click.command("db-upgrade")
+@with_appcontext
+def db_upgrade():
+    """Apply pending Alembic migrations (safe for existing installations)."""
+    _run_alembic_upgrade()
+    click.echo("Database migrations applied.")
+
+
+def _run_alembic_upgrade():
+    """Run ``alembic upgrade head`` programmatically."""
+    from pathlib import Path
+    from alembic import command
+    from alembic.config import Config as AlembicConfig
+    from x2fa.config import cfg
+
+    project_root = Path(__file__).resolve().parent.parent.parent
+    ini_path = project_root / "migrations" / "alembic.ini"
+
+    alembic_cfg = AlembicConfig(str(ini_path))
+    alembic_cfg.set_main_option("script_location", str(project_root / "migrations"))
+    alembic_cfg.set_main_option("sqlalchemy.url", cfg.x2fa_database.SQLALCHEMY_DATABASE_URI)
+    command.upgrade(alembic_cfg, "head")
 
 
 @click.command("init-keys")
@@ -499,6 +525,7 @@ def register_commands(app):
     app.cli.add_command(stats)
     app.cli.add_command(cleanup_codes)
     app.cli.add_command(init_db)
+    app.cli.add_command(db_upgrade)
     app.cli.add_command(add_ca)
     app.cli.add_command(list_cas)
     app.cli.add_command(revoke_ca)

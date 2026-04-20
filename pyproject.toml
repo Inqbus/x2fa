@@ -22,6 +22,7 @@ dependencies = [
     "flask-babelplus>=2.2.0",
     "pytz>=2026.1.post1",
     "tomli-w>=1.2.0",
+    "alembic>=1.13.0",
 ]
 
 [project.optional-dependencies]
@@ -35,6 +36,7 @@ x2fa-install = "installer.__main__:main"
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
+    "pytest-asyncio>=0.23.0",
     "pytest-mock>=3.15.1",
     "pyjwt>=2.12.1",
     "pytest-playwright>=0.7.2",
