@@ -222,8 +222,24 @@ class ExecuteScreen(Screen):
                     cert=cert,
                 )
 
-            if not run("client", "Register OIDC client", do_client):
+            # Run add-client and capture output to extract the plaintext secret
+            # for the summary screen.
+            _client_result: list[tuple[bool, str]] = []
+
+            def do_client_capturing():
+                result = do_client()
+                _client_result.append(result)
+                return result
+
+            if not run("client", "Register OIDC client", do_client_capturing):
                 return
+            if _client_result:
+                _, client_out = _client_result[0]
+                # CLI prints: "Client secret: <hex>  <- record this now..."
+                for line in (client_out or "").splitlines():
+                    if line.startswith("Client secret:"):
+                        cfg.client_secret = line.split(":", 1)[1].split()[0].strip()
+                        break
         else:
             set_step("client", "skip", "Register OIDC client  (skipped)")
 

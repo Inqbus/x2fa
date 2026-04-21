@@ -8,7 +8,7 @@ from pathlib import Path
 # - config_root: CLI argument; saving it causes the session file location to follow a
 #   stale path (e.g. a pytest tmp dir) instead of always resolving via Path.home()
 # - generated_files, install_error: transient results from a previous run
-_SESSION_EXCLUDE = {"install_root", "config_root", "generated_files", "install_error"}
+_SESSION_EXCLUDE = {"install_root", "config_root", "generated_files", "install_error", "client_secret"}
 
 
 @dataclass
@@ -59,6 +59,9 @@ class InstallConfig:
     # ── Results (filled during ExecuteScreen) ─────────────────────────────
     generated_files: list[str] = field(default_factory=list)
     install_error: str | None = None
+    # Plaintext client secret — only set for client_secret_* methods.
+    # Excluded from session persistence (never written to disk).
+    client_secret: str = ""
 
     def __post_init__(self) -> None:
         data = self._data_dir()

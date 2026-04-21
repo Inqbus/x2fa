@@ -56,7 +56,7 @@ Follow this checklist in order after the installer completes:
    - `client_id`: the Client ID you entered in the installer
    - `redirect_uri`: the Redirect URI you entered
    - For `tls_client_auth`: the `.cert.pem` and `.key.pem` files from the bundle above
-   - For `client_secret_*`: the secret printed in the installation log
+   - For `client_secret_*`: the secret shown in the **Client secret** section below — copy it now
 
 4. **Test the authentication flow** end-to-end before going live.
 
@@ -165,6 +165,19 @@ class SummaryScreen(Screen):
                     classes="hint",
                 )
 
+            if cfg.client_secret:
+                yield Static(
+                    "[yellow bold]Client secret  (record this — it will not be shown again):[/]",
+                    markup=True,
+                    classes="field-label",
+                )
+                yield Static(f"  {cfg.client_secret}", classes="hint")
+                yield Static(
+                    f"  Auth method: {cfg.client_auth_method}\n"
+                    f"  Configure your application with this secret.",
+                    classes="hint",
+                )
+
             if proxy_snippet:
                 yield Static(
                     f"Reverse proxy config  ({cfg.proxy_type}):",
@@ -237,6 +250,14 @@ class SummaryScreen(Screen):
             lines += ["", "Generated files:"]
             for f in cfg.generated_files:
                 lines.append(f"  {f}")
+
+        if cfg.client_secret:
+            lines += [
+                "",
+                "Client secret (record this — it will not be shown again):",
+                f"  Secret:      {cfg.client_secret}",
+                f"  Auth method: {cfg.client_auth_method}",
+            ]
 
         if cfg.client_id and cfg.client_auth_method == "tls_client_auth":
             lines += [
