@@ -70,15 +70,29 @@ class TestEffectiveDbUri:
 
 
 class TestEffectiveCaCert:
-    def test_generate_returns_ca_cert_path(self, tmp_path):
+    def test_generate_returns_ca_cert_path_when_file_exists(self, tmp_path):
+        cert = tmp_path / "cert.pem"
+        cert.write_text("placeholder")
         config = InstallConfig(config_root=tmp_path, ca_action="generate",
-                               ca_cert_path="/tmp/cert.pem")
-        assert config.effective_ca_cert() == "/tmp/cert.pem"
+                               ca_cert_path=str(cert))
+        assert config.effective_ca_cert() == str(cert)
 
-    def test_import_returns_ca_import_path(self, tmp_path):
+    def test_generate_returns_empty_when_file_missing(self, tmp_path):
+        config = InstallConfig(config_root=tmp_path, ca_action="generate",
+                               ca_cert_path=str(tmp_path / "nonexistent.pem"))
+        assert config.effective_ca_cert() == ""
+
+    def test_import_returns_ca_import_path_when_file_exists(self, tmp_path):
+        cert = tmp_path / "ca.pem"
+        cert.write_text("placeholder")
         config = InstallConfig(config_root=tmp_path, ca_action="import",
-                               ca_import_path="/custom/ca.pem")
-        assert config.effective_ca_cert() == "/custom/ca.pem"
+                               ca_import_path=str(cert))
+        assert config.effective_ca_cert() == str(cert)
+
+    def test_import_returns_empty_when_file_missing(self, tmp_path):
+        config = InstallConfig(config_root=tmp_path, ca_action="import",
+                               ca_import_path=str(tmp_path / "nonexistent.pem"))
+        assert config.effective_ca_cert() == ""
 
 
 class TestInstallRootOverride:

@@ -86,9 +86,16 @@ class InstallConfig:
         return f"sqlite:///{self._data_dir() / 'db.sqlite'}"
 
     def effective_ca_cert(self) -> str:
-        return (
-            self.ca_cert_path if self.ca_action == "generate" else self.ca_import_path
-        )
+        """Return the CA cert path only if the file actually exists on disk.
+
+        Returns an empty string when no CA was created (e.g. client_secret_*
+        installations never run the CA step, so the default path is set but
+        the file is absent).
+        """
+        path = self.ca_cert_path if self.ca_action == "generate" else self.ca_import_path
+        if not path:
+            return ""
+        return path if Path(path).exists() else ""
 
     # ── Session persistence ───────────────────────────────────────────────
 
