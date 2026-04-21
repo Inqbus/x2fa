@@ -2,22 +2,27 @@
 
 import os
 import subprocess
+import sys
 from pathlib import Path
-
-X2FA_DIR = Path(__file__).resolve().parent.parent
-SRC_DIR = X2FA_DIR / "src" / "x2fa"
 
 
 def _flask(args: list[str], install_root: Path) -> tuple[bool, str]:
-    """Run `uv run flask <args>` from src/x2fa directory.  Returns (success, output)."""
+    """Run `flask <args>` using the current Python interpreter.
+
+    Uses sys.executable so the command always runs inside the same virtual
+    environment as the installer — whether that is a development venv or a
+    uv tool install.  cwd is set to install_root (guaranteed to exist) and
+    FLASK_APP uses the fully-qualified module path so it is resolvable from
+    any working directory.
+    """
     env = {
         **os.environ,
-        "FLASK_APP": "wsgi:app",
+        "FLASK_APP": "x2fa.wsgi:app",
         "ENV_FOR_DYNACONF": "production",
     }
     result = subprocess.run(
-        ["uv", "run", "flask"] + args,
-        cwd=SRC_DIR,
+        [sys.executable, "-m", "flask"] + args,
+        cwd=install_root,
         env=env,
         capture_output=True,
         text=True,
