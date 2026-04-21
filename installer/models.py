@@ -117,6 +117,7 @@ class InstallConfig:
     @classmethod
     def load_session(cls, install_root: Path, config_root: Path | None = None) -> "InstallConfig":
         """Load a previously saved session, falling back to defaults on any error."""
+        import sys
         sf = cls.session_file(config_root)
         if sf.exists():
             try:
@@ -124,8 +125,10 @@ class InstallConfig:
                 data.pop("config_root", None)   # never restore; always use runtime arg
                 kwargs_cr = {"config_root": config_root} if config_root is not None else {}
                 return cls(install_root=install_root, **kwargs_cr, **data)
-            except Exception:
-                pass
+            except json.JSONDecodeError as exc:
+                print(f"Warning: installer session file is corrupted ({exc}); starting fresh.", file=sys.stderr)
+            except Exception as exc:
+                print(f"Warning: could not load installer session ({exc}); starting fresh.", file=sys.stderr)
         kwargs: dict = {"install_root": install_root}
         if config_root is not None:
             kwargs["config_root"] = config_root

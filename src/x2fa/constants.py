@@ -43,6 +43,16 @@ ALL_AUTH_METHODS = [
     AUTH_METHOD_CLIENT_SECRET_BASIC,
 ]
 
+# Methods that require generating and registering a CA in X2FA
+PKI_CA_METHODS = {AUTH_METHOD_TLS_CLIENT_AUTH, AUTH_METHOD_PRIVATE_KEY_JWT}
+
+# Methods that use a shared secret (installer generates and shows it once)
+SECRET_METHODS = {
+    AUTH_METHOD_CLIENT_SECRET_JWT,
+    AUTH_METHOD_CLIENT_SECRET_POST,
+    AUTH_METHOD_CLIENT_SECRET_BASIC,
+}
+
 # JWT client assertion type (RFC 7523)
 JWT_BEARER_ASSERTION_TYPE = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
 

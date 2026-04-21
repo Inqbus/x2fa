@@ -9,7 +9,7 @@ from textual.containers import Container
 from textual.screen import ModalScreen, Screen
 from textual.widgets import Button, Collapsible, Footer, Header, Log, Markdown, Static, TextArea
 
-_PKI_CA_METHODS = {"tls_client_auth", "private_key_jwt"}
+from x2fa.constants import PKI_CA_METHODS as _PKI_CA_METHODS, SECRET_METHODS as _SECRET_METHODS
 
 _STEPS = [
     ("config", "Write configuration files"),
@@ -209,7 +209,6 @@ class ExecuteScreen(Screen):
             # For secret-based methods, generate the secret here so it is
             # available as a plain variable and can be shown on the summary
             # screen without any output parsing.
-            _SECRET_METHODS = {"client_secret_post", "client_secret_basic", "client_secret_jwt"}
             if method in _SECRET_METHODS:
                 import secrets as _secrets
                 cfg.client_secret = _secrets.token_hex(32)

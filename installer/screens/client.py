@@ -3,8 +3,7 @@ from textual.containers import Container
 from textual.screen import Screen
 from textual.widgets import Button, Collapsible, Footer, Header, Input, Markdown, RadioButton, RadioSet, Static
 
-_PKI_CA_METHODS = {"tls_client_auth", "private_key_jwt"}
-_SECRET_METHODS = {"client_secret_jwt", "client_secret_post", "client_secret_basic"}
+from x2fa.constants import PKI_CA_METHODS as _PKI_CA_METHODS, SECRET_METHODS as _SECRET_METHODS
 
 _HELP_TEXT = """\
 ## First OIDC Client
