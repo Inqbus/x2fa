@@ -1,0 +1,35 @@
+# Podman Quadlet — X2FA service unit
+#
+# Install:
+#   cp podman/*.container podman/*.volume ~/.config/containers/systemd/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now x2fa.service
+#
+# Run the installer TUI first (one-off):
+#   podman run -it --rm \
+#     -v x2fa-config:/home/x2fa/.config/x2fa:Z \
+#     -v x2fa-data:/home/x2fa/.local/share/x2fa:Z \
+#     localhost/x2fa:latest x2fa-install
+
+[Unit]
+Description=X2FA FIDO2 Authentication Microservice
+After=network-online.target
+
+[Container]
+Image=localhost/x2fa:latest
+PublishPort=127.0.0.1:5000:5000
+Volume=x2fa-config.volume:/home/x2fa/.config/x2fa:Z
+Volume=x2fa-data.volume:/home/x2fa/.local/share/x2fa:Z
+Environment=ENV_FOR_DYNACONF=production
+HealthCmd=python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/.well-known/openid-configuration')"
+HealthInterval=30s
+HealthRetries=3
+HealthStartPeriod=10s
+HealthTimeout=5s
+
+[Service]
+Restart=always
+TimeoutStartSec=60
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,5 @@
+# Podman Quadlet — named volume for X2FA data files
+# (~/.local/share/x2fa/ inside the container user's home: SQLite DB, CA key, signing keys)
+
+[Volume]
+VolumeName=x2fa-data

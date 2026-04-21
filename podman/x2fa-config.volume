@@ -1,0 +1,5 @@
+# Podman Quadlet — named volume for X2FA config files
+# (~/.config/x2fa/ inside the container user's home)
+
+[Volume]
+VolumeName=x2fa-config

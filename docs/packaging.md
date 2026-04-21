@@ -144,7 +144,93 @@ The installer TUI can be shipped as a separate image or run as a one-off contain
 
 ---
 
-## Option C — Standalone Zipapp via `shiv`
+## Option C — Podman (rootless, Quadlet)
+
+### What it is
+
+Podman is a daemonless OCI runtime that runs containers as the current unprivileged user.
+It uses the **same `Dockerfile`** as Option B — no changes needed to the image build.
+
+The key difference is service management: instead of a Compose daemon, Podman integrates
+natively with systemd via **Quadlet** unit files (`.container`, `.volume`) placed in
+`~/.config/containers/systemd/`.  Systemd reads these files and manages the container
+exactly like any other user service.
+
+### Build
+
+```bash
+podman build -t x2fa:latest .      # identical to docker build
+```
+
+### Quadlet files
+
+Three files live in `podman/`:
+
+| File | Purpose |
+|---|---|
+| `x2fa.container` | Systemd service unit that runs the container |
+| `x2fa-config.volume` | Named volume for `~/.config/x2fa/` (TOML files) |
+| `x2fa-data.volume` | Named volume for `~/.local/share/x2fa/` (DB, CA key) |
+
+### Install workflow
+
+```bash
+# 1. Build the image
+podman build -t x2fa:latest .
+
+# 2. Run the installer TUI once to generate config and initialise the database
+podman run -it --rm \
+  -v x2fa-config:/home/x2fa/.config/x2fa:Z \
+  -v x2fa-data:/home/x2fa/.local/share/x2fa:Z \
+  localhost/x2fa:latest x2fa-install
+
+# 3. Install Quadlet files
+cp podman/*.container podman/*.volume ~/.config/containers/systemd/
+
+# 4. Enable and start
+systemctl --user daemon-reload
+systemctl --user enable --now x2fa.service
+
+# 5. Auto-start on boot without interactive login
+loginctl enable-linger
+```
+
+### Upgrading
+
+```bash
+podman build -t x2fa:latest .
+systemctl --user restart x2fa.service
+```
+
+### Key differences from Docker (Option B)
+
+| Topic | Docker | Podman |
+|---|---|---|
+| Daemon | `dockerd` required | None |
+| Default privilege | root (unless configured) | Current user (rootless) |
+| Service wiring | `compose.yml` + Compose plugin | Quadlet → native systemd unit |
+| Volume SELinux label | Not needed | `:Z` required on Fedora/RHEL |
+| Local image ref | `x2fa:latest` | `localhost/x2fa:latest` |
+| Compose support | `docker compose` | `podman-compose` works but not idiomatic |
+
+### Required changes
+
+None beyond what Option B already requires.  The `Dockerfile` and `.dockerignore` are
+shared.  The only Podman-specific artifacts are the three files in `podman/`.
+
+### Pros / Cons
+
+| Pros | Cons |
+|---|---|
+| No daemon; lower attack surface | Quadlet requires Podman ≥ 4.4 and systemd |
+| Rootless by default | `:Z` SELinux labels needed on Fedora/RHEL |
+| Native systemd integration — no extra tooling | `localhost/` prefix on local image refs surprises Docker users |
+| Same `Dockerfile` as Option B | `podman-compose` exists but is a third-party wrapper |
+| Ideal for user-space server deployments | |
+
+---
+
+## Option D — Standalone Zipapp via `shiv`
 
 ### What it is
 
@@ -193,7 +279,7 @@ subsequent runs use the cached extraction.
 
 ---
 
-## Option D — Debian `.deb` Package (via `dh-virtualenv`)
+## Option E — Debian `.deb` Package (via `dh-virtualenv`)
 
 ### What it is
 
@@ -236,15 +322,16 @@ dpkg-buildpackage -us -uc
 
 ## Comparison Matrix
 
-| | A — Wheel | B — Docker | C — Shiv | D — .deb |
-|---|---|---|---|---|
-| **Python required on target** | Yes | No | Yes | No |
-| **Installer TUI works** | Yes | With effort | Yes | With effort |
-| **Single-file delivery** | No | Image | Yes | Yes |
-| **Offline deployment** | No (needs index) | Yes (save/load image) | Yes | Yes |
-| **System integration (user, service)** | Manual | Compose | Manual | Automatic |
-| **Upgrade path** | `pip install -U` | `docker pull` | Replace file | `apt upgrade` |
-| **Build complexity** | Low | Medium | Medium | High |
+| | A — Wheel | B — Docker | C — Podman | D — Shiv | E — .deb |
+|---|---|---|---|---|---|
+| **Python required on target** | Yes | No | No | Yes | No |
+| **Installer TUI works** | Yes | With effort | With effort | Yes | With effort |
+| **Single-file delivery** | No | Image | Image | Yes | Yes |
+| **Offline deployment** | No (needs index) | Yes (save/load) | Yes (save/load) | Yes | Yes |
+| **System integration (user, service)** | Manual | Compose daemon | Native systemd | Manual | Automatic |
+| **Rootless by default** | Yes | No | Yes | Yes | No |
+| **Upgrade path** | `pip install -U` | `docker pull` | `podman pull` | Replace file | `apt upgrade` |
+| **Build complexity** | Low | Medium | Medium | Medium | High |
 
 ---
 
@@ -257,37 +344,33 @@ The project is already 90% ready for a wheel build.  The one required code chang
 private Gitea package registry) gives operators `uv tool install x2fa[installer]` and
 a clean upgrade path.
 
-**Medium term: Option B (Docker) alongside A**
+**Medium term: Option B (Docker) or C (Podman) alongside A**
 
-A Docker image is the lowest-friction production deployment: no Python version
-management on the server, easy rollback, clear separation of config (volumes) from code
-(image).  The installer TUI is run once as a helper container (`docker run -it --rm`)
-and the resulting config files are then mounted into the service container.
+Both produce the same OCI image from the same `Dockerfile`.  Choose based on the target
+environment:
 
-**Option C (shiv)** is worth adding as an artifact of the CI pipeline once A is done —
+- **Docker (B)** — when the server already runs Docker or when Kubernetes/Compose
+  workflows are preferred.
+- **Podman (C)** — when rootless containers and native systemd integration are
+  preferred, or on Fedora/RHEL systems where Podman ships by default.  The Quadlet
+  files in `podman/` give a cleaner systemd integration than any Compose setup.
+
+**Option D (shiv)** is worth adding as a CI artifact once A is done —
 it costs one extra build step and gives an air-gapped / Ansible-friendly delivery
 artifact for free.
 
-**Option D (.deb)** should only be pursued if there is a concrete requirement to
+**Option E (.deb)** should only be pursued if there is a concrete requirement to
 integrate with a Debian/Ubuntu package repository or a configuration management system
 that relies on `apt`.
 
 ---
 
-## Immediate Prerequisite (all options)
+## Prerequisite fixes (done)
 
-Before any packaging work starts, fix the template path in `installer/config_writer.py`:
+The following repo-relative paths were fixed as part of implementing Options A–C:
 
-```python
-# Replace:
-template_dir = (
-    Path(__file__).resolve().parent.parent / "src" / "x2fa" / "config_files"
-)
-
-# With:
-from importlib.resources import files as _pkg_files
-template_dir = Path(str(_pkg_files("x2fa").joinpath("config_files")))
-```
-
-This is the only change that is **required for all four options** and can be done
-independently of whichever packaging strategy is chosen.
+- `installer/config_writer.py` — now uses `importlib.resources.files("x2fa")` to locate
+  config-file templates; works in wheels, editable installs, and containers.
+- `src/x2fa/cli.py` — same treatment for the Alembic migrations directory.
+- `migrations/` — moved into `src/x2fa/migrations/` so it ships inside the wheel and is
+  accessible via `importlib.resources` in all deployment scenarios.
