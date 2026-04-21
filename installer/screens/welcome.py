@@ -4,6 +4,7 @@ import os
 import shutil
 import socket
 import sys
+from pathlib import Path
 
 from textual.app import ComposeResult
 from textual.containers import Container
@@ -44,14 +45,41 @@ problems at runtime. Review the hint and decide whether to fix it first.
 |---|---|---|
 | Python ≥ 3.11 | Blocking | Upgrade Python. `uv python install 3.11` works. |
 | uv package manager | Blocking | Install uv: `curl -LsSf https://astral.sh/uv/install.sh | sh` |
+| Config dir writable | Blocking | `mkdir -p ~/.config/x2fa && chmod u+rwx ~/.config/x2fa` |
+| Data dir writable | Blocking | `mkdir -p ~/.local/share/x2fa && chmod u+rwx ~/.local/share/x2fa` |
+| systemd user dir writable | Blocking | `mkdir -p ~/.config/systemd/user && chmod u+rwx ~/.config/systemd/user` |
 | Running as root | Warning | Create a dedicated user and re-run as that user (see Prerequisites above) |
 | Port 5000 free | Warning | Stop the conflicting service: `lsof -ti:5000 | xargs kill` |
 | Redis reachable | Warning | Optional — only required when running multiple Gunicorn workers |
 """
 
 
-def _run_checks() -> list[dict]:
+def _check_dir(path: Path) -> tuple[bool, str]:
+    """Return (ok, hint) for a directory that the installer must be able to write to."""
+    if path.exists():
+        if os.access(path, os.W_OK):
+            return True, ""
+        return False, f"chmod u+rwx {path}"
+    # Directory doesn't exist yet — walk up to find the first existing ancestor.
+    ancestor = path.parent
+    while not ancestor.exists() and ancestor != ancestor.parent:
+        ancestor = ancestor.parent
+    if os.access(ancestor, os.W_OK):
+        return True, ""   # mkdir -p will succeed
+    return False, f"chmod u+rwx {ancestor}  (will be created under it)"
+
+
+def _run_checks(config_root: Path | None = None) -> list[dict]:
     checks = []
+    root = config_root if config_root is not None else Path.home()
+    home = Path.home()
+
+    def _fmt(p: Path) -> str:
+        """Display path with ~ substitution for readability."""
+        try:
+            return "~/" + str(p.relative_to(home))
+        except ValueError:
+            return str(p)
 
     # Root check (warning only — the installer can proceed, but it is unusual)
     import pwd
@@ -93,6 +121,23 @@ def _run_checks() -> list[dict]:
             "hint": "Install uv: curl -LsSf https://astral.sh/uv/install.sh | sh",
         }
     )
+
+    # XDG directories
+    _dirs = [
+        (root / ".config" / "x2fa",         "Config dir"),
+        (root / ".local" / "share" / "x2fa", "Data dir"),
+        (root / ".config" / "systemd" / "user", "systemd user dir"),
+    ]
+    for path, label in _dirs:
+        ok, fix = _check_dir(path)
+        entry: dict = {
+            "label": f"{label}  {_fmt(path)}",
+            "ok": ok,
+            "blocking": True,
+        }
+        if not ok:
+            entry["hint"] = f"mkdir -p {path} && {fix}"
+        checks.append(entry)
 
     # Port 5000
     try:
@@ -139,7 +184,7 @@ class WelcomeScreen(Screen):
         self.query_one("#help_panel", Collapsible).collapsed ^= True
 
     def compose(self) -> ComposeResult:
-        checks = _run_checks()
+        checks = _run_checks(self.app.config.config_root)
         blocking_failed = any(not c["ok"] and c["blocking"] for c in checks)
 
         yield Header()
