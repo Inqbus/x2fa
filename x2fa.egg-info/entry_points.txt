@@ -1,2 +1,0 @@
-[console_scripts]
-x2fa-install = installer.__main__:main

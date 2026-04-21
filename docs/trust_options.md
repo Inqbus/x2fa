@@ -359,9 +359,13 @@ shown and no certificates are generated.
 
 ## Implementation Notes
 
-**Current status:** Only Option A (`tls_client_auth`, `private_key_jwt`) is implemented.
-The remaining options (B, C, E) are fully specified in this document but not yet implemented.
-See `docs/todo.md` for the current task list.
+**Current status:** All six options (A, B, C, E) are fully implemented:
+- **Option A:** `tls_client_auth`, `private_key_jwt` ✓
+- **Option B:** `self_signed_tls_client_auth` ✓
+- **Option C:** `client_secret_jwt` ✓
+- **Option E:** `client_secret_post`, `client_secret_basic` ✓
+
+The demo RP (`demo_rp/app.py`) now supports all six methods and generates the appropriate configuration per method.
 
 ---
 

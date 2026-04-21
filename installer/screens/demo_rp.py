@@ -1,5 +1,10 @@
 """Demo RP setup screen — registers demo-rp as an OIDC client and issues its cert."""
 
+import os
+import socket
+import subprocess
+from pathlib import Path
+
 from textual import work
 from textual.app import ComposeResult
 from textual.containers import Container
@@ -15,16 +20,15 @@ relying party for end-to-end testing of the full authentication flow.
 ### What this screen does
 
 1. **Register the demo-rp CA** — calls `flask add-ca demo-rp-ca <ca_cert>` to make
-   the installation CA trusted for demo-rp client certificates.
+   the installation CA trusted for demo-rp client certificates. *(Only for PKI methods)*
 2. **Register the demo-rp client** — calls `flask add-client demo-rp
-   http://localhost:<port>/callback --method tls_client_auth`.
-3. **Issue the client certificate** — signs a new cert with the CA and writes
-   `demo_rp/demo-rp.cert.pem` and `demo_rp/demo-rp.key.pem`.
+   http://localhost:<port>/callback --method <your-auth-method>`.
+3. **Issue client certificate** — signs a new cert with the CA and writes
+   `demo_rp/demo-rp.cert.pem` and `demo_rp/demo-rp.key.pem`. *(Only for tls_client_auth)*
 
 ### After setup
 
-Edit `demo_rp/demo_rp_settings.toml` to set `X2FA_URL` and `DEMO_RP_URL`, then start
-the demo RP:
+Edit `demo_rp/demo_rp_settings.toml` to configure your auth method and start the demo RP:
 
 ```
 uv run python demo_rp/app.py
@@ -32,11 +36,23 @@ uv run python demo_rp/app.py
 
 Open `http://localhost:<port>` in a browser, click **Verify 2FA** or **Setup 2FA**.
 
+### Supported Authentication Methods
+
+| Method | Required Config | Description |
+|---|---|---|
+| `tls_client_auth` | `CLIENT_CERT_PATH`, `CLIENT_KEY_PATH` | CA-signed mTLS certificate (recommended) |
+| `private_key_jwt` | `CLIENT_CERT_PATH`, `CLIENT_KEY_PATH`, `JWKS_URI` | JWT with certificate chain |
+| `self_signed_tls_client_auth` | `CLIENT_CERT_PATH`, `CLIENT_KEY_PATH`, `CLIENT_SELF_SIGNED_CERT_PATH` | Self-signed cert fingerprint |
+| `client_secret_jwt` | `CLIENT_CERT_PATH`, `CLIENT_KEY_PATH`, `CLIENT_SECRET` | JWT signed with shared secret |
+| `client_secret_post` | `CLIENT_SECRET` | Secret in POST body |
+| `client_secret_basic` | `CLIENT_SECRET` | HTTP Basic auth |
+
 ### Requirements
 
 - X2FA must already be running and reachable.
-- The installation must have used a PKI auth method (`tls_client_auth` or
-  `private_key_jwt`) so that a CA key is available to sign the demo-rp cert.
+- The demo RP will automatically detect your installed auth method and configure itself.
+- For PKI methods (tls_client_auth, private_key_jwt, self_signed_tls_client_auth), a CA must be available.
+- For secret methods (client_secret_*), the installer will append your secret to the settings file.
 """
 
 _SETTINGS_TEMPLATE = """\
@@ -47,8 +63,22 @@ HOST              = "127.0.0.1"
 PORT              = {port}
 X2FA_URL          = "https://{domain}"
 DEMO_RP_URL       = "http://localhost:{port}"
+CLIENT_AUTH_METHOD = "{auth_method}"
 CLIENT_CERT_PATH  = "demo-rp.cert.pem"
 CLIENT_KEY_PATH   = "demo-rp.key.pem"
+# CLIENT_SELF_SIGNED_CERT_PATH = "/path/to/self_signed.pem"  # for self_signed_tls_client_auth
+# JWKS_URI         = "https://example.com/.well-known/jwks.json"  # for private_key_jwt
+# CLIENT_SECRET    = "your-64-char-secret"  # for client_secret_* methods
+"""
+
+_PREFERENCES_HINT = """\
+Preflight checks will verify:
+- Port {port} is available for the demo RP
+- X2FA is reachable at {domain}
+- demo_rp directory is writable
+- demo_rp_settings.toml can be written
+
+Click **Set up Demo RP** to begin.
 """
 
 
@@ -82,11 +112,18 @@ class DemoRPScreen(Screen):
                 yield Footer()
                 return
 
+            domain = cfg.domain or "your-x2fa-domain.example.com"
             yield Static("Demo RP port:", classes="field-label")
             yield Input(value="5099", id="port", placeholder="5099")
             yield Static(
                 "  The demo RP will listen on http://localhost:<port>.\n"
                 "  The callback URL http://localhost:<port>/callback will be registered.",
+                classes="hint",
+            )
+            yield Static(
+                _PREFERENCES_HINT.format(port=5099, domain=domain),
+                id="preflight_hint",
+                markup=True,
                 classes="hint",
             )
 
@@ -95,6 +132,7 @@ class DemoRPScreen(Screen):
             with Container(id="buttons"):
                 yield Button("← Back",          id="back",  variant="default")
                 yield Button("Set up Demo RP →", id="run",   variant="primary")
+                yield Button("Done",            id="done",  variant="success", disabled=True)
         yield Footer()
 
     def on_mount(self) -> None:
@@ -123,25 +161,38 @@ class DemoRPScreen(Screen):
 
         self.app.call_from_thread(disable_run)
 
+        # Preflight checks
+        log("── Preflight checks ─────────────────────────")
+        domain = cfg.domain or cfg.domain or "your-x2fa-domain.example.com"
+        if not self._run_preflight_checks(port, domain, log):
+            log("[red]Aborting — fix the errors above and try again.[/]")
+            self.app.call_from_thread(enable_run)
+            return
+        log("[green]Continuing with setup...[/]")
+
         ca_cert = cfg.effective_ca_cert()
         redirect_uri = f"http://localhost:{port}/callback"
         output_dir = str(cfg.install_root / "demo_rp")
+        auth_method = cfg.client_auth_method
 
-        # Step 1 — register CA
+        # Step 1 — register CA (only for PKI methods)
         log("── Register demo-rp-ca ──────────────────────")
-        ok, out = add_ca("demo-rp-ca", ca_cert, cfg.install_root)
-        for line in (out or "").splitlines():
-            log(f"  {line}")
-        if not ok:
-            log("[red]Failed — aborting.[/]")
-            self.app.call_from_thread(enable_run)
-            return
-        log("[green]  ✓  done[/]")
+        if auth_method in {"tls_client_auth", "private_key_jwt", "self_signed_tls_client_auth"}:
+            ok, out = add_ca("demo-rp-ca", ca_cert, cfg.install_root)
+            for line in (out or "").splitlines():
+                log(f"  {line}")
+            if not ok:
+                log("[red]Failed — aborting.[/]")
+                self.app.call_from_thread(enable_run)
+                return
+            log("[green]  ✓  done[/]")
+        else:
+            log("[dim]SKIPPED — CA registration not needed for {auth_method}[/]")
 
         # Step 2 — register client
         log("── Register demo-rp client ──────────────────")
         ok, out = add_client(
-            "demo-rp", redirect_uri, "tls_client_auth", cfg.install_root
+            "demo-rp", redirect_uri, auth_method, cfg.install_root
         )
         for line in (out or "").splitlines():
             log(f"  {line}")
@@ -151,33 +202,45 @@ class DemoRPScreen(Screen):
             return
         log("[green]  ✓  done[/]")
 
-        # Step 3 — issue client certificate
-        log("── Issue demo-rp client certificate ─────────")
-        try:
-            paths = issue_client_cert(
-                "demo-rp",
-                ca_cert,
-                cfg.ca_key_path,
-                output_dir,
-            )
-            for k, v in paths.items():
-                log(f"  {k}: {v}")
-            log("[green]  ✓  done[/]")
-        except Exception as exc:
-            log(f"[red]Failed: {exc}[/]")
-            self.app.call_from_thread(enable_run)
-            return
+        # Step 3 — issue client certificate (only for PKI methods)
+        if auth_method in {"tls_client_auth", "self_signed_tls_client_auth"}:
+            log("── Issue demo-rp client certificate ─────────")
+            try:
+                paths = issue_client_cert(
+                    "demo-rp",
+                    ca_cert,
+                    cfg.ca_key_path,
+                    output_dir,
+                )
+                for k, v in paths.items():
+                    log(f"  {k}: {v}")
+                log("[green]  ✓  done[/]")
+            except Exception as exc:
+                log(f"[red]Failed: {exc}[/]")
+                self.app.call_from_thread(enable_run)
+                return
+        else:
+            log("[dim]SKIPPED — Client cert not needed for {auth_method}[/]")
 
         # Step 4 — write demo_rp_settings.toml
         log("── Write demo_rp_settings.toml ──────────────")
         try:
             settings_path = cfg.install_root / "demo_rp" / "demo_rp_settings.toml"
+            template_args = {
+                "port": port,
+                "domain": cfg.domain or "your-x2fa-domain.example.com",
+                "auth_method": auth_method,
+            }
             settings_path.write_text(
-                _SETTINGS_TEMPLATE.format(
-                    port=port,
-                    domain=cfg.domain or "your-x2fa-domain.example.com",
-                )
+                _SETTINGS_TEMPLATE.format(**template_args)
             )
+            
+            # For secret methods, append the secret
+            if auth_method in {"client_secret_jwt", "client_secret_post", "client_secret_basic"}:
+                settings_path.write_text(
+                    settings_path.read_text() + f"\nCLIENT_SECRET = \"{cfg.client_secret}\"\n"
+                )
+            
             log(f"  Written: {settings_path}")
             log("[green]  ✓  done[/]")
         except OSError as exc:
@@ -187,6 +250,34 @@ class DemoRPScreen(Screen):
         log("[green bold]Demo RP setup complete.[/]")
         log(f"  Start with:  uv run python demo_rp/app.py")
         log(f"  Open:        http://localhost:{port}")
+        self.app.call_from_thread(self._on_done)
+
+    def _on_done(self):
+        self.query_one("#run").disabled = True
+        self.query_one("#back").disabled = False
+        self.query_one("#done").disabled = False
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        if event.input.id == "port":
+            port = self.query_one("#port", Input).value.strip()
+            if port and self.app.config.domain:
+                port = int(port)
+                domain = self.app.config.domain
+                self.query_one("#preflight_hint", Static).update(
+                    _PREFERENCES_HINT.format(port=port, domain=domain)
+                )
+
+    def _run_preflight_checks(self, port: int, domain: str, log_func) -> bool:
+        """Run preflight checks before starting setup."""
+        ok, errors = self._check_demo_rp_preflights(port, domain)
+        if ok:
+            log_func("[green]✓  All preflight checks passed[/]")
+        else:
+            log_func("[red]✗  Preflight checks failed:[/]")
+            for error in errors:
+                log_func(f"  [red]  {error}[/]")
+            return False
+        return True
 
     # ── Buttons ───────────────────────────────────────────────────────────
 
@@ -195,9 +286,13 @@ class DemoRPScreen(Screen):
             case "back":
                 self.app.pop_screen()
             case "run":
+                if self.query_one("#run", Button).disabled:
+                    return
                 try:
                     port = int(self.query_one("#port", Input).value.strip())
                 except ValueError:
                     self.notify("Port must be a number.", severity="error")
                     return
                 self._run_setup(port)
+            case "done":
+                self.app.pop_screen()

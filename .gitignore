@@ -5,7 +5,12 @@ __pycache__/
 *.db
 *.db-shm
 *.db-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
 .env
 Caddyfile
 *.nginx.conf
 .idea*
+x2fa.egg-info/
+uv.lock

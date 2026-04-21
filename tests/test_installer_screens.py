@@ -407,3 +407,25 @@ class TestCASetupScreen:
             await pilot.click("#next")
             await pilot.pause()
             assert "ReviewScreen" in app.screen.__class__.__name__
+
+
+# ── DemoRPScreen ──────────────────────────────────────────────────────────────
+
+class TestDemoRPScreen:
+    @pytest.mark.asyncio
+    async def test_done_button_hidden_before_setup(self, tmp_path):
+        from installer.screens.demo_rp import DemoRPScreen
+        app = DirectScreenApp(DemoRPScreen, tmp_path,
+                              config_overrides={
+                                  "client_auth_method": "tls_client_auth",
+                                  "ca_action": "generate",
+                                  "ca_cert_path": str(tmp_path / "ca_cert.pem"),
+                                  "ca_key_path": str(tmp_path / "ca_key.pem"),
+                              })
+        # Create CA files
+        (tmp_path / "ca_cert.pem").write_text("-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----")
+        (tmp_path / "ca_key.pem").write_text("-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----")
+        async with app.run_test(size=_SIZE):
+            buttons = {b.id: b for b in app.screen.query(Button)}
+            assert "done" in buttons
+            assert buttons["done"].disabled

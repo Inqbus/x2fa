@@ -57,8 +57,14 @@ DEMO_RP_URL       = cfg.DEMO_RP_URL
 CLIENT_ID         = "demo-rp"
 REDIRECT_URI      = DEMO_RP_URL + "/callback"
 SECRET_KEY        = cfg.SECRET_KEY
+CLIENT_AUTH_METHOD = cfg.get("CLIENT_AUTH_METHOD", "tls_client_auth")
 _CLIENT_CERT_PATH = Path(cfg.CLIENT_CERT_PATH)
 _CLIENT_KEY_PATH  = Path(cfg.CLIENT_KEY_PATH)
+
+# For non-PKI methods
+_CLIENT_SECRET = cfg.get("CLIENT_SECRET", "")
+_JWKS_URI = cfg.get("JWKS_URI", "")
+_CLIENT_SELF_SIGNED_CERT_PATH = Path(cfg.CLIENT_SELF_SIGNED_CERT_PATH) if cfg.get("CLIENT_SELF_SIGNED_CERT_PATH") else None
 
 SUPPORTED_UI  = {"de", "en"}
 SUPPORTED_X2FA = {"de", "en", "fr", "es", "pt", "it", "nl", "pl",
@@ -97,18 +103,49 @@ def _pkce_pair() -> tuple[str, str]:
     return verifier, challenge
 
 
-def _build_client_assertion() -> str:
-    """Builds a signed private_key_jwt with x5c for the token endpoint.
+def _build_client_assertion_jwt() -> str:
+    """Builds a signed JWT using the client's private key (private_key_jwt or client_secret_jwt)."""
+    from authlib.jose import JsonWebKey, jwt as jose_jwt
 
-    Reads the client cert and key from the paths configured in demo_rp_settings.toml.
-    The JWT is signed with the client's EC private key; the certificate is embedded
-    as x5c so X2FA can validate it against its registered CA.
-    """
+    now = int(time.time())
+    payload = {
+        "iss": CLIENT_ID,
+        "sub": CLIENT_ID,
+        "aud": f"{X2FA_URL}/token",
+        "exp": now + 60,
+        "iat": now,
+        "jti": secrets.token_urlsafe(16),
+    }
+
+    if CLIENT_AUTH_METHOD == "private_key_jwt":
+        from cryptography import x509
+        from cryptography.hazmat.primitives import serialization
+
+        cert_pem = _CLIENT_CERT_PATH.read_bytes()
+        key_pem  = _CLIENT_KEY_PATH.read_bytes()
+
+        cert = x509.load_pem_x509_certificate(cert_pem)
+        cert_der = cert.public_bytes(serialization.Encoding.DER)
+        x5c = [base64.b64encode(cert_der).decode()]
+
+        jwk = JsonWebKey.import_key(key_pem)
+        token = jose_jwt.encode({"alg": "ES256", "x5c": x5c}, payload, jwk)
+    elif CLIENT_AUTH_METHOD == "client_secret_jwt":
+        jwk = JsonWebKey.import_key({"kty": "oct", "k": base64.urlsafe_b64encode(_CLIENT_SECRET.encode()).rstrip(b"=").decode()})
+        token = jose_jwt.encode({"alg": "HS256"}, payload, jwk)
+    else:
+        raise ValueError(f"Invalid auth method for JWT: {CLIENT_AUTH_METHOD}")
+
+    return token.decode() if isinstance(token, bytes) else token
+
+
+def _build_client_assertion_self_signed() -> str:
+    """Builds a signed JWT using self-signed cert (self_signed_tls_client_auth method)."""
     from cryptography import x509
     from cryptography.hazmat.primitives import serialization
     from authlib.jose import JsonWebKey, jwt as jose_jwt
 
-    cert_pem = _CLIENT_CERT_PATH.read_bytes()
+    cert_pem = _CLIENT_SELF_SIGNED_CERT_PATH.read_bytes()
     key_pem  = _CLIENT_KEY_PATH.read_bytes()
 
     cert = x509.load_pem_x509_certificate(cert_pem)
@@ -211,21 +248,40 @@ def callback():
     if state != session.get("state"):
         return redirect(url_for("index", error=_("State mismatch — possible CSRF attack.")))
 
-    # Exchange authorization code for tokens using private_key_jwt
-    body = urllib.parse.urlencode({
+    # Exchange authorization code for tokens using the configured auth method
+    body = {
         "grant_type":            "authorization_code",
         "code":                  code,
         "redirect_uri":          REDIRECT_URI,
         "client_id":             CLIENT_ID,
-        "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
-        "client_assertion":      _build_client_assertion(),
         "code_verifier":         session.pop("pkce_verifier", ""),
-    }).encode()
+    }
+    headers = {"Content-Type": "application/x-www-form-urlencoded"}
+
+    if CLIENT_AUTH_METHOD in ("tls_client_auth", "self_signed_tls_client_auth"):
+        body["client_assertion_type"] = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+        body["client_assertion"] = _build_client_assertion_self_signed() if CLIENT_AUTH_METHOD == "self_signed_tls_client_auth" else _build_client_assertion()
+        if CLIENT_AUTH_METHOD == "tls_client_auth":
+            headers["X-Client-Certificate"] = _CLIENT_CERT_PATH.read_text()
+    elif CLIENT_AUTH_METHOD == "private_key_jwt":
+        body["client_assertion_type"] = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+        body["client_assertion"] = _build_client_assertion_jwt()
+    elif CLIENT_AUTH_METHOD == "client_secret_jwt":
+        body["client_assertion_type"] = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+        body["client_assertion"] = _build_client_assertion_jwt()
+    elif CLIENT_AUTH_METHOD == "client_secret_post":
+        body["client_secret"] = _CLIENT_SECRET
+    elif CLIENT_AUTH_METHOD == "client_secret_basic":
+        import base64
+        creds = base64.b64encode(f"{CLIENT_ID}:{_CLIENT_SECRET}".encode()).decode()
+        headers["Authorization"] = f"Basic {creds}"
+    else:
+        raise ValueError(f"Unsupported auth method: {CLIENT_AUTH_METHOD}")
 
     req = urllib.request.Request(
         f"{X2FA_URL}/token",
-        data=body,
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        data=urllib.parse.urlencode(body).encode(),
+        headers=headers,
     )
     try:
         with urllib.request.urlopen(req) as resp:

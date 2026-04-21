@@ -7,7 +7,18 @@ X2FA is a standalone two-factor authentication microservice that exposes a stand
 - **TOTP** — Google Authenticator, Aegis, FreeOTP, Authy, and any RFC 6238-compatible app
 - **Backup codes** — 10 single-use codes generated at setup time
 
-**Client authentication:** Shared client secrets are not supported. All OIDC clients authenticate at the token endpoint via **X.509 certificates** (`tls_client_auth` or `private_key_jwt`). Client certificates are issued using the built-in CA management CLI.
+**Client authentication:** X2FA supports **six authentication methods** at the token endpoint:
+
+| Method | Trust Model | Secret? | Recommended |
+|---|---|---|---|
+| `tls_client_auth` | CA-signed mTLS | No | **Yes** |
+| `private_key_jwt` | JWKS-verified JWT | No | Yes |
+| `self_signed_tls_client_auth` | Fingerprint-pinned cert | No | Acceptable |
+| `client_secret_jwt` | HMAC-signed JWT | Yes (encrypted) | With caution |
+| `client_secret_post` | Secret in POST body | Yes (encrypted) | No (production) |
+| `client_secret_basic` | HTTP Basic auth | Yes (encrypted) | No (production) |
+
+Client certificates are issued using the built-in CA management CLI. For secret methods, the installer generates and displays a secret once (never stored).
 
 ---
 
@@ -138,6 +149,23 @@ export X2FA_DATABASE__SQLALCHEMY_DATABASE_URI=postgresql://...
 ---
 
 ## First-Time Setup
+
+### Using the Interactive Installer (Recommended)
+
+```bash
+uv run x2fa-install
+```
+
+The installer walks through all configuration steps and sets up X2FA automatically:
+1. Preflight checks — Python ≥ 3.11, uv, port 5000, Redis (optional)
+2. Database — SQLite (default), PostgreSQL, or MySQL
+3. Domain & Proxy — public hostname and reverse proxy type
+4. Security — auto-generates `SECRET_KEY` and `SECRET_SALT`
+5. First OIDC Client — choose one of six auth methods
+6. Certificate Authority (PKI methods only) — generate or import a CA
+7. Review and execute
+
+### Manual Setup
 
 ```bash
 export FLASK_APP=wsgi:app
@@ -445,19 +473,39 @@ Options:
 Registers a new OIDC client.
 
 ```bash
-# tls_client_auth (default)
+# tls_client_auth (default) — CA-signed mTLS
 flask add-client myapp https://myapp.example.com/callback
 
-# private_key_jwt
+# private_key_jwt — JWKS-verified JWT
 flask add-client myapp https://myapp.example.com/callback \
   --method private_key_jwt \
   --jwks-uri https://myapp.example.com/.well-known/jwks.json
+
+# self_signed_tls_client_auth — fingerprint-pinned self-signed cert
+flask add-client myapp https://myapp.example.com/callback \
+  --method self_signed_tls_client_auth \
+  --cert /path/to/self_signed.pem
+
+# client_secret_jwt — HMAC-signed JWT (auto-generates secret)
+flask add-client myapp https://myapp.example.com/callback \
+  --method client_secret_jwt
+
+# client_secret_post — secret in POST body (auto-generates secret)
+flask add-client myapp https://myapp.example.com/callback \
+  --method client_secret_post
+
+# client_secret_basic — HTTP Basic auth (auto-generates secret)
+flask add-client myapp https://myapp.example.com/callback \
+  --method client_secret_basic
 ```
 
 Options:
-- `--method` — `tls_client_auth` (default) or `private_key_jwt`
+- `--method` — `tls_client_auth`, `private_key_jwt`, `self_signed_tls_client_auth`, `client_secret_jwt`, `client_secret_post`, or `client_secret_basic`
 - `--jwks-uri` — JWKS URL (required for `private_key_jwt`)
+- `--cert` — Path to self-signed certificate (required for `self_signed_tls_client_auth`)
 - `--scopes` — allowed scopes (default: `openid app:setup`)
+
+For secret methods (`client_secret_jwt`, `client_secret_post`, `client_secret_basic`), a 64-character random secret is auto-generated and displayed exactly once. Record it immediately — it cannot be retrieved later.
 
 ### `flask list-clients`
 
@@ -489,9 +537,16 @@ uv run flask init-db
 uv run flask init-keys
 
 # Set up a CA and issue a client cert for the demo RP
+# (if using PKI auth method)
 uv run flask add-ca demo-ca /path/to/ca.cert.pem
 uv run flask issue-client-cert demo-rp --ca demo-ca --output demo_rp/
+
+# Choose your auth method (default: tls_client_auth)
 uv run flask add-client demo-rp http://localhost:5001/callback
+
+# The installer creates demo_rp_settings.toml with the correct auth method
+# For secret methods, edit to add the secret:
+# CLIENT_SECRET = "your-64-char-secret"
 
 uv run flask run --port 5000
 # In a second terminal:
@@ -503,6 +558,24 @@ uv run python demo_rp/app.py
 ```bash
 uv run pytest tests/ -v
 ```
+
+### Demo Relying Party
+
+The demo RP (`demo_rp/app.py`) simulates an OIDC relying party for testing the full auth flow. It supports **all six authentication methods** and automatically configures itself based on the installed auth method.
+
+**Setup (once per auth method):**
+```bash
+# The installer creates demo_rp_settings.toml with the correct auth method
+
+# For secret methods, edit to add the secret:
+# CLIENT_SECRET = "your-64-char-secret"
+
+uv run python demo_rp/app.py
+```
+
+Open `http://localhost:5001` in a browser, click **Verify 2FA** or **Setup 2FA** to test the flow.
+
+See `demo_rp/demo_rp_settings.toml` for example configurations for all auth methods.
 
 ---
 

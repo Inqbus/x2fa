@@ -163,14 +163,22 @@ A **Set up Demo RP →** button opens the optional Demo RP screen.
 
 ### 10. Demo RP Setup (DemoRPScreen) — optional
 
-Registers the bundled demo relying party for end-to-end testing:
+Registers the bundled demo relying party for end-to-end testing with support for **all six auth methods**:
 
-1. `flask add-ca demo-rp-ca <ca_cert>` (idempotent)
-2. `flask add-client demo-rp http://localhost:<port>/callback --method tls_client_auth`
-3. Issue `demo-rp.cert.pem` + `demo-rp.key.pem`
-4. Write `demo_rp/demo_rp_settings.toml`
+1. **Preflight checks** — verifies port availability, X2FA reachability, and demo_rp directory writability
+2. `flask add-ca demo-rp-ca <ca_cert>` (idempotent, only for PKI methods)
+3. `flask add-client demo-rp http://localhost:<port>/callback --method <your-auth-method>`
+4. Issue `demo-rp.cert.pem` + `demo-rp.key.pem` (only for PKI methods)
+5. Write `demo_rp/demo_rp_settings.toml` with correct auth method
 
-Only available when the installation used a PKI auth method.
+The installer automatically uses the same auth method as the main installation:
+- For secret methods, appends the generated secret to the settings file
+- For PKI methods, uses the CA key to issue the demo RP certificate
+- For `self_signed_tls_client_auth`, prompts for the self-signed cert path
+
+The file `demo_rp/demo_rp_settings.toml` contains example configurations for all six methods in comments.
+
+Available for all auth methods (PKI and secret).
 
 ### 11. CA Manage (CAManageScreen) — main menu option
 
