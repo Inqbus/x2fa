@@ -202,8 +202,9 @@ class SummaryScreen(Screen):
                 )
 
             with Container(id="buttons"):
-                yield Button("Copy summary", id="copy", variant="default")
-                yield Button("Done", id="done", variant="success")
+                yield Button("Copy summary",    id="copy",    variant="default")
+                yield Button("Set up Demo RP →", id="demo_rp", variant="default")
+                yield Button("Done",            id="done",    variant="success")
         yield Footer()
 
     def _build_summary_text(self) -> str:
@@ -276,5 +277,8 @@ class SummaryScreen(Screen):
                     self.notify("Summary copied to clipboard.")
                 else:
                     self.app.push_screen(_LogOverlay(text))
+            case "demo_rp":
+                from installer.screens.demo_rp import DemoRPScreen
+                self.app.push_screen(DemoRPScreen())
             case "done":
                 self.app.exit()
