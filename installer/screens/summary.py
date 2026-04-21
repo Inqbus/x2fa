@@ -4,6 +4,8 @@ from textual.containers import Container
 from textual.screen import Screen
 from textual.widgets import Button, Collapsible, Footer, Header, Markdown, Static
 
+from installer.screens.execute import _LogOverlay, _copy_to_clipboard
+
 _HELP_TEXT = """\
 ## Installation Summary
 
@@ -181,9 +183,71 @@ class SummaryScreen(Screen):
             )
 
             with Container(id="buttons"):
+                yield Button("Copy summary", id="copy", variant="default")
                 yield Button("Done", id="done", variant="success")
         yield Footer()
 
+    def _build_summary_text(self) -> str:
+        cfg = self.app.config
+        proxy_snippet = _PROXY_SNIPPETS.get(cfg.proxy_type or "caddy", "").format(
+            domain=cfg.domain or "2fa.example.com",
+            ca_cert=cfg.effective_ca_cert() or "/etc/x2fa/ca_cert.pem",
+        )
+        unit_path = cfg.config_root / ".config" / "systemd" / "user" / "x2fa.service"
+
+        lines = [
+            "X2FA Installation Summary",
+            "=" * 40,
+            "",
+            "systemd user service:",
+            f"  {unit_path}",
+            "",
+            "  # Enable and start:",
+            "  systemctl --user daemon-reload",
+            "  systemctl --user enable --now x2fa.service",
+            "",
+            "  # Auto-start on boot without interactive login:",
+            "  loginctl enable-linger",
+            "",
+            "Manual start command (without systemd):",
+            "  ENV_FOR_DYNACONF=production uv run gunicorn 'x2fa.wsgi:app' --bind 127.0.0.1:5000",
+        ]
+
+        if cfg.generated_files:
+            lines += ["", "Generated files:"]
+            for f in cfg.generated_files:
+                lines.append(f"  {f}")
+
+        if cfg.client_id and cfg.client_auth_method == "tls_client_auth":
+            lines += [
+                "",
+                "Client certificate bundle:",
+                f"  {cfg.client_cert_output_dir}/{cfg.client_id}.cert.pem",
+                f"  {cfg.client_cert_output_dir}/{cfg.client_id}.key.pem",
+            ]
+
+        if proxy_snippet:
+            lines += ["", f"Reverse proxy config ({cfg.proxy_type}):", proxy_snippet]
+
+        lines += [
+            "",
+            "Next steps:",
+            "  1. Configure and reload your reverse proxy.",
+            "  2. systemctl --user daemon-reload && systemctl --user enable --now x2fa.service",
+            "  3. loginctl enable-linger  (headless servers — auto-start on boot)",
+            "  4. Configure your application with the OIDC client credentials.",
+            "  5. Run `flask issue-client-cert <id> --ca <name>` to add more clients.",
+        ]
+
+        return "\n".join(lines)
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "done":
-            self.app.exit()
+        match event.button.id:
+            case "copy":
+                text = self._build_summary_text()
+                if _copy_to_clipboard(text):
+                    self.notify("Summary copied to clipboard.")
+                else:
+                    self.app.push_screen(_LogOverlay(text))
+            case "done":
+                self.app.exit()
