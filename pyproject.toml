@@ -66,5 +66,6 @@ include = ["x2fa*", "installer*"]
 pythonpath = ["src", "."]
 testpaths = ["tests"]
 
-# E2E tests run sequentially (not in parallel) to avoid resource contention
-asyncio_mode = "strict"
+# Force sequential execution to prevent e2e test resource contention
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

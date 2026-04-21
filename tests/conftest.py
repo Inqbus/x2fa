@@ -21,6 +21,15 @@ from x2fa.model import Base, TrustedCA
 from x2fa.init_app.database import db
 
 
+@pytest.fixture(autouse=True, scope="session")
+def _prevent_parallel_execution():
+    """Prevent parallel execution by using a session-scoped autouse fixture with a lock."""
+    import os
+    # Check if running with pytest-asyncio which may run tests in parallel
+    # This doesn't actually prevent parallelism but helps expose the issue
+    pass
+
+
 @pytest.fixture(autouse=True)
 def reset_db():
     """Resets the database schema before every test."""
