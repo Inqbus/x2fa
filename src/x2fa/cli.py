@@ -344,7 +344,8 @@ def add_ca(name, cert_path):
             select(TrustedCA).where(TrustedCA.name == name)
         ).scalars().first()
         if existing:
-            raise click.ClickException(f"CA '{name}' already exists. Use revoke-ca first.")
+            click.echo(f"CA '{name}' already registered — skipping.", err=True)
+            return
         db_session.add(TrustedCA(name=name, cert_pem=cert_pem, expires_at=expires_at))
 
     click.echo(f"CA registered:  {name}")

@@ -64,16 +64,16 @@ def test_add_ca_invalid_pem(tmp_path):
     assert "Not a valid PEM certificate" in result.output
 
 
-def test_add_ca_duplicate_rejected(tmp_path):
-    """Refuses to register a CA name that already exists."""
+def test_add_ca_duplicate_skipped(tmp_path):
+    """Registering a CA name that already exists is idempotent (exit 0, warning emitted)."""
     _, cert_path, _, _, _ = _write_ca_files(tmp_path)
-    runner = CliRunner()
+    runner = CliRunner(mix_stderr=True)
 
     runner.invoke(_cli(), ["add-ca", "dupe-ca", str(cert_path)])
     result = runner.invoke(_cli(), ["add-ca", "dupe-ca", str(cert_path)])
 
-    assert result.exit_code != 0
-    assert "already exists" in result.output
+    assert result.exit_code == 0
+    assert "already registered" in result.output
 
 
 # ---------------------------------------------------------------------------

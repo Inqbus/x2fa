@@ -132,11 +132,11 @@ class DemoRPScreen(Screen):
         ok, out = add_ca("demo-rp-ca", ca_cert, cfg.install_root)
         for line in (out or "").splitlines():
             log(f"  {line}")
-        if not ok and "already" not in (out or "").lower():
+        if not ok:
             log("[red]Failed — aborting.[/]")
             self.app.call_from_thread(enable_run)
             return
-        log("[green]  ✓  done[/]" if ok else "[yellow]  ⚠  already registered — continuing[/]")
+        log("[green]  ✓  done[/]")
 
         # Step 2 — register client
         log("── Register demo-rp client ──────────────────")
@@ -145,11 +145,11 @@ class DemoRPScreen(Screen):
         )
         for line in (out or "").splitlines():
             log(f"  {line}")
-        if not ok and "already" not in (out or "").lower():
+        if not ok:
             log("[red]Failed — aborting.[/]")
             self.app.call_from_thread(enable_run)
             return
-        log("[green]  ✓  done[/]" if ok else "[yellow]  ⚠  already registered — continuing[/]")
+        log("[green]  ✓  done[/]")
 
         # Step 3 — issue client certificate
         log("── Issue demo-rp client certificate ─────────")
