@@ -72,9 +72,16 @@ python3.11 -m venv ~/.local/x2fa-venv
 **With uv tool (isolated, globally available commands):**
 
 ```bash
-uv tool install "x2fa[installer]"           # from PyPI
-uv tool install "x2fa[installer]" --from ./dist/x2fa-2.0.0-py3-none-any.whl  # from file
+# From PyPI:
+uv tool install "x2fa[installer]"
+
+# From a local wheel file — note: the extra must be specified even for local files:
+uv tool install "x2fa[installer]" --from x2fa-2.0.0-py3-none-any.whl
 ```
+
+> **Important:** `x2fa-install` requires the `[installer]` extra (pulls in `textual`).
+> Installing without it (`uv tool install x2fa`) places the `x2fa-install` binary on
+> `PATH` but it will exit with a clear error message on first run.
 
 This makes `x2fa-install` and `gunicorn` available in `~/.local/bin/` without
 managing a venv manually.
