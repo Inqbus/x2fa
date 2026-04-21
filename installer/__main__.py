@@ -18,8 +18,8 @@ except ModuleNotFoundError as _e:
             "\n"
             "Install it with:\n"
             "  uv tool install 'x2fa[installer]'\n"
-            "  uv tool install 'x2fa[installer]' --from x2fa-2.0.0-py3-none-any.whl\n"
-            "  pip install 'x2fa[installer]'\n",
+            "  uv tool install 'x2fa[installer] @ x2fa-2.0.0-py3-none-any.whl'\n"
+            "  pip install 'x2fa[installer] @ x2fa-2.0.0-py3-none-any.whl'\n",
             file=sys.stderr,
         )
         sys.exit(1)

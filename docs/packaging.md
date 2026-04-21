@@ -64,9 +64,9 @@ python3.11 -m venv ~/.local/x2fa-venv
 
 ```bash
 python3.11 -m venv ~/.local/x2fa-venv
-~/.local/x2fa-venv/bin/pip install x2fa-2.0.0-py3-none-any.whl
+~/.local/x2fa-venv/bin/pip install "x2fa[installer] @ x2fa-2.0.0-py3-none-any.whl"
 # With optional database drivers:
-~/.local/x2fa-venv/bin/pip install "x2fa-2.0.0-py3-none-any.whl[installer,postgres]"
+~/.local/x2fa-venv/bin/pip install "x2fa[installer,postgres] @ x2fa-2.0.0-py3-none-any.whl"
 ```
 
 **With uv tool (isolated, globally available commands):**
@@ -75,8 +75,8 @@ python3.11 -m venv ~/.local/x2fa-venv
 # From PyPI:
 uv tool install "x2fa[installer]"
 
-# From a local wheel file — note: the extra must be specified even for local files:
-uv tool install "x2fa[installer]" --from x2fa-2.0.0-py3-none-any.whl
+# From a local wheel file — use PEP 508 direct URL syntax (name @ path):
+uv tool install "x2fa[installer] @ x2fa-2.0.0-py3-none-any.whl"
 ```
 
 > **Important:** `x2fa-install` requires the `[installer]` extra (pulls in `textual`).
