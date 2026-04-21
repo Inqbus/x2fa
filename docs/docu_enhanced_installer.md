@@ -1,6 +1,6 @@
 # Proposal: Enhanced Installer Documentation
 
-**Status:** Proposal  
+**Status:** Superseded — see `docs/installer.md` for the current reference  
 **Date:** 2026-04-20  
 
 ---
