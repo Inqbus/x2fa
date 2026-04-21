@@ -47,8 +47,84 @@ uv build                             # produces dist/x2fa-2.0.0.tar.gz + .whl
 uv publish                           # uploads to PyPI (needs PYPI_TOKEN)
 ```
 
-`uv build` calls the PEP 517 build backend declared in `pyproject.toml` (`setuptools`
-by default) and produces an sdist and a wheel.
+`uv build` calls the PEP 517 build backend declared in `pyproject.toml` (`setuptools`)
+and produces an sdist and a wheel.
+
+### Install and run (target host)
+
+**From PyPI (once published):**
+
+```bash
+# Create a dedicated venv and install x2fa with the installer extra
+python3.11 -m venv ~/.local/x2fa-venv
+~/.local/x2fa-venv/bin/pip install "x2fa[installer]"
+```
+
+**From a local wheel file** (e.g. distributed via scp/Ansible):
+
+```bash
+python3.11 -m venv ~/.local/x2fa-venv
+~/.local/x2fa-venv/bin/pip install x2fa-2.0.0-py3-none-any.whl
+# With optional database drivers:
+~/.local/x2fa-venv/bin/pip install "x2fa-2.0.0-py3-none-any.whl[installer,postgres]"
+```
+
+**With uv tool (isolated, globally available commands):**
+
+```bash
+uv tool install "x2fa[installer]"           # from PyPI
+uv tool install "x2fa[installer]" --from ./dist/x2fa-2.0.0-py3-none-any.whl  # from file
+```
+
+This makes `x2fa-install` and `gunicorn` available in `~/.local/bin/` without
+managing a venv manually.
+
+**Run the installer TUI:**
+
+```bash
+# venv approach:
+~/.local/x2fa-venv/bin/x2fa-install
+
+# uv tool approach:
+x2fa-install
+```
+
+**Start the service:**
+
+```bash
+# venv approach:
+ENV_FOR_DYNACONF=production ~/.local/x2fa-venv/bin/gunicorn \
+    'x2fa.wsgi:app' --bind 127.0.0.1:5000
+
+# uv tool approach (gunicorn is in the same isolated env):
+ENV_FOR_DYNACONF=production gunicorn 'x2fa.wsgi:app' --bind 127.0.0.1:5000
+```
+
+The installer writes a `~/.config/systemd/user/x2fa.service` that uses the
+correct `ExecStart` path automatically.  After running `x2fa-install`, enable
+the service with:
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now x2fa.service
+loginctl enable-linger   # auto-start on boot without interactive login
+```
+
+**Upgrade:**
+
+```bash
+# venv:
+~/.local/x2fa-venv/bin/pip install --upgrade "x2fa[installer]"
+
+# uv tool:
+uv tool upgrade x2fa
+```
+
+After upgrading, apply any pending database migrations:
+
+```bash
+ENV_FOR_DYNACONF=production flask db-upgrade
+```
 
 ### Required changes
 
