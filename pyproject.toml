@@ -27,6 +27,7 @@ dependencies = [
     "pytz>=2026.1.post1",
     "tomli-w>=1.2.0",
     "alembic>=1.13.0",
+    "pytest-cov>=7.1.0",
 ]
 
 [project.optional-dependencies]
@@ -63,3 +64,7 @@ include = ["x2fa*", "installer*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src", "."]
+testpaths = ["tests"]
+
+# E2E tests run sequentially (not in parallel) to avoid resource contention
+asyncio_mode = "strict"
