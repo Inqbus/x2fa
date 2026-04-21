@@ -165,8 +165,12 @@ def init_keys():
     type=click.Path(exists=True, readable=True),
     help="Path to self-signed client cert PEM (required for self_signed_tls_client_auth).",
 )
+@click.option(
+    "--secret", default=None,
+    help="Plaintext client secret (client_secret_* methods). Generated if omitted.",
+)
 @with_appcontext
-def add_client(client_id, redirect_uri, method, scopes, jwks_uri, cert):
+def add_client(client_id, redirect_uri, method, scopes, jwks_uri, cert, secret):
     """Registers a new OIDC client."""
     if method == AUTH_METHOD_PRIVATE_KEY_JWT and not jwks_uri:
         raise click.UsageError("--jwks-uri is required for private_key_jwt.")
@@ -188,7 +192,7 @@ def add_client(client_id, redirect_uri, method, scopes, jwks_uri, cert):
     secret_encrypted = None
     if method in _SECRET_METHODS:
         from x2fa.services.crypto import CryptoService
-        plaintext_secret = secrets.token_hex(32)
+        plaintext_secret = secret if secret else secrets.token_hex(32)
         crypto = CryptoService(current_app.config.x2fa_security.SECRET_KEY)
         secret_encrypted = crypto.encrypt(plaintext_secret)
 

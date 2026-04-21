@@ -53,12 +53,15 @@ def add_client(
     install_root: Path,
     jwks_uri: str | None = None,
     cert: str | None = None,
+    secret: str | None = None,
 ) -> tuple[bool, str]:
     args = ["add-client", client_id, redirect_uri, "--method", method]
     if jwks_uri:
         args += ["--jwks-uri", jwks_uri]
     if cert:
         args += ["--cert", cert]
+    if secret:
+        args += ["--secret", secret]
     return _flask(args, install_root)
 
 

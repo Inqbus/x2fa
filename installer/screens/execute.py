@@ -206,6 +206,13 @@ class ExecuteScreen(Screen):
 
         # 6 — flask add-client
         if cfg.client_id:
+            # For secret-based methods, generate the secret here so it is
+            # available as a plain variable and can be shown on the summary
+            # screen without any output parsing.
+            _SECRET_METHODS = {"client_secret_post", "client_secret_basic", "client_secret_jwt"}
+            if method in _SECRET_METHODS:
+                import secrets as _secrets
+                cfg.client_secret = _secrets.token_hex(32)
 
             def do_client():
                 cert = (
@@ -220,26 +227,12 @@ class ExecuteScreen(Screen):
                     cfg.install_root,
                     jwks_uri=cfg.client_jwks_uri or None,
                     cert=cert,
+                    secret=cfg.client_secret or None,
                 )
 
-            # Run add-client and capture output to extract the plaintext secret
-            # for the summary screen.
-            _client_result: list[tuple[bool, str]] = []
-
-            def do_client_capturing():
-                result = do_client()
-                _client_result.append(result)
-                return result
-
-            if not run("client", "Register OIDC client", do_client_capturing):
+            if not run("client", "Register OIDC client", do_client):
+                cfg.client_secret = ""  # do not show a secret that was never stored
                 return
-            if _client_result:
-                _, client_out = _client_result[0]
-                # CLI prints: "Client secret: <hex>  <- record this now..."
-                for line in (client_out or "").splitlines():
-                    if line.startswith("Client secret:"):
-                        cfg.client_secret = line.split(":", 1)[1].split()[0].strip()
-                        break
         else:
             set_step("client", "skip", "Register OIDC client  (skipped)")
 
