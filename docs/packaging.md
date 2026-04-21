@@ -448,6 +448,66 @@ that relies on `apt`.
 
 ---
 
+## Demo Relying Party
+
+The repository ships a self-contained demo RP (`demo_rp/`) that simulates an OIDC
+relying party for end-to-end manual testing.  It is **not a production component** but
+is useful for verifying the full authentication flow after installation.
+
+### What it does
+
+- Runs a small Flask app on port 5099 (configurable)
+- Initiates an OIDC authorization-code flow with PKCE against X2FA
+- Uses `tls_client_auth` with a client certificate issued by X2FA
+- Shows the resulting ID-token claims after a successful login
+
+### Availability by packaging option
+
+| Option | Demo RP available? | How |
+|---|---|---|
+| A — Wheel | Yes | Shipped as the `demo_rp` package inside the wheel |
+| B — Docker | No (excluded by `.dockerignore`) | Run from a source checkout alongside the container |
+| C — Podman | No (excluded by `.dockerignore`) | Run from a source checkout alongside the container |
+| D — Shiv | No | Run from a source checkout |
+| E — .deb | No | Run from a source checkout |
+
+### Setup (Option A / source checkout)
+
+**1. Configure `demo_rp/demo_rp_settings.toml`:**
+
+```toml
+X2FA_URL         = "https://your-x2fa-domain.example.com"
+DEMO_RP_URL      = "http://localhost:5099"
+CLIENT_CERT_PATH = "demo_rp_client.cert.pem"
+CLIENT_KEY_PATH  = "demo_rp_client.key.pem"
+```
+
+**2. Register the demo-rp client in X2FA** (one-off, requires X2FA to be running):
+
+```bash
+ENV_FOR_DYNACONF=production flask add-ca demo-rp-ca ~/.local/share/x2fa/ca_cert.pem
+ENV_FOR_DYNACONF=production flask add-client demo-rp http://localhost:5099/callback \
+    --method tls_client_auth
+ENV_FOR_DYNACONF=production flask issue-client-cert demo-rp \
+    --ca demo-rp-ca --output demo_rp/
+```
+
+This writes `demo_rp/demo_rp_client.cert.pem` and `demo_rp/demo_rp_client.key.pem`.
+
+**3. Start the demo RP:**
+
+```bash
+# from a source checkout:
+uv run python demo_rp/app.py
+
+# from a wheel install (demo_rp is an importable package):
+python -m demo_rp.app
+```
+
+Open `http://localhost:5099` and click **Verify 2FA** or **Setup 2FA**.
+
+---
+
 ## Prerequisite fixes (done)
 
 The following repo-relative paths were fixed as part of implementing Options A–C:

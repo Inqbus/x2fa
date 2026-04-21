@@ -182,6 +182,25 @@ class SummaryScreen(Screen):
                 classes="hint",
             )
 
+            # Demo RP hint (collapsed by default — not part of the main flow)
+            ca_cert = cfg.effective_ca_cert() or "~/.local/share/x2fa/ca_cert.pem"
+            with Collapsible(title="Demo Relying Party  (integration test)", collapsed=True):
+                yield Static(
+                    "The demo RP is a small Flask app that tests the full OIDC flow.\n"
+                    "Run these commands once while X2FA is running, then start the demo RP:\n"
+                    "\n"
+                    f"  ENV_FOR_DYNACONF=production flask add-ca demo-rp-ca {ca_cert}\n"
+                    "  ENV_FOR_DYNACONF=production flask add-client demo-rp \\\n"
+                    "      http://localhost:5099/callback --method tls_client_auth\n"
+                    "  ENV_FOR_DYNACONF=production flask issue-client-cert demo-rp \\\n"
+                    "      --ca demo-rp-ca --output demo_rp/\n"
+                    "\n"
+                    "  # Edit demo_rp/demo_rp_settings.toml, then:\n"
+                    "  uv run python demo_rp/app.py\n"
+                    "  # → open http://localhost:5099",
+                    classes="hint",
+                )
+
             with Container(id="buttons"):
                 yield Button("Copy summary", id="copy", variant="default")
                 yield Button("Done", id="done", variant="success")
@@ -237,6 +256,14 @@ class SummaryScreen(Screen):
             "  3. loginctl enable-linger  (headless servers — auto-start on boot)",
             "  4. Configure your application with the OIDC client credentials.",
             "  5. Run `flask issue-client-cert <id> --ca <name>` to add more clients.",
+            "",
+            "Demo Relying Party (integration test):",
+            f"  ENV_FOR_DYNACONF=production flask add-ca demo-rp-ca {cfg.effective_ca_cert() or '~/.local/share/x2fa/ca_cert.pem'}",
+            "  ENV_FOR_DYNACONF=production flask add-client demo-rp \\",
+            "      http://localhost:5099/callback --method tls_client_auth",
+            "  ENV_FOR_DYNACONF=production flask issue-client-cert demo-rp \\",
+            "      --ca demo-rp-ca --output demo_rp/",
+            "  uv run python demo_rp/app.py  # → http://localhost:5099",
         ]
 
         return "\n".join(lines)
