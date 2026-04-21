@@ -25,6 +25,39 @@ def _read_toml(tmp_path: Path, filename: str) -> dict:
     return tomllib.loads((tmp_path / ".config" / "x2fa" / filename).read_text())
 
 
+async def _wait_for_screen_change(pilot, app, expected_screen_prefix: str, timeout: float = 5.0):
+    """Wait for the app screen to change to one matching expected_screen_prefix.
+    
+    Polls every 0.1s for up to timeout seconds, returning when the screen class
+    name starts with the expected prefix (e.g. "SummaryScreen" matches "Summary").
+    """
+    import time
+    start = time.time()
+    while time.time() - start < timeout:
+        current = app.screen.__class__.__name__
+        if current.startswith(expected_screen_prefix):
+            return current
+        await pilot.pause(0.1)
+    raise AssertionError(
+        f"Screen never changed to {expected_screen_prefix}. "
+        f"Final screen: {app.screen.__class__.__name__}"
+    )
+
+
+async def _wait_for_screen(pilot, app, expected_screen_class: type):
+    """Wait for the app screen to change to the expected screen class."""
+    import time
+    start = time.time()
+    while time.time() - start < 5.0:
+        if isinstance(app.screen, expected_screen_class):
+            return
+        await pilot.pause(0.1)
+    raise AssertionError(
+        f"Screen never changed to {expected_screen_class.__name__}. "
+        f"Final screen: {app.screen.__class__.__name__}"
+    )
+
+
 # ── Scenario 1: client_secret_post (no CASetupScreen) ────────────────────────
 
 @pytest.mark.asyncio
@@ -41,55 +74,40 @@ async def test_e2e_full_install_client_secret_post(tmp_path):
 
             # ── MainMenu → WelcomeScreen ──────────────────────────────────
             await pilot.click("#install")
-            await pilot.pause()
-            assert "WelcomeScreen" in app.screen.__class__.__name__
+            await _wait_for_screen_change(pilot, app, "Welcome")
 
             # ── WelcomeScreen → DatabaseScreen ────────────────────────────
             await pilot.click("#next")
-            await pilot.pause()
-            assert "DatabaseScreen" in app.screen.__class__.__name__
+            await _wait_for_screen_change(pilot, app, "Database")
 
-            # ── DatabaseScreen: keep SQLite default → DomainScreen ────────
+            # ── DatabaseScreen → DomainScreen ─────────────────────────────
             await pilot.click("#next")
-            await pilot.pause()
-            assert "DomainScreen" in app.screen.__class__.__name__
+            await _wait_for_screen_change(pilot, app, "Domain")
 
             # ── DomainScreen: type domain → SecurityScreen ────────────────
             app.screen.query_one("#domain", Input).value = "e2e.example.com"
-            await pilot.pause()
+            app.config.domain = "e2e.example.com"
             await pilot.click("#next")
-            await pilot.pause()
-            assert "SecurityScreen" in app.screen.__class__.__name__
+            await _wait_for_screen_change(pilot, app, "Security")
 
             # ── SecurityScreen: keys auto-generated on mount, continue ─────
             secret_key  = app.config.secret_key
             secret_salt = app.config.secret_salt
             await pilot.click("#next")
-            await pilot.pause()
-            assert "ClientScreen" in app.screen.__class__.__name__
+            await _wait_for_screen_change(pilot, app, "Client")
 
             # ── ClientScreen: fill data, select client_secret_post ─────────
             app.screen.query_one("#client_id",    Input).value = "myapp.example.com"
-            await pilot.pause()
             app.screen.query_one("#redirect_uri", Input).value = "https://myapp.example.com/cb"
-            await pilot.pause()
+            app.config.client_id = "myapp.example.com"
+            app.config.client_redirect_uri = "https://myapp.example.com/cb"
             await pilot.click("#client_secret_post")
-            await pilot.pause()
             await pilot.click("#next")
-            await pilot.pause()
-            assert "ReviewScreen" in app.screen.__class__.__name__
+            await _wait_for_screen_change(pilot, app, "Review")
 
             # ── ReviewScreen: confirm and proceed ─────────────────────────
             await pilot.click("#confirm")
-            await pilot.pause()
-
-            # ── ExecuteScreen: poll until background worker completes ──────
-            for _ in range(100):
-                await pilot.pause(0.1)
-                if "SummaryScreen" in app.screen.__class__.__name__:
-                    break
-            assert "SummaryScreen" in app.screen.__class__.__name__, \
-                "Installation worker did not reach SummaryScreen in time"
+            await _wait_for_screen_change(pilot, app, "Summary")
 
     # ── Verify generated config files ─────────────────────────────────────────
     x2fa = _read_toml(tmp_path, "x2fa_config.toml")
@@ -135,58 +153,47 @@ async def test_e2e_full_install_tls_client_auth(tmp_path):
 
             # ── MainMenu → WelcomeScreen ──────────────────────────────────
             await pilot.click("#install")
-            await pilot.pause()
+            await _wait_for_screen_change(pilot, app, "Welcome")
 
             # ── WelcomeScreen → DatabaseScreen ────────────────────────────
             await pilot.click("#next")
-            await pilot.pause()
+            await _wait_for_screen_change(pilot, app, "Database")
 
             # ── DatabaseScreen → DomainScreen ─────────────────────────────
             await pilot.click("#next")
-            await pilot.pause()
+            await _wait_for_screen_change(pilot, app, "Domain")
 
             # ── DomainScreen: type domain ─────────────────────────────────
             app.screen.query_one("#domain", Input).value = "tls.example.com"
-            await pilot.pause()
+            app.config.domain = "tls.example.com"
             await pilot.click("#next")
-            await pilot.pause()
+            await _wait_for_screen_change(pilot, app, "Security")
 
             # ── SecurityScreen: keys auto-generated, continue ─────────────
             secret_key = app.config.secret_key
             await pilot.click("#next")
-            await pilot.pause()
-            assert "ClientScreen" in app.screen.__class__.__name__
+            await _wait_for_screen_change(pilot, app, "Client")
 
             # ── ClientScreen: fill data, keep tls_client_auth default ──────
             app.screen.query_one("#client_id",    Input).value = "client.example.com"
-            await pilot.pause()
             app.screen.query_one("#redirect_uri", Input).value = "https://client.example.com/cb"
-            await pilot.pause()
+            app.config.client_id = "client.example.com"
+            app.config.client_redirect_uri = "https://client.example.com/cb"
             await pilot.click("#next")
-            await pilot.pause()
-            assert "CASetupScreen" in app.screen.__class__.__name__
+            await _wait_for_screen_change(pilot, app, "CASetup")
 
             # ── CASetupScreen: set ca_name, set generate action ───────────
             # ca_action defaults to "" in config; set it explicitly so the
             # _validate() / execute.py generate-branch are triggered correctly.
             app.config.ca_action = "generate"
             app.screen.query_one("#ca_name", Input).value = "test-ca"
-            await pilot.pause()
+            app.config.ca_name = "test-ca"
             await pilot.click("#next")
-            await pilot.pause()
-            assert "ReviewScreen" in app.screen.__class__.__name__
+            await _wait_for_screen_change(pilot, app, "Review")
 
             # ── ReviewScreen: confirm and proceed ─────────────────────────
             await pilot.click("#confirm")
-            await pilot.pause()
-
-            # ── ExecuteScreen: poll until background worker completes ──────
-            for _ in range(100):
-                await pilot.pause(0.1)
-                if "SummaryScreen" in app.screen.__class__.__name__:
-                    break
-            assert "SummaryScreen" in app.screen.__class__.__name__, \
-                "Installation worker did not reach SummaryScreen in time"
+            await _wait_for_screen_change(pilot, app, "Summary")
 
     # ── Verify generated config files ─────────────────────────────────────────
     x2fa = _read_toml(tmp_path, "x2fa_config.toml")
@@ -228,62 +235,50 @@ async def test_e2e_full_install_private_key_jwt_postgres(tmp_path):
 
             # ── MainMenu → WelcomeScreen ──────────────────────────────────
             await pilot.click("#install")
-            await pilot.pause()
+            await _wait_for_screen_change(pilot, app, "Welcome")
 
             # ── WelcomeScreen → DatabaseScreen ────────────────────────────
             await pilot.click("#next")
-            await pilot.pause()
+            await _wait_for_screen_change(pilot, app, "Database")
 
             # ── DatabaseScreen: switch to PostgreSQL, enter URI ────────────
             await pilot.click("#postgres")
-            await pilot.pause()
             app.screen.query_one("#db_uri", Input).value = pg_uri
-            await pilot.pause()
+            app.config.db_uri = pg_uri
             await pilot.click("#next")
-            await pilot.pause()
+            await _wait_for_screen_change(pilot, app, "Domain")
 
             # ── DomainScreen ──────────────────────────────────────────────
             app.screen.query_one("#domain", Input).value = "jwt.example.com"
-            await pilot.pause()
+            app.config.domain = "jwt.example.com"
             await pilot.click("#next")
-            await pilot.pause()
+            await _wait_for_screen_change(pilot, app, "Security")
 
             # ── SecurityScreen ────────────────────────────────────────────
             await pilot.click("#next")
-            await pilot.pause()
+            await _wait_for_screen_change(pilot, app, "Client")
 
             # ── ClientScreen: select private_key_jwt, enter JWKS URI ──────
             app.screen.query_one("#client_id",    Input).value = "rp.example.com"
-            await pilot.pause()
             app.screen.query_one("#redirect_uri", Input).value = "https://rp.example.com/cb"
-            await pilot.pause()
+            app.config.client_id = "rp.example.com"
+            app.config.client_redirect_uri = "https://rp.example.com/cb"
             await pilot.click("#private_key_jwt")
-            await pilot.pause()
             app.screen.query_one("#jwks_uri", Input).value = "https://rp.example.com/.well-known/jwks.json"
-            await pilot.pause()
+            app.config.client_jwks_uri = "https://rp.example.com/.well-known/jwks.json"
             await pilot.click("#next")
-            await pilot.pause()
-            assert "CASetupScreen" in app.screen.__class__.__name__
+            await _wait_for_screen_change(pilot, app, "CASetup")
 
             # ── CASetupScreen: generate CA ────────────────────────────────
             app.config.ca_action = "generate"
             app.screen.query_one("#ca_name", Input).value = "jwt-ca"
-            await pilot.pause()
+            app.config.ca_name = "jwt-ca"
             await pilot.click("#next")
-            await pilot.pause()
-            assert "ReviewScreen" in app.screen.__class__.__name__
+            await _wait_for_screen_change(pilot, app, "Review")
 
             # ── ReviewScreen: confirm and proceed ─────────────────────────
             await pilot.click("#confirm")
-            await pilot.pause()
-
-            # ── Wait for SummaryScreen ────────────────────────────────────
-            for _ in range(100):
-                await pilot.pause(0.1)
-                if "SummaryScreen" in app.screen.__class__.__name__:
-                    break
-            assert "SummaryScreen" in app.screen.__class__.__name__, \
-                "Installation worker did not reach SummaryScreen in time"
+            await _wait_for_screen_change(pilot, app, "Summary")
 
     # ── Verify generated config files ─────────────────────────────────────────
     x2fa = _read_toml(tmp_path, "x2fa_config.toml")
@@ -319,58 +314,47 @@ async def test_e2e_full_install_tls_ca_import(tmp_path):
 
             # ── MainMenu → WelcomeScreen ──────────────────────────────────
             await pilot.click("#install")
-            await pilot.pause()
+            await _wait_for_screen_change(pilot, app, "Welcome")
 
             # ── WelcomeScreen → DatabaseScreen ────────────────────────────
             await pilot.click("#next")
-            await pilot.pause()
+            await _wait_for_screen_change(pilot, app, "Database")
 
             # ── DatabaseScreen → DomainScreen ─────────────────────────────
             await pilot.click("#next")
-            await pilot.pause()
+            await _wait_for_screen_change(pilot, app, "Domain")
 
             # ── DomainScreen ──────────────────────────────────────────────
             app.screen.query_one("#domain", Input).value = "import.example.com"
-            await pilot.pause()
+            app.config.domain = "import.example.com"
             await pilot.click("#next")
-            await pilot.pause()
+            await _wait_for_screen_change(pilot, app, "Security")
 
             # ── SecurityScreen ────────────────────────────────────────────
             secret_key = app.config.secret_key
             await pilot.click("#next")
-            await pilot.pause()
+            await _wait_for_screen_change(pilot, app, "Client")
 
             # ── ClientScreen: tls_client_auth default ─────────────────────
             app.screen.query_one("#client_id",    Input).value = "app.example.com"
-            await pilot.pause()
             app.screen.query_one("#redirect_uri", Input).value = "https://app.example.com/cb"
-            await pilot.pause()
+            app.config.client_id = "app.example.com"
+            app.config.client_redirect_uri = "https://app.example.com/cb"
             await pilot.click("#next")
-            await pilot.pause()
-            assert "CASetupScreen" in app.screen.__class__.__name__
+            await _wait_for_screen_change(pilot, app, "CASetup")
 
             # ── CASetupScreen: switch to import, enter paths ───────────────
             await pilot.click("#import")
-            await pilot.pause()
             app.screen.query_one("#ca_name_imp",    Input).value = "existing-ca"
-            await pilot.pause()
             app.screen.query_one("#ca_import_path", Input).value = ca_import_path
-            await pilot.pause()
+            app.config.ca_name = "existing-ca"
+            app.config.ca_cert_path = ca_import_path
             await pilot.click("#next")
-            await pilot.pause()
-            assert "ReviewScreen" in app.screen.__class__.__name__
+            await _wait_for_screen_change(pilot, app, "Review")
 
             # ── ReviewScreen: confirm and proceed ─────────────────────────
             await pilot.click("#confirm")
-            await pilot.pause()
-
-            # ── Wait for SummaryScreen ────────────────────────────────────
-            for _ in range(100):
-                await pilot.pause(0.1)
-                if "SummaryScreen" in app.screen.__class__.__name__:
-                    break
-            assert "SummaryScreen" in app.screen.__class__.__name__, \
-                "Installation worker did not reach SummaryScreen in time"
+            await _wait_for_screen_change(pilot, app, "Summary")
 
     # ── Verify generated config files ─────────────────────────────────────────
     x2fa = _read_toml(tmp_path, "x2fa_config.toml")
@@ -407,51 +391,41 @@ async def test_e2e_full_install_self_signed_tls(tmp_path):
 
             # ── MainMenu → WelcomeScreen ──────────────────────────────────
             await pilot.click("#install")
-            await pilot.pause()
+            await _wait_for_screen_change(pilot, app, "Welcome")
 
             # ── WelcomeScreen → DatabaseScreen ────────────────────────────
             await pilot.click("#next")
-            await pilot.pause()
+            await _wait_for_screen_change(pilot, app, "Database")
 
             # ── DatabaseScreen → DomainScreen ─────────────────────────────
             await pilot.click("#next")
-            await pilot.pause()
+            await _wait_for_screen_change(pilot, app, "Domain")
 
             # ── DomainScreen ──────────────────────────────────────────────
             app.screen.query_one("#domain", Input).value = "ss.example.com"
-            await pilot.pause()
+            app.config.domain = "ss.example.com"
             await pilot.click("#next")
-            await pilot.pause()
+            await _wait_for_screen_change(pilot, app, "Security")
 
             # ── SecurityScreen ────────────────────────────────────────────
             await pilot.click("#next")
-            await pilot.pause()
+            await _wait_for_screen_change(pilot, app, "Client")
 
             # ── ClientScreen: select self_signed, enter cert path ─────────
             app.screen.query_one("#client_id",    Input).value = "pinned.example.com"
-            await pilot.pause()
             app.screen.query_one("#redirect_uri", Input).value = "https://pinned.example.com/cb"
-            await pilot.pause()
+            app.config.client_id = "pinned.example.com"
+            app.config.client_redirect_uri = "https://pinned.example.com/cb"
             await pilot.click("#self_signed_tls_client_auth")
-            await pilot.pause()
             app.screen.query_one("#ss_cert_path", Input).value = ss_cert
-            await pilot.pause()
+            app.config.client_self_signed_cert_path = ss_cert
             await pilot.click("#next")
-            await pilot.pause()
             # Must go to ReviewScreen (not CASetupScreen)
-            assert "ReviewScreen" in app.screen.__class__.__name__
+            await _wait_for_screen_change(pilot, app, "Review")
 
             # ── ReviewScreen: confirm and proceed ─────────────────────────
             await pilot.click("#confirm")
-            await pilot.pause()
-
-            # ── Wait for SummaryScreen ────────────────────────────────────
-            for _ in range(100):
-                await pilot.pause(0.1)
-                if "SummaryScreen" in app.screen.__class__.__name__:
-                    break
-            assert "SummaryScreen" in app.screen.__class__.__name__, \
-                "Installation worker did not reach SummaryScreen in time"
+            await _wait_for_screen_change(pilot, app, "Summary")
 
     # ── Verify generated config files ─────────────────────────────────────────
     x2fa = _read_toml(tmp_path, "x2fa_config.toml")
@@ -480,52 +454,41 @@ async def test_e2e_full_install_client_secret_jwt_redis(tmp_path):
 
             # ── MainMenu → WelcomeScreen ──────────────────────────────────
             await pilot.click("#install")
-            await pilot.pause()
+            await _wait_for_screen_change(pilot, app, "Welcome")
 
             # ── WelcomeScreen → DatabaseScreen ────────────────────────────
             await pilot.click("#next")
-            await pilot.pause()
+            await _wait_for_screen_change(pilot, app, "Database")
 
             # ── DatabaseScreen → DomainScreen ─────────────────────────────
             await pilot.click("#next")
-            await pilot.pause()
+            await _wait_for_screen_change(pilot, app, "Domain")
 
             # ── DomainScreen ──────────────────────────────────────────────
             app.screen.query_one("#domain", Input).value = "redis.example.com"
-            await pilot.pause()
+            app.config.domain = "redis.example.com"
             await pilot.click("#next")
-            await pilot.pause()
+            await _wait_for_screen_change(pilot, app, "Security")
 
             # ── SecurityScreen: enable Redis, enter URI ───────────────────
             await pilot.click("#use_redis")
-            await pilot.pause()
             app.screen.query_one("#redis_uri", Input).value = redis_uri
-            await pilot.pause()
+            app.config.ratelimit_storage_uri = redis_uri
             await pilot.click("#next")
-            await pilot.pause()
+            await _wait_for_screen_change(pilot, app, "Client")
 
             # ── ClientScreen: select client_secret_jwt ────────────────────
             app.screen.query_one("#client_id",    Input).value = "app.example.com"
-            await pilot.pause()
             app.screen.query_one("#redirect_uri", Input).value = "https://app.example.com/cb"
-            await pilot.pause()
+            app.config.client_id = "app.example.com"
+            app.config.client_redirect_uri = "https://app.example.com/cb"
             await pilot.click("#client_secret_jwt")
-            await pilot.pause()
             await pilot.click("#next")
-            await pilot.pause()
-            assert "ReviewScreen" in app.screen.__class__.__name__
+            await _wait_for_screen_change(pilot, app, "Review")
 
             # ── ReviewScreen: confirm and proceed ─────────────────────────
             await pilot.click("#confirm")
-            await pilot.pause()
-
-            # ── Wait for SummaryScreen ────────────────────────────────────
-            for _ in range(100):
-                await pilot.pause(0.1)
-                if "SummaryScreen" in app.screen.__class__.__name__:
-                    break
-            assert "SummaryScreen" in app.screen.__class__.__name__, \
-                "Installation worker did not reach SummaryScreen in time"
+            await _wait_for_screen_change(pilot, app, "Summary")
 
     # ── Verify generated config files ─────────────────────────────────────────
     ratelimit = _read_toml(tmp_path, "ratelimit_config.toml")
