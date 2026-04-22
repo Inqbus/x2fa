@@ -187,11 +187,11 @@ Configuration is managed by Dynaconf using five thematically separated TOML file
 
 | Config file | Dynaconf namespace | Env prefix | Content |
 |---|---|---|---|
-| `x2fa_config.toml` | `cfg.x2fa` | `X2FA_` | Host, port, domain, testing flag |
-| `db_config.toml` | `cfg.x2fa_database` | `X2FA_DB_` | `SQLALCHEMY_DATABASE_URI` |
-| `security_config.toml` | `cfg.x2fa_security` | `X2FA_SECURITY_` | `SECRET_KEY`, `SECRET_SALT`, session cookie settings |
-| `ratelimit_config.toml` | `cfg.x2fa_ratelimit` | `X2FA_RATELIMIT_` | Rate limit values, Redis URI, strategy |
-| `babel_config.toml` | `cfg.x2fa_babel` | `X2FA_BABEL_` | Language settings |
+| `x2fa_config.toml` | `app.config.x2fa` | `X2FA_` | Host, port, domain, testing flag |
+| `db_config.toml` | `app.config.x2fa_database` | `X2FA_DB_` | `SQLALCHEMY_DATABASE_URI` |
+| `security_config.toml` | `app.config.x2fa_security` | `X2FA_SECURITY_` | `SECRET_KEY`, `SECRET_SALT`, session cookie settings |
+| `ratelimit_config.toml` | `app.config.x2fa_ratelimit` | `X2FA_RATELIMIT_` | Rate limit values, Redis URI, strategy |
+| `babel_config.toml` | `app.config.x2fa_babel` | `X2FA_BABEL_` | Language settings |
 
 ### App Factory with Startup Checks
 
@@ -207,7 +207,7 @@ def config(app: Flask):
     app.config['SECRET_KEY'] = app.config.x2fa_security.SECRET_KEY
 
     # Startup check: Redis required in production
-    if not cfg.x2fa.ENV_FOR_DYNACONF == "testing" and not "RATELIMIT_STORAGE_URI" in app.config.x2fa_ratelimit:
+    if not app.config.x2fa.ENV_FOR_DYNACONF == "testing" and not "RATELIMIT_STORAGE_URI" in app.config.x2fa_ratelimit:
         raise RuntimeError(
             "REDIS_URL must be set in production (distributed rate-limiting)."
         )

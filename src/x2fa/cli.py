@@ -17,6 +17,7 @@ from x2fa.constants import (
     AUTH_METHOD_CLIENT_SECRET_POST,
     AUTH_METHOD_CLIENT_SECRET_BASIC,
 )
+from x2fa.init_app.config import load_config
 
 _SECRET_METHODS = {
     AUTH_METHOD_CLIENT_SECRET_JWT,
@@ -34,6 +35,7 @@ from x2fa.model import (
 )
 
 from x2fa.init_app.database import db
+from x2fa.paths import data_dir
 
 
 @click.command("init-db")
@@ -69,12 +71,18 @@ def _run_alembic_upgrade():
     from alembic import command
     from alembic.config import Config as AlembicConfig
     from sqlalchemy import create_engine, inspect
-    from x2fa.config import cfg
+    
 
     migrations_dir = Path(str(_pkg_files("x2fa").joinpath("migrations")))
     ini_path = migrations_dir / "alembic.ini"
 
-    db_url = cfg.x2fa_database.SQLALCHEMY_DATABASE_URI
+    db_url = load_config().x2fa_database.SQLALCHEMY_DATABASE_URI
+    # Resolve relative paths to the data directory
+    if db_url.startswith("sqlite:///"):
+        relative_path = db_url[len("sqlite:///"):]
+        if not relative_path.startswith("/"):
+            resolved_path = data_dir() / relative_path
+            db_url = "sqlite:///" + str(resolved_path)
     alembic_cfg = AlembicConfig(str(ini_path))
     alembic_cfg.set_main_option("script_location", str(migrations_dir))
     alembic_cfg.set_main_option("sqlalchemy.url", db_url)

@@ -4,8 +4,6 @@ from flask import Flask, request, session
 from flask_babelplus import Babel, gettext, ngettext
 from flask_babelplus.domain import Domain
 
-from x2fa.config import cfg
-
 
 def babel(app: Flask):
     """
@@ -13,13 +11,13 @@ def babel(app: Flask):
     Handles Error-404/500 cases gracefully (no RuntimeError).
     """
     # Configuration
-    app.config['BABEL_DEFAULT_LOCALE'] = cfg.x2fa_babel.BABEL_DEFAULT_LOCALE
-    app.config['BABEL_SUPPORTED_LOCALES'] = cfg.x2fa_babel.BABEL_SUPPORTED_LOCALES
+    app.config['BABEL_DEFAULT_LOCALE'] = app.config.x2fa_babel.BABEL_DEFAULT_LOCALE
+    app.config['BABEL_SUPPORTED_LOCALES'] = app.config.x2fa_babel.BABEL_SUPPORTED_LOCALES
 
     # Resolve translation directory relative to the app root_path (src/x2fa/).
     # cfg value "../translations" resolves to src/translations/ where .mo files live.
     translations_dir = os.path.normpath(
-        os.path.join(app.root_path, cfg.x2fa_babel.BABEL_TRANSLATION_DIRECTORIES)
+        os.path.join(app.root_path, app.config.x2fa_babel.BABEL_TRANSLATION_DIRECTORIES)
     )
 
     # Initialize extension with explicit Domain so flask-babelplus finds the .mo files.
@@ -33,13 +31,13 @@ def babel(app: Flask):
         ui_locales = oidc_req.get("ui_locales", "")
         for tag in ui_locales.split():
             lang = tag.split("-")[0].lower()
-            if lang in cfg.x2fa_babel.BABEL_SUPPORTED_LOCALES:
+            if lang in app.config.x2fa_babel.BABEL_SUPPORTED_LOCALES:
                 return lang
 
         # Priority 2: Browser Accept-Language header
         return request.accept_languages.best_match(
-            cfg.x2fa_babel.BABEL_SUPPORTED_LOCALES,
-            default=cfg.x2fa_babel.BABEL_DEFAULT_LOCALE
+            app.config.x2fa_babel.BABEL_SUPPORTED_LOCALES,
+            default=app.config.x2fa_babel.BABEL_DEFAULT_LOCALE
         )
 
     # 2. Template Globals (Error-Handler safe)
@@ -67,4 +65,4 @@ def babel(app: Flask):
             return _select_locale()
         except RuntimeError:
             # Outside request context
-            return cfg.x2fa_babel.BABEL_DEFAULT_LOCALE
+            return app.config.x2fa_babel.BABEL_DEFAULT_LOCALE

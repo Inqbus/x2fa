@@ -8,10 +8,10 @@ from sqlalchemy.pool import StaticPool
 import threading
 
 from x2fa.model import Base
-from x2fa.config import cfg
+from x2fa.paths import data_dir
 
 
-class Database:
+class Database():
     """Database connection manager with support for Web, CLI, and Test contexts."""
 
     def __init__(self):
@@ -31,15 +31,17 @@ class Database:
         self.engine = create_engine(uri, **engine_kwargs)
         self._Session = sessionmaker(bind=self.engine)
 
-        if cfg.x2fa.ENV_FOR_DYNACONF == "testing":
-            self.reset_schema()
-
         self.is_configured = True
 
     def init_app(self, app: Flask):
         """Bind database to Flask request lifecycle."""
         if not self.is_configured:
-            self.configure(uri=cfg.x2fa_database.SQLALCHEMY_DATABASE_URI)
+            db_uri = app.config.x2fa_database.SQLALCHEMY_DATABASE_URI
+            if db_uri == "sqlite:///db.sqlite":
+                db_uri = "sqlite:///" + str(data_dir() / "db.sqlite")
+            elif db_uri == "sqlite:///test_cli.db":
+                db_uri = "sqlite:///" + str(data_dir() / "test_cli.db")
+            self.configure(uri=db_uri)
 
         @app.before_request
         def open_session():

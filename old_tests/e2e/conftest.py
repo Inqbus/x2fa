@@ -17,13 +17,13 @@ from playwright.sync_api import Page
 # Must be set before app.config is imported so Dynaconf loads the [e2e] section.
 os.environ.setdefault("ENV_FOR_DYNACONF", "e2e")
 
-from x2fa.config import cfg
+
 
 # ---------------------------------------------------------------------------
 # Constants — read from settings.toml [e2e] section via x2fa_settings
 # ---------------------------------------------------------------------------
 
-REDIRECT_URI = f"http://{cfg.x2fa.HOST}:{cfg.x2fa.CALLBACK_PORT}/callback"
+REDIRECT_URI = f"http://{app.config.x2fa.HOST}:{app.config.x2fa.CALLBACK_PORT}/callback"
 
 # Pre-computed PKCE challenge (verifier only needed at /token, which we don't call)
 CODE_CHALLENGE = (
@@ -35,7 +35,7 @@ CODE_CHALLENGE = (
 )
 
 BASE_OIDC_REQUEST = {
-    "client_id": cfg.x2fa_security.CLIENT_ID,
+    "client_id": app.config.x2fa_security.CLIENT_ID,
     "redirect_uri": REDIRECT_URI,
     "scope": "openid",
     "state": "e2estate",
@@ -57,7 +57,7 @@ BASE_OIDC_REQUEST = {
 def x2fa_app():
     """Flask app in 'e2e' mode with StaticPool DB, a signing key, and a test client."""
     os.environ["X2FA_SECRET"] = "a" * 32
-    os.environ["X2FA_DOMAIN"] = cfg.x2fa.DOMAIN
+    os.environ["X2FA_DOMAIN"] = app.config.x2fa.DOMAIN
 
     from x2fa.app import create_app
     from x2fa.models import OIDCClient, SigningKey
@@ -100,8 +100,8 @@ def x2fa_app():
             # OIDC test client
             db_session.add(
                 OIDCClient(
-                    client_id=cfg.x2fa_security.CLIENT_ID,
-                    client_secret=cfg.x2fa_security.CLIENT_SECRET,
+                    client_id=app.config.x2fa_security.CLIENT_ID,
+                    client_secret=app.config.x2fa_security.CLIENT_SECRET,
                     redirect_uris=REDIRECT_URI,
                     allowed_scopes="openid app:setup",
                 )
@@ -112,12 +112,12 @@ def x2fa_app():
 
 @pytest.fixture(scope="session")
 def x2fa_server(x2fa_app):
-    """Starts the X2FA Flask app on cfg.x2fa.PORT in a background thread."""
+    """Starts the X2FA Flask app on app.config.x2fa.PORT in a background thread."""
     from werkzeug.serving import make_server
 
-    server = make_server(cfg.x2fa.HOST, cfg.x2fa.PORT, x2fa_app)
+    server = make_server(app.config.x2fa.HOST, app.config.x2fa.PORT, x2fa_app)
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    yield f"http://{cfg.x2fa.HOST}:{cfg.x2fa.PORT}"
+    yield f"http://{app.config.x2fa.HOST}:{app.config.x2fa.PORT}"
     server.shutdown()
 
 
@@ -252,7 +252,7 @@ def callback_server():
 
     class _Handler(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
-            _queue.put(f"http://{cfg.x2fa.HOST}:{cfg.x2fa.CALLBACK_PORT}{self.path}")
+            _queue.put(f"http://{app.config.x2fa.HOST}:{app.config.x2fa.CALLBACK_PORT}{self.path}")
             self.send_response(200)
             self.end_headers()
             self.wfile.write(b"OK")
@@ -260,7 +260,7 @@ def callback_server():
         def log_message(self, *_):
             pass  # silence access log
 
-    srv = http.server.HTTPServer((cfg.x2fa.HOST, cfg.x2fa.CALLBACK_PORT), _Handler)
+    srv = http.server.HTTPServer((app.config.x2fa.HOST, app.config.x2fa.CALLBACK_PORT), _Handler)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
 
     class _Capture:
@@ -269,7 +269,7 @@ def callback_server():
                 return _queue.get(timeout=timeout)
             except queue.Empty:
                 raise AssertionError(
-                    f"No OIDC callback received on port {cfg.x2fa.CALLBACK_PORT} within {timeout} s"
+                    f"No OIDC callback received on port {app.config.x2fa.CALLBACK_PORT} within {timeout} s"
                 )
 
     yield _Capture()

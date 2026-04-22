@@ -51,7 +51,7 @@ class ConfigPool:
 
 **Access behavior:**
 ```python
-from x2fa.config import cfg
+
 
 # Works - config file exists
 cfg.x2fa_database.SQLALCHEMY_DATABASE_URI  # Returns: "sqlite:///..."

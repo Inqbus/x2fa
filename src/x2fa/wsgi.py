@@ -6,6 +6,6 @@ from x2fa.app import create_app
 app = create_app()
 
 if __name__ == "__main__":
-    from x2fa.config import cfg
+    
 
-    app.run(host=cfg.x2fa["HOST"], port=cfg.x2fa["PORT"])
+    app.run(host=app.config.x2fa["HOST"], port=app.config.x2fa["PORT"])

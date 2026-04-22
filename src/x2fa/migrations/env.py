@@ -9,6 +9,8 @@ import os
 import sys
 from pathlib import Path
 
+from x2fa.init_app.config import load_config
+
 # Make the src layout importable when running the alembic CLI directly.
 # __file__ = src/x2fa/migrations/env.py → parent.parent.parent = src/
 _src = str(Path(__file__).resolve().parent.parent.parent)
@@ -46,10 +48,7 @@ def _db_url() -> str:
     if ini_url:
         return ini_url
 
-    os.environ.setdefault("ENV_FOR_DYNACONF", "production")
-    from x2fa.config import cfg  # imported late so ENV is set first
-
-    return cfg.x2fa_database.SQLALCHEMY_DATABASE_URI
+    return load_config().x2fa_database.SQLALCHEMY_DATABASE_URI
 
 
 def run_migrations_offline() -> None:
