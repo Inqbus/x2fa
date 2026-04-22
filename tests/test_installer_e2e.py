@@ -1,28 +1,22 @@
 """End-to-end tests for the installer — drives all screens like a real user
 and verifies the generated config file contents afterwards."""
 
+import os
+import time
 import tomllib
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from textual.widgets import Input
 
 from installer.app import InstallerApp
+from installer.ca import generate_ca
 
 _SIZE = (120, 60)
 
-_ALL_OK_CHECKS = [
-    {"label": "Running as x2fa",    "ok": True, "blocking": False},
-    {"label": "Python ≥ 3.11",      "ok": True, "blocking": True},
-    {"label": "uv package manager", "ok": True, "blocking": True},
-    {"label": "Port 5000 free",     "ok": True, "blocking": False},
-    {"label": "Redis reachable",    "ok": True, "blocking": False},
-]
 
-
-def _read_toml(tmp_path: Path, filename: str) -> dict:
-    return tomllib.loads((tmp_path / ".config" / "x2fa" / filename).read_text())
+def _read_toml(x2fa_home: Path, filename: str) -> dict:
+    return tomllib.loads((x2fa_home / ".config" / "x2fa" / filename).read_text())
 
 
 async def _wait_for_screen_change(pilot, app, expected_screen_prefix: str, timeout: float = 5.0):
