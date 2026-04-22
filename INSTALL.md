@@ -53,38 +53,38 @@ When the execute step completes, configuration files are written to `~/.config/x
 and data files (CA key, database) to `~/.local/share/x2fa/`. No environment variables
 are required at runtime beyond ``.
 
-### `--config-root` flag
+### `--x2fa-home` flag
 
 ```bash
-uv run --extra installer python -m installer --config-root /opt/x2fa
+uv run --extra installer python -m installer --x2fa-home /opt/x2fa
 ```
 
 Relocates **all** config and data paths under the given directory instead of the XDG
-defaults:
+defaults. This is the base directory for:
 
-| Default (XDG) | With `--config-root /opt/x2fa` |
+| Default (XDG) | With `--x2fa-home /opt/x2fa` |
 |---|---|
-| `~/.config/x2fa/x2fa_config.toml` | `/opt/x2fa/.config/x2fa/x2fa_config.toml` |
-| `~/.local/share/x2fa/db.sqlite` | `/opt/x2fa/.local/share/x2fa/db.sqlite` |
-| `~/.local/share/x2fa/ca_key.pem` | `/opt/x2fa/.local/share/x2fa/ca_key.pem` |
+| Config: `~/.config/x2fa/x2fa_config.toml` | `/opt/x2fa/.config/x2fa/x2fa_config.toml` |
+| Data: `~/.local/share/x2fa/db.sqlite` | `/opt/x2fa/.local/share/x2fa/db.sqlite` |
+| CA key: `~/.local/share/x2fa/ca_key.pem` | `/opt/x2fa/.local/share/x2fa/ca_key.pem` |
 
 Useful for:
-- Running X2FA as a dedicated system user (e.g. `--config-root /etc/x2fa`)
+- Running X2FA as a dedicated system user (e.g. `--x2fa-home /etc/x2fa`)
 - **Multi-instance deployments** — two X2FA instances on the same host use different
   config roots:
 
   ```bash
-  python -m installer --config-root /opt/x2fa-staging
-  python -m installer --config-root /opt/x2fa-production
+  python -m installer --x2fa-home /opt/x2fa-staging
+  python -m installer --x2fa-home /opt/x2fa-production
   ```
 
-  Start each instance with the matching root:
+  Start each instance with the matching home directory:
 
   ```bash
-  CONFIG_ROOT=/opt/x2fa-staging  \
+  X2FA_HOME=/opt/x2fa-staging  \
       uv run gunicorn 'x2fa.wsgi:app' --bind 127.0.0.1:5001
 
-  CONFIG_ROOT=/opt/x2fa-production  \
+  X2FA_HOME=/opt/x2fa-production  \
       uv run gunicorn 'x2fa.wsgi:app' --bind 127.0.0.1:5000
   ```
 
@@ -224,8 +224,8 @@ If you prefer to configure X2FA by hand:
 
 ### 6.1 Write configuration files
 
-Config files live in `~/.config/x2fa/` (or `<config-root>/.config/x2fa/` if
-`--config-root` was used). Create the directory and write the following files:
+Config files live in `~/.config/x2fa/` (or `<x2fa-home>/.config/x2fa/` if
+`--x2fa-home` was used). Create the directory and write the following files:
 
 **`~/.config/x2fa/x2fa_config.toml`**:
 

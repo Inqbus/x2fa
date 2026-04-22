@@ -17,7 +17,7 @@ class InstallConfig:
     install_root: Path = field(default_factory=Path.cwd)
 
     # Root directory for LSB/XDG paths (default: home directory).
-    # Override via --config-root to change where config and data files land.
+    # Override via --x2fa-home to change where config and data files land.
     # Config:  <x2fa_home>/.config/x2fa/
     # Data:    <x2fa_home>/.local/share/x2fa/
     x2fa_home: Path = field(default_factory=Path.home)
@@ -129,7 +129,7 @@ class InstallConfig:
         if sf.exists():
             try:
                 data = json.loads(sf.read_text())
-                data.pop("config_root", None)   # never restore; always use runtime arg
+                data.pop("x2fa_home", None)   # never restore; always use runtime arg
                 kwargs_cr = {"x2fa_home": x2fa_home} if x2fa_home is not None else {}
                 return cls(install_root=install_root, **kwargs_cr, **data)
             except json.JSONDecodeError as exc:

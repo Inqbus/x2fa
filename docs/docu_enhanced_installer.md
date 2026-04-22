@@ -16,7 +16,7 @@ time faces a wall of choice with very little guidance:
   appropriate or where the files must land for the proxy to find them
 - A Security screen that auto-generates secrets — but offers no explanation of what those
   secrets protect or how they relate to the running application
-- A `--config-root` flag that is entirely undocumented
+- A `--x2fa-home` flag that is entirely undocumented
 
 The goal of this proposal is to make every choice in the installer self-explaining:
 operators should be able to complete the installation without leaving the terminal to
@@ -44,7 +44,7 @@ look things up, and should understand *why* they are making each decision, not j
 
 The following complete workflows are not documented anywhere:
 
-1. **`--config-root` usage** — what it is for, when to use it, and how it interacts
+1. **`--x2fa-home` usage** — what it is for, when to use it, and how it interacts
    with the XDG paths for configs and data
 2. **Multi-instance deployment** — running two X2FA instances (e.g. staging + production)
    on the same host using distinct config roots
@@ -63,11 +63,11 @@ The following complete workflows are not documented anywhere:
 ### 2.3 Missing reference page
 
 `INSTALL.md` covers the happy path but:
-- Still references `src/x2fa/config_files/` as the config location (pre-`config_root`
+- Still references `src/x2fa/config_files/` as the config location (pre-`x2fa_home`
   design; actual location is `~/.config/x2fa/`)
 - States that `init-db` is "destructive" without mentioning `db-upgrade`
 - Provides no comparison between auth methods beyond a table
-- Does not cover `--config-root`
+- Does not cover `--x2fa-home`
 
 ---
 
@@ -332,7 +332,7 @@ it maps to in the generated config files, and the consequences of common choices
 Structure:
 
 ```
-1. CLI flags (--config-root, --answers)
+1. CLI flags (--x2fa-home, --answers)
 2. WelcomeScreen — preflight checks
 3. DatabaseScreen — db_type, db_uri
 4. DomainScreen — domain, proxy_type
@@ -348,7 +348,7 @@ Structure:
 **Updated file:** `INSTALL.md`
 
 - Correct config file path from `src/x2fa/config_files/` to `~/.config/x2fa/`
-- Add `--config-root` section with multi-instance example
+- Add `--x2fa-home` section with multi-instance example
 - Replace "init-db is destructive" with `flask init-db` vs `flask db-upgrade` guidance
 - Add ordered next-steps checklist at the top
 - Add recovery section for failed execute step

@@ -110,7 +110,7 @@ Runs the full setup wizard:
 Config files are written to `~/.config/x2fa/`.
 Data files (CA key, database) are written to `~/.local/share/x2fa/`.
 
-Use `--config-root <dir>` to relocate everything under a different base directory.
+Use `--x2fa-home <dir>` to relocate everything under a different base directory.
 
 ### Manage CAs
 

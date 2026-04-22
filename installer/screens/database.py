@@ -13,7 +13,7 @@ X2FA stores users, credentials, OIDC clients, and audit events in a relational d
 ### SQLite (default)
 
 Zero configuration. The database is a single file stored at
-`~/.local/share/x2fa/db.sqlite` (or inside `--config-root` if set).
+`~/.local/share/x2fa/db.sqlite` (or inside `--x2fa-home` if set).
 
 **Limitations:**
 - Only one writer at a time — suitable for a single Gunicorn process or low-traffic

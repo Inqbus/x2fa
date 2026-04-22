@@ -23,9 +23,9 @@ uv run installer
 **Optional flag:**
 
 ```
---config-root DIR   Override the base directory for all config and data files.
-                    Default: ~  (config lands in ~/.config/x2fa/, data in ~/.local/share/x2fa/)
-                    Useful for testing or running two instances on the same host.
+--x2fa-home DIR   Override the base directory for all config and data files.
+                  Default: ~  (config lands in ~/.config/x2fa/, data in ~/.local/share/x2fa/)
+                  Useful for testing or running two instances on the same host.
 ```
 
 ---
@@ -246,5 +246,5 @@ rm ~/.local/share/x2fa/installer_session.json
   the operator pastes it and reloads the proxy.
 - **Firewall rules** — out of scope.
 - **Non-interactive / headless mode** — no `--answers` flag yet; planned.
-- **Multi-instance management** — use `--config-root` to separate instances;
+- **Multi-instance management** — use `--x2fa-home` to separate instances;
   no shared management UI.
