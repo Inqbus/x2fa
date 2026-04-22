@@ -33,18 +33,18 @@ def main() -> None:
         epilog=(
             "By default, config files are written to ~/.config/x2fa/ and\n"
             "data files (CA key, DB) to ~/.local/share/x2fa/.\n"
-            "Use --config-root to relocate everything under a different base."
+            "Use --x2fa-home to relocate everything under a different base."
         ),
     )
     parser.add_argument(
-        "--config-root",
+        "--x2fa-home",
         type=Path,
         default=None,
         metavar="DIR",
         help="Override the root directory for config and data files (default: ~)",
     )
     args = parser.parse_args()
-    InstallerApp(x2fa_home=args.config_root).run()
+    InstallerApp(x2fa_home=args.x2fa_home).run()
 
 
 if __name__ == "__main__":
