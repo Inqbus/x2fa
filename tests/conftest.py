@@ -143,3 +143,28 @@ def make_client_cert(cn, ca_key, ca_cert, days=90):
     )
     cert = builder.sign(ca_key, hashes.SHA256())
     return cert.public_bytes(serialization.Encoding.PEM).decode()
+
+
+def make_self_signed_cert(cn):
+    """Returns (key, cert, cert_pem, fingerprint) for a self-signed certificate."""
+    key = ec.generate_private_key(ec.SECP256R1())
+    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, cn)])
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(name)
+        .issuer_name(name)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(datetime.now(timezone.utc))
+        .not_valid_after(datetime.now(timezone.utc) + timedelta(days=365))
+        .sign(key, hashes.SHA256())
+    )
+    cert_pem = cert.public_bytes(serialization.Encoding.PEM).decode()
+    fingerprint = cert.fingerprint(hashes.SHA256()).hex(":")
+    return key, cert, cert_pem, fingerprint
+
+
+@pytest.fixture
+def self_signed_cert():
+    """Returns (key, cert, cert_pem, fingerprint) for a self-signed certificate."""
+    return make_self_signed_cert("test-client")

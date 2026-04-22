@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 
-def _flask(args: list[str], install_root: Path) -> tuple[bool, str]:
+def _flask(args: list[str], install_root: Path, config_root: Path) -> tuple[bool, str]:
     """Run `flask <args>` using the current Python interpreter.
 
     Uses sys.executable so the command always runs inside the same virtual
@@ -14,10 +14,14 @@ def _flask(args: list[str], install_root: Path) -> tuple[bool, str]:
     uv tool install.  cwd is set to install_root (guaranteed to exist) and
     FLASK_APP uses the fully-qualified module path so it is resolvable from
     any working directory.
+    
+    config_root is the base directory for X2FA config and data files.
+    It is exposed to X2FA via the X2FA_CONFIG_ROOT environment variable.
     """
     env = {
         **os.environ,
         "FLASK_APP": "x2fa.wsgi_cli:app",
+        "X2FA_CONFIG_ROOT": str(config_root),
     }
     result = subprocess.run(
         [sys.executable, "-m", "flask"] + args,
@@ -29,20 +33,20 @@ def _flask(args: list[str], install_root: Path) -> tuple[bool, str]:
     return result.returncode == 0, (result.stdout + result.stderr).strip()
 
 
-def init_db(install_root: Path) -> tuple[bool, str]:
-    return _flask(["init-db"], install_root)
+def init_db(install_root: Path, config_root: Path) -> tuple[bool, str]:
+    return _flask(["init-db"], install_root, config_root)
 
 
-def init_keys(install_root: Path) -> tuple[bool, str]:
-    return _flask(["init-keys"], install_root)
+def init_keys(install_root: Path, config_root: Path) -> tuple[bool, str]:
+    return _flask(["init-keys"], install_root, config_root)
 
 
-def add_ca(name: str, cert_path: str, install_root: Path) -> tuple[bool, str]:
-    return _flask(["add-ca", name, cert_path], install_root)
+def add_ca(name: str, cert_path: str, install_root: Path, config_root: Path) -> tuple[bool, str]:
+    return _flask(["add-ca", name, cert_path], install_root, config_root)
 
 
-def revoke_ca(name: str, install_root: Path) -> tuple[bool, str]:
-    return _flask(["revoke-ca", name], install_root)
+def revoke_ca(name: str, install_root: Path, config_root: Path) -> tuple[bool, str]:
+    return _flask(["revoke-ca", name], install_root, config_root)
 
 
 def add_client(
@@ -50,6 +54,7 @@ def add_client(
     redirect_uri: str,
     method: str,
     install_root: Path,
+    config_root: Path,
     jwks_uri: str | None = None,
     cert: str | None = None,
     secret: str | None = None,
@@ -61,7 +66,7 @@ def add_client(
         args += ["--cert", cert]
     if secret:
         args += ["--secret", secret]
-    return _flask(args, install_root)
+    return _flask(args, install_root, config_root)
 
 
 def list_cas(install_root: Path) -> tuple[bool, str]:

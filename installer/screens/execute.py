@@ -158,12 +158,12 @@ class ExecuteScreen(Screen):
             return
 
         # 4 — init-db
-        if not run("initdb", "Initialize database", lambda: init_db(cfg.install_root)):
+        if not run("initdb", "Initialize database", lambda: init_db(cfg.install_root, cfg.x2fa_home)):
             return
 
         # 5 — init-keys
         if not run(
-            "initkeys", "Generate signing keys", lambda: init_keys(cfg.install_root)
+            "initkeys", "Generate signing keys", lambda: init_keys(cfg.install_root, cfg.x2fa_home)
         ):
             return
 
@@ -197,7 +197,7 @@ class ExecuteScreen(Screen):
             if not run(
                 "add_ca",
                 "Register CA in X2FA",
-                lambda: add_ca(cfg.ca_name, ca_cert, cfg.install_root),
+                lambda: add_ca(cfg.ca_name, ca_cert, cfg.install_root, cfg.x2fa_home),
             ):
                 return
         else:
@@ -224,6 +224,7 @@ class ExecuteScreen(Screen):
                     cfg.client_redirect_uri,
                     method,
                     cfg.install_root,
+                    cfg.x2fa_home,
                     jwks_uri=cfg.client_jwks_uri or None,
                     cert=cert,
                     secret=cfg.client_secret or None,
