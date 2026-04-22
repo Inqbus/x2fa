@@ -69,7 +69,7 @@ async def test_e2e_full_install_client_secret_post(tmp_path):
         patch("installer.runner.init_keys",   return_value=(True, "")),
         patch("installer.runner.add_client",  return_value=(True, "")),
     ):
-        app = InstallerApp(config_root=tmp_path)
+        app = InstallerApp(x2fa_home=tmp_path)
         async with app.run_test(size=_SIZE) as pilot:
 
             # ── MainMenu → WelcomeScreen ──────────────────────────────────
@@ -148,7 +148,7 @@ async def test_e2e_full_install_tls_client_auth(tmp_path):
               return_value={"cert": str(tmp_path / "client.pem"),
                             "key":  str(tmp_path / "client.key")}),
     ):
-        app = InstallerApp(config_root=tmp_path)
+        app = InstallerApp(x2fa_home=tmp_path)
         async with app.run_test(size=_SIZE) as pilot:
 
             # ── MainMenu → WelcomeScreen ──────────────────────────────────
@@ -230,7 +230,7 @@ async def test_e2e_full_install_private_key_jwt_postgres(tmp_path):
         patch("installer.ca.issue_client_cert",
               side_effect=AssertionError("issue_client_cert called for private_key_jwt")),
     ):
-        app = InstallerApp(config_root=tmp_path)
+        app = InstallerApp(x2fa_home=tmp_path)
         async with app.run_test(size=_SIZE) as pilot:
 
             # ── MainMenu → WelcomeScreen ──────────────────────────────────
@@ -309,7 +309,7 @@ async def test_e2e_full_install_tls_ca_import(tmp_path):
               return_value={"cert": str(tmp_path / "client.pem"),
                             "key":  str(tmp_path / "client.key")}),
     ):
-        app = InstallerApp(config_root=tmp_path)
+        app = InstallerApp(x2fa_home=tmp_path)
         async with app.run_test(size=_SIZE) as pilot:
 
             # ── MainMenu → WelcomeScreen ──────────────────────────────────
@@ -386,7 +386,7 @@ async def test_e2e_full_install_self_signed_tls(tmp_path):
         patch("installer.ca.issue_client_cert",
               side_effect=AssertionError("issue_client_cert should not be called")),
     ):
-        app = InstallerApp(config_root=tmp_path)
+        app = InstallerApp(x2fa_home=tmp_path)
         async with app.run_test(size=_SIZE) as pilot:
 
             # ── MainMenu → WelcomeScreen ──────────────────────────────────
@@ -449,7 +449,7 @@ async def test_e2e_full_install_client_secret_jwt_redis(tmp_path):
         patch("installer.runner.init_keys",  return_value=(True, "")),
         patch("installer.runner.add_client", return_value=(True, "")),
     ):
-        app = InstallerApp(config_root=tmp_path)
+        app = InstallerApp(x2fa_home=tmp_path)
         async with app.run_test(size=_SIZE) as pilot:
 
             # ── MainMenu → WelcomeScreen ──────────────────────────────────

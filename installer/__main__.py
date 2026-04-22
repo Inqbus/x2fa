@@ -44,7 +44,7 @@ def main() -> None:
         help="Override the root directory for config and data files (default: ~)",
     )
     args = parser.parse_args()
-    InstallerApp(config_root=args.config_root).run()
+    InstallerApp(x2fa_home=args.config_root).run()
 
 
 if __name__ == "__main__":

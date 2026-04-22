@@ -175,11 +175,11 @@ class InstallerApp(App[None]):
     TITLE = "X2FA Installer"
     CSS = APP_CSS
 
-    def __init__(self, config_root: Path | None = None) -> None:
+    def __init__(self, x2fa_home: Path | None = None) -> None:
         super().__init__()
         self.config = InstallConfig.load_session(
             install_root=Path.cwd(),
-            config_root=config_root,
+            x2fa_home=x2fa_home,
         )
 
     def push_screen(self, screen, *args, **kwargs):

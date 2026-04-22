@@ -23,7 +23,7 @@ WantedBy=default.target
 
 def write_systemd_unit(config: InstallConfig) -> tuple[bool, str]:
     """Write ~/.config/systemd/user/x2fa.service. Returns (success, log_message)."""
-    unit_dir = config.config_root / ".config" / "systemd" / "user"
+    unit_dir = config.x2fa_home / ".config" / "systemd" / "user"
     unit_path = unit_dir / "x2fa.service"
     try:
         unit_dir.mkdir(parents=True, exist_ok=True)

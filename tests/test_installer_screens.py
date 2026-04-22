@@ -31,7 +31,7 @@ class DirectScreenApp(App[None]):
 
     def __init__(self, screen_cls, tmp_path: Path, config_overrides: dict | None = None):
         super().__init__()
-        self.config = InstallConfig(install_root=tmp_path, config_root=tmp_path)
+        self.config = InstallConfig(install_root=tmp_path, x2fa_home=tmp_path)
         self.config.domain = "test.example.com"
         self.config.client_id = "test-client"
         self.config.client_redirect_uri = "https://test.example.com/cb"

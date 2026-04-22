@@ -184,7 +184,7 @@ class WelcomeScreen(Screen):
         self.query_one("#help_panel", Collapsible).collapsed ^= True
 
     def compose(self) -> ComposeResult:
-        checks = _run_checks(self.app.config.config_root)
+        checks = _run_checks(self.app.config.x2fa_home)
         blocking_failed = any(not c["ok"] and c["blocking"] for c in checks)
 
         yield Header()

@@ -12,7 +12,7 @@ from installer.models import InstallConfig
 def _config(tmp_path: Path, **overrides) -> InstallConfig:
     cfg = InstallConfig(
         install_root=tmp_path,
-        config_root=tmp_path,   # redirect all XDG paths into tmp_path
+        x2fa_home=tmp_path,   # redirect all XDG paths into tmp_path
         domain="test.example.com",
         secret_key="a" * 64,
         secret_salt="b" * 32,

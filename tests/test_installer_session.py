@@ -24,7 +24,7 @@ _ALL_OK_CHECKS = [
 
 def test_save_and_load_roundtrip(tmp_path):
     """save_session / load_session round-trip preserves all user-entered fields."""
-    cfg = InstallConfig(install_root=tmp_path, config_root=tmp_path)
+    cfg = InstallConfig(install_root=tmp_path, x2fa_home=tmp_path)
     cfg.domain = "roundtrip.example.com"
     cfg.proxy_type = "nginx"
     cfg.db_type = "postgres"
@@ -33,7 +33,7 @@ def test_save_and_load_roundtrip(tmp_path):
     cfg.client_redirect_uri = "https://myapp.example.com/cb"
     cfg.save_session()
 
-    cfg2 = InstallConfig.load_session(install_root=tmp_path, config_root=tmp_path)
+    cfg2 = InstallConfig.load_session(install_root=tmp_path, x2fa_home=tmp_path)
     assert cfg2.domain == "roundtrip.example.com"
     assert cfg2.proxy_type == "nginx"
     assert cfg2.db_type == "postgres"
@@ -44,7 +44,7 @@ def test_save_and_load_roundtrip(tmp_path):
 
 def test_load_session_missing_file_returns_fresh(tmp_path):
     """load_session returns a fresh config when no session file exists."""
-    cfg = InstallConfig.load_session(install_root=tmp_path, config_root=tmp_path)
+    cfg = InstallConfig.load_session(install_root=tmp_path, x2fa_home=tmp_path)
     assert cfg.domain == ""
     assert cfg.db_type == "sqlite"
 
@@ -54,7 +54,7 @@ def test_load_session_corrupt_file_returns_fresh(tmp_path):
     sf = InstallConfig.session_file(tmp_path)
     sf.parent.mkdir(parents=True, exist_ok=True)
     sf.write_text("not valid json{{{")
-    cfg = InstallConfig.load_session(install_root=tmp_path, config_root=tmp_path)
+    cfg = InstallConfig.load_session(install_root=tmp_path, x2fa_home=tmp_path)
     assert cfg.domain == ""
 
 
@@ -64,7 +64,7 @@ def test_load_session_corrupt_file_returns_fresh(tmp_path):
 async def test_session_saved_when_navigating_forward(tmp_path):
     """Values entered on a screen are persisted when the user navigates forward."""
     with patch("installer.screens.welcome._run_checks", return_value=_ALL_OK_CHECKS):
-        app = InstallerApp(config_root=tmp_path)
+        app = InstallerApp(x2fa_home=tmp_path)
         async with app.run_test(size=_SIZE) as pilot:
             await pilot.click("#install")       # → WelcomeScreen
             await pilot.pause()
@@ -81,7 +81,7 @@ async def test_session_saved_when_navigating_forward(tmp_path):
             await pilot.click("#next")          # → SecurityScreen
             await pilot.pause()
 
-    session = InstallConfig.load_session(install_root=tmp_path, config_root=tmp_path)
+    session = InstallConfig.load_session(install_root=tmp_path, x2fa_home=tmp_path)
     assert session.domain == "forward.example.com", (
         f"Expected 'forward.example.com', got '{session.domain}'"
     )
@@ -91,7 +91,7 @@ async def test_session_saved_when_navigating_forward(tmp_path):
 async def test_session_saved_on_ctrl_q(tmp_path):
     """Values typed on the current screen are persisted when the user presses CTRL-Q."""
     with patch("installer.screens.welcome._run_checks", return_value=_ALL_OK_CHECKS):
-        app = InstallerApp(config_root=tmp_path)
+        app = InstallerApp(x2fa_home=tmp_path)
         async with app.run_test(size=_SIZE) as pilot:
             await pilot.click("#install")       # → WelcomeScreen
             await pilot.pause()
@@ -106,7 +106,7 @@ async def test_session_saved_on_ctrl_q(tmp_path):
             await pilot.press("ctrl+q")
             await pilot.pause()
 
-    session = InstallConfig.load_session(install_root=tmp_path, config_root=tmp_path)
+    session = InstallConfig.load_session(install_root=tmp_path, x2fa_home=tmp_path)
     assert session.domain == "ctrlq.example.com", (
         f"Expected 'ctrlq.example.com', got '{session.domain}'"
     )
@@ -117,7 +117,7 @@ async def test_session_restored_on_restart(tmp_path):
     """A restarted InstallerApp pre-fills config from the saved session."""
     # ── First run: navigate to DomainScreen, enter domain, navigate forward ──
     with patch("installer.screens.welcome._run_checks", return_value=_ALL_OK_CHECKS):
-        app = InstallerApp(config_root=tmp_path)
+        app = InstallerApp(x2fa_home=tmp_path)
         async with app.run_test(size=_SIZE) as pilot:
             await pilot.click("#install")
             await pilot.pause()
@@ -132,7 +132,8 @@ async def test_session_restored_on_restart(tmp_path):
             await pilot.pause()
 
     # ── Second run: config must be pre-loaded from session ─────────────────
-    app2 = InstallerApp(config_root=tmp_path)
+
+    app2 = InstallerApp(x2fa_home=tmp_path)
     assert app2.config.domain == "restart.example.com", (
         f"Expected 'restart.example.com', got '{app2.config.domain}'"
     )

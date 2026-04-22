@@ -131,7 +131,7 @@ class SummaryScreen(Screen):
                 yield Markdown(_HELP_TEXT)
 
             # systemd user service
-            unit_path = cfg.config_root / ".config" / "systemd" / "user" / "x2fa.service"
+            unit_path = cfg.x2fa_home / ".config" / "systemd" / "user" / "x2fa.service"
             yield Static("systemd user service:", classes="field-label")
             yield Static(
                 f"  {unit_path}\n"
@@ -225,7 +225,7 @@ class SummaryScreen(Screen):
             domain=cfg.domain or "2fa.example.com",
             ca_cert=cfg.effective_ca_cert() or "/etc/x2fa/ca_cert.pem",
         )
-        unit_path = cfg.config_root / ".config" / "systemd" / "user" / "x2fa.service"
+        unit_path = cfg.x2fa_home / ".config" / "systemd" / "user" / "x2fa.service"
 
         lines = [
             "X2FA Installation Summary",

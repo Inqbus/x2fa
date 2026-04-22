@@ -35,9 +35,9 @@ _ALL_OK_CHECKS = [
 ]
 
 
-def _read_toml(config_root: Path, filename: str) -> dict:
+def _read_toml(x2fa_home: Path, filename: str) -> dict:
     """Read a config file from the XDG config directory."""
-    config_dir = config_root / ".config" / "x2fa"
+    config_dir = x2fa_home / ".config" / "x2fa"
     return tomllib.loads((config_dir / filename).read_text())
 
 
@@ -77,7 +77,7 @@ async def test_e2e_real_ca_generate(tmp_path):
     client_id = "real-ca-e2e-client.example.com"
     redirect_uri = "https://real-ca-e2e-client.example.com/cb"
     
-    app = InstallerApp(config_root=config_root)
+    app = InstallerApp(x2fa_home=config_root)
     async with app.run_test(size=_SIZE) as pilot:
         
         # ── Navigate through all screens ──────────────────────────────────────

@@ -5,10 +5,10 @@ from pathlib import Path
 
 # Fields excluded from session persistence.
 # - install_root: derived from cwd at runtime
-# - config_root: CLI argument; saving it causes the session file location to follow a
+# - x2fa_home: CLI argument; saving it causes the session file location to follow a
 #   stale path (e.g. a pytest tmp dir) instead of always resolving via Path.home()
 # - generated_files, install_error: transient results from a previous run
-_SESSION_EXCLUDE = {"install_root", "config_root", "generated_files", "install_error", "client_secret"}
+_SESSION_EXCLUDE = {"install_root", "x2fa_home", "generated_files", "install_error", "client_secret"}
 
 
 @dataclass
@@ -18,9 +18,9 @@ class InstallConfig:
 
     # Root directory for LSB/XDG paths (default: home directory).
     # Override via --config-root to change where config and data files land.
-    # Config:  <config_root>/.config/x2fa/
-    # Data:    <config_root>/.local/share/x2fa/
-    config_root: Path = field(default_factory=Path.home)
+    # Config:  <x2fa_home>/.config/x2fa/
+    # Data:    <x2fa_home>/.local/share/x2fa/
+    x2fa_home: Path = field(default_factory=Path.home)
 
     # ── Database ──────────────────────────────────────────────────────────
     db_type: str = "sqlite"  # sqlite | postgres | mysql
@@ -41,8 +41,8 @@ class InstallConfig:
     ca_name: str = "x2fa-internal-ca"
     ca_cn: str = "X2FA Internal CA"
     ca_validity_days: int = 3650
-    ca_key_path: str = ""   # filled by __post_init__ from config_root
-    ca_cert_path: str = ""  # filled by __post_init__ from config_root
+    ca_key_path: str = ""   # filled by __post_init__ from x2fa_home
+    ca_cert_path: str = ""  # filled by __post_init__ from x2fa_home
     ca_import_path: str = ""  # used when ca_action == "import"
 
     # ── First OIDC Client ─────────────────────────────────────────────────
@@ -73,12 +73,12 @@ class InstallConfig:
             self.client_cert_output_dir = str(data)
 
     def _data_dir(self) -> Path:
-        """XDG data directory: <config_root>/.local/share/x2fa/"""
-        return self.config_root / ".local" / "share" / "x2fa"
+        """XDG data directory: <x2fa_home>/.local/share/x2fa/"""
+        return self.x2fa_home / ".local" / "share" / "x2fa"
 
     def _config_dir(self) -> Path:
-        """XDG config directory: <config_root>/.config/x2fa/"""
-        return self.config_root / ".config" / "x2fa"
+        """XDG config directory: <x2fa_home>/.config/x2fa/"""
+        return self.x2fa_home / ".config" / "x2fa"
 
     def effective_db_uri(self) -> str:
         if self.db_uri:
@@ -100,13 +100,13 @@ class InstallConfig:
     # ── Session persistence ───────────────────────────────────────────────
 
     @staticmethod
-    def session_file(config_root: Path | None = None) -> Path:
+    def session_file(x2fa_home: Path | None = None) -> Path:
         """Location of the installer session file.
 
-        Uses *config_root* when supplied (so test fixtures stay isolated),
+        Uses *x2fa_home* when supplied (so test fixtures stay isolated),
         otherwise falls back to the user's home directory.
         """
-        root = config_root if config_root is not None else Path.home()
+        root = x2fa_home if x2fa_home is not None else Path.home()
         return root / ".local" / "share" / "x2fa" / "installer_session.json"
 
     def save_session(self) -> None:
@@ -117,26 +117,26 @@ class InstallConfig:
                 continue
             val = getattr(self, f)
             data[f] = str(val) if isinstance(val, Path) else val
-        sf = self.session_file(self.config_root)
+        sf = self.session_file(self.x2fa_home)
         sf.parent.mkdir(parents=True, exist_ok=True)
         sf.write_text(json.dumps(data, indent=2))
 
     @classmethod
-    def load_session(cls, install_root: Path, config_root: Path | None = None) -> "InstallConfig":
+    def load_session(cls, install_root: Path, x2fa_home: Path | None = None) -> "InstallConfig":
         """Load a previously saved session, falling back to defaults on any error."""
         import sys
-        sf = cls.session_file(config_root)
+        sf = cls.session_file(x2fa_home)
         if sf.exists():
             try:
                 data = json.loads(sf.read_text())
                 data.pop("config_root", None)   # never restore; always use runtime arg
-                kwargs_cr = {"config_root": config_root} if config_root is not None else {}
+                kwargs_cr = {"x2fa_home": x2fa_home} if x2fa_home is not None else {}
                 return cls(install_root=install_root, **kwargs_cr, **data)
             except json.JSONDecodeError as exc:
                 print(f"Warning: installer session file is corrupted ({exc}); starting fresh.", file=sys.stderr)
             except Exception as exc:
                 print(f"Warning: could not load installer session ({exc}); starting fresh.", file=sys.stderr)
         kwargs: dict = {"install_root": install_root}
-        if config_root is not None:
-            kwargs["config_root"] = config_root
+        if x2fa_home is not None:
+            kwargs["x2fa_home"] = x2fa_home
         return cls(**kwargs)

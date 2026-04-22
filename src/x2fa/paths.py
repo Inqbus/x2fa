@@ -7,7 +7,7 @@ from pathlib import Path
 def config_dir() -> Path:
     """Configuration files directory.
     
-    Respects X2FA_CONFIG_ROOT env var for testing.
+    Respects X2FA_CONFIG_ROOT env var for testing (which sets x2fa_home).
     When set: <X2FA_CONFIG_ROOT>/.config/x2fa/
     When not set: ~/.config/x2fa/
     """
@@ -21,7 +21,7 @@ def config_dir() -> Path:
 def data_dir() -> Path:
     """Data files directory.
     
-    Respects X2FA_CONFIG_ROOT env var for testing.
+    Respects X2FA_CONFIG_ROOT env var for testing (which sets x2fa_home).
     When set: <X2FA_CONFIG_ROOT>/.local/share/x2fa/
     When not set: ~/.local/share/x2fa/
     """
