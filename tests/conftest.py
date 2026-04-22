@@ -2,8 +2,6 @@
 
 import os
 
-# Must be set before any x2fa import so Dynaconf loads the [testing] section.
-os.environ.setdefault("ENV_FOR_DYNACONF", "testing")
 
 import pytest
 

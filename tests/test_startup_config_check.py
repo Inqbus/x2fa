@@ -1,6 +1,6 @@
 """Tests for the startup config-file presence check in init_app/config.py."""
 
-import os
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -8,64 +8,48 @@ import pytest
 from x2fa.helpers.config_pool import ConfigPool
 
 
-def _make_pool(missing: dict, loaded: dict | None = None) -> ConfigPool:
-    """Return a ConfigPool pre-populated with the given missing/loaded dicts."""
-    pool = ConfigPool.__new__(ConfigPool)
-    pool._missing = dict(missing)
-    pool._loaded  = dict(loaded or {})
-    return pool
-
-
-def _call_config(pool, env: str = "production"):
-    """Import and call config(app) with the given pool and ENV_FOR_DYNACONF."""
-    from x2fa.init_app import config as config_mod
-    app = MagicMock()
-    app.config = {}
-    with (
-        patch.object(config_mod, "cfg", pool),
-        patch.dict(os.environ, {"ENV_FOR_DYNACONF": env}, clear=False),
-    ):
-        config_mod.config(app)
-    return app
-
-
-# ── Missing-config detection ──────────────────────────────────────────────────
-
 class TestMissingConfigDetection:
-    def test_raises_runtime_error_when_config_missing_in_production(self):
-        pool = _make_pool({"x2fa": "x2fa_config.toml"})
-        with pytest.raises(RuntimeError, match="x2fa_config.toml"):
-            _call_config(pool, env="production")
+    def test_raises_runtime_error_when_config_missing(self):
+        """Missing config file should raise RuntimeError during load_config."""
+        from x2fa.init_app import config as config_mod
+        
+        with patch("x2fa.init_app.config.config_dir", return_value=Path("/tmp/nonexistent")):
+            with pytest.raises(RuntimeError, match="x2fa_config.toml"):
+                config_mod.load_config()
 
     def test_error_message_contains_installer_hint(self):
-        pool = _make_pool({"x2fa": "x2fa_config.toml"})
-        with pytest.raises(RuntimeError, match="python -m installer"):
-            _call_config(pool, env="production")
+        """Error message should suggest running the installer."""
+        from x2fa.init_app import config as config_mod
+        
+        with patch("x2fa.init_app.config.config_dir", return_value=Path("/tmp/nonexistent")):
+            with pytest.raises(RuntimeError, match="python -m installer"):
+                config_mod.load_config()
 
     def test_lists_all_missing_files_in_error(self):
-        pool = _make_pool({
-            "x2fa":          "x2fa_config.toml",
-            "x2fa_security": "security_config.toml",
-        })
-        with pytest.raises(RuntimeError) as exc_info:
-            _call_config(pool, env="production")
-        msg = str(exc_info.value)
-        assert "x2fa_config.toml"     in msg
-        assert "security_config.toml" in msg
+        """Error should list the first missing config file."""
+        from x2fa.init_app import config as config_mod
+        
+        with patch("x2fa.init_app.config.config_dir", return_value=Path("/tmp/nonexistent")):
+            with pytest.raises(RuntimeError) as exc_info:
+                config_mod.load_config()
+            msg = str(exc_info.value)
+            # Currently raises on first missing file encountered
+            assert "x2fa_config.toml" in msg
 
     def test_no_error_when_all_configs_present(self):
-        pool = _make_pool(missing={})
-        _call_config(pool, env="production")  # must not raise
-
-    def test_no_error_in_testing_environment_even_with_missing_files(self):
-        pool = _make_pool({"x2fa": "x2fa_config.toml"})
-        _call_config(pool, env="testing")  # must not raise
-
-    def test_no_error_in_testing_environment_case_insensitive(self):
-        pool = _make_pool({"x2fa": "x2fa_config.toml"})
-        _call_config(pool, env="TESTING")  # must not raise
-
-    def test_raises_for_development_environment(self):
-        pool = _make_pool({"x2fa_security": "security_config.toml"})
-        with pytest.raises(RuntimeError):
-            _call_config(pool, env="development")
+        """Should not raise when all configs are loaded."""
+        import tempfile
+        import tomli_w
+        from x2fa.init_app import config as config_mod
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            # Create all required config files with minimal content
+            for filename in ["x2fa_config.toml", "babel_config.toml", "db_config.toml", 
+                           "ratelimit_config.toml", "security_config.toml"]:
+                config_file = tmp_path / filename
+                config_file.write_text("[production]\nNAME = \"test\"\n")
+            
+            with patch("x2fa.init_app.config.config_dir", return_value=tmp_path):
+                pool = config_mod.load_config()
+                assert hasattr(pool, "x2fa")

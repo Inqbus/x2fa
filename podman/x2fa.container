@@ -20,7 +20,6 @@ Image=localhost/x2fa:latest
 PublishPort=127.0.0.1:5000:5000
 Volume=x2fa-config.volume:/home/x2fa/.config/x2fa:Z
 Volume=x2fa-data.volume:/home/x2fa/.local/share/x2fa:Z
-Environment=ENV_FOR_DYNACONF=production
 HealthCmd=python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/.well-known/openid-configuration')"
 HealthInterval=30s
 HealthRetries=3

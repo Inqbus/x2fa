@@ -46,12 +46,6 @@ def security(app: Flask):
     oauth.register_client_auth_method(AUTH_METHOD_CLIENT_SECRET_POST, authenticate_via_client_secret_post)
     oauth.register_client_auth_method(AUTH_METHOD_CLIENT_SECRET_BASIC, authenticate_via_client_secret_basic)
 
-    # # Test-only blueprint for session injection (E2E Playwright tests)
-    # if app.config.x2fa.ENV_FOR_DYNACONF == 'testing':
-    #     from x2fa.routes.test_helpers import test_bp
-    #
-    #     app.register_blueprint(test_bp)
-    #
 
     # Security headers + CSP nonce
     @app.before_request

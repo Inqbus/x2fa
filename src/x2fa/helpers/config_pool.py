@@ -1,8 +1,8 @@
-"""ConfigPool - holds loaded Dynaconf instances, tracks missing configs."""
+"""ConfigPool - holds loaded config instances, tracks missing configs."""
 
 from pathlib import Path
 
-from dynaconf import Dynaconf
+from x2fa.helpers.attr_dict import AttrDict
 
 
 class ConfigPool:
@@ -13,9 +13,9 @@ class ConfigPool:
         self._loaded = {}
         self._missing = {}
 
-    def add_config(self, namespace: str, dynaconf_instance: Dynaconf):
-        """Add a successfully loaded Dynaconf instance."""
-        self._loaded[namespace] = dynaconf_instance
+    def add_config(self, namespace: str, config_instance):
+        """Add a successfully loaded config instance."""
+        self._loaded[namespace] = config_instance
 
     def add_missing(self, namespace: str, filename: str):
         """Track a missing config namespace."""

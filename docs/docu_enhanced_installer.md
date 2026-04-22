@@ -215,11 +215,12 @@ each screen. Replace static `Static` widgets with reactive ones:
 def on_input_changed(self, event: Input.Changed) -> None:
     if event.input.id == "domain":
         val = event.value.strip()
-        self.app.config.domain = val
+        self.app.configure.domain = val
         origin = f"https://{val}" if val else ""
         self.query_one("#origin_hint", Static).update(
             f"[dim]ORIGIN will be: {origin}[/]" if origin else "[dim]Enter a domain name.[/]"
         )
+
 
 # ca_setup.py — human-readable validity duration
 def on_input_changed(self, event: Input.Changed) -> None:

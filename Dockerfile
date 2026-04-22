@@ -36,7 +36,6 @@ COPY --from=build --chown=x2fa:x2fa /build/installer /home/x2fa/app/installer
 # Activate the venv and expose the x2fa package.
 ENV PATH="/home/x2fa/app/.venv/bin:$PATH"
 ENV PYTHONPATH="/home/x2fa/app/src:/home/x2fa/app"
-ENV ENV_FOR_DYNACONF=production
 
 EXPOSE 5000
 

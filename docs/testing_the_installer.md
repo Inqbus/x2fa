@@ -120,7 +120,7 @@ def screen(app):
 | `test_add_ca()` | Calls `uv run flask add-ca` with name and cert path |
 | `test_add_client_tls()` | Calls `uv run flask add-client` with `--method tls_client_auth` |
 | `test_add_client_jwks()` | Calls `uv run flask add-client` with `--jwks-uri` |
-| `test_env_flags()` | `FLASK_APP=wsgi:app`, `ENV_FOR_DYNACONF=production` in env |
+| `test_env_flags()` | `FLASK_APP=x2fa.wsgi_cli:app`, `` in env |
 
 ### 3.4 Screens Tests (each screen)
 
@@ -141,8 +141,9 @@ def test_database_screen_validation_sqlite(screen):
     """DatabaseScreen accepts SQLite as valid option."""
     screen.query_one("#sqlite", Button).press()
     screen.query_one("#next").press()
-    assert screen.app.config.db_type == "sqlite"
-    assert "sqlite:///" in screen.app.config.effective_db_uri()
+    assert screen.app.configure.db_type == "sqlite"
+    assert "sqlite:///" in screen.app.configure.effective_db_uri()
+
 
 def test_domain_screen_validation_empty(screen):
     """DomainScreen rejects empty domain."""
@@ -150,7 +151,7 @@ def test_domain_screen_validation_empty(screen):
     input_widget.clear()
     screen.query_one("#next").press()
     assert screen.query_one(".error").visible
-    assert app.config.domain == ""
+    assert app.configure.domain == ""
 ```
 
 ### 3.5 App Tests

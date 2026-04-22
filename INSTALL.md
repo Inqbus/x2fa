@@ -51,7 +51,7 @@ panel explaining every option. The screens are:
 
 When the execute step completes, configuration files are written to `~/.config/x2fa/`
 and data files (CA key, database) to `~/.local/share/x2fa/`. No environment variables
-are required at runtime beyond `ENV_FOR_DYNACONF=production`.
+are required at runtime beyond ``.
 
 ### `--config-root` flag
 
@@ -81,10 +81,10 @@ Useful for:
   Start each instance with the matching root:
 
   ```bash
-  CONFIG_ROOT=/opt/x2fa-staging ENV_FOR_DYNACONF=production \
+  CONFIG_ROOT=/opt/x2fa-staging  \
       uv run gunicorn 'x2fa.wsgi:app' --bind 127.0.0.1:5001
 
-  CONFIG_ROOT=/opt/x2fa-production ENV_FOR_DYNACONF=production \
+  CONFIG_ROOT=/opt/x2fa-production  \
       uv run gunicorn 'x2fa.wsgi:app' --bind 127.0.0.1:5000
   ```
 
@@ -123,7 +123,7 @@ Use `flask rotate-client-secret <client_id>` to issue a new secret.
 ## 4. Start X2FA
 
 ```bash
-ENV_FOR_DYNACONF=production uv run gunicorn 'x2fa.wsgi:app' --bind 127.0.0.1:5000
+ uv run gunicorn 'x2fa.wsgi:app' --bind 127.0.0.1:5000
 ```
 
 For a systemd service, create `/etc/systemd/system/x2fa.service`:
@@ -136,7 +136,7 @@ After=network.target
 [Service]
 User=x2fa
 WorkingDirectory=/opt/x2fa
-Environment=ENV_FOR_DYNACONF=production
+Environment=
 ExecStart=uv run gunicorn 'x2fa.wsgi:app' --bind 127.0.0.1:5000 --workers 4
 Restart=on-failure
 
@@ -264,8 +264,8 @@ SQLALCHEMY_DATABASE_URI = "postgresql://user:pass@localhost/x2fa"
 ### 6.2 Initialise the database and signing keys
 
 ```bash
-FLASK_APP=wsgi:app ENV_FOR_DYNACONF=production uv run flask init-db
-FLASK_APP=wsgi:app ENV_FOR_DYNACONF=production uv run flask init-keys
+FLASK_APP=x2fa.wsgi_cli:app  uv run flask init-db
+FLASK_APP=x2fa.wsgi_cli:app  uv run flask init-keys
 ```
 
 **`flask init-db`** runs Alembic `upgrade head` to create all tables. Safe on a fresh
@@ -282,25 +282,25 @@ production installation.
 ### 6.3 Register a Certificate Authority
 
 ```bash
-FLASK_APP=wsgi:app ENV_FOR_DYNACONF=production uv run flask add-ca my-ca /etc/x2fa/ca_cert.pem
+FLASK_APP=x2fa.wsgi_cli:app  uv run flask add-ca my-ca /etc/x2fa/ca_cert.pem
 ```
 
 ### 6.4 Register an OIDC client
 
 ```bash
 # CA-signed mTLS
-FLASK_APP=wsgi:app ENV_FOR_DYNACONF=production uv run flask add-client \
+FLASK_APP=x2fa.wsgi_cli:app  uv run flask add-client \
     shop.example.com https://shop.example.com/auth/callback \
     --method tls_client_auth
 
 # Self-signed cert (fingerprint-pinned)
-FLASK_APP=wsgi:app ENV_FOR_DYNACONF=production uv run flask add-client \
+FLASK_APP=x2fa.wsgi_cli:app  uv run flask add-client \
     shop.example.com https://shop.example.com/auth/callback \
     --method self_signed_tls_client_auth \
     --cert /path/to/client_self_signed.pem
 
 # Shared secret (printed once — record it)
-FLASK_APP=wsgi:app ENV_FOR_DYNACONF=production uv run flask add-client \
+FLASK_APP=x2fa.wsgi_cli:app  uv run flask add-client \
     shop.example.com https://shop.example.com/auth/callback \
     --method client_secret_post
 ```
@@ -308,7 +308,7 @@ FLASK_APP=wsgi:app ENV_FOR_DYNACONF=production uv run flask add-client \
 ### 6.5 Issue a client certificate (tls_client_auth only)
 
 ```bash
-FLASK_APP=wsgi:app ENV_FOR_DYNACONF=production uv run flask issue-client-cert \
+FLASK_APP=x2fa.wsgi_cli:app  uv run flask issue-client-cert \
     shop.example.com --ca my-ca --output ./certs
 ```
 
@@ -316,7 +316,7 @@ FLASK_APP=wsgi:app ENV_FOR_DYNACONF=production uv run flask issue-client-cert \
 
 ## 7. Post-Install Operations
 
-All management commands require `FLASK_APP=wsgi:app ENV_FOR_DYNACONF=production` (or set
+All management commands require `FLASK_APP=x2fa.wsgi_cli:app ` (or set
 these in your shell environment).
 
 ### Clients
@@ -368,7 +368,7 @@ Set `SQLALCHEMY_DATABASE_URI` accordingly in `db_config.toml`.
 For existing installations, apply schema changes with:
 
 ```bash
-ENV_FOR_DYNACONF=production uv run flask db-upgrade
+ uv run flask db-upgrade
 ```
 
 This runs Alembic `upgrade head` and applies only the pending migrations — it never

@@ -25,10 +25,10 @@ def demo_rp_base_url():
     spec.loader.exec_module(mod)
 
     from werkzeug.serving import make_server
-    server = make_server(demo_rp_app.config.HOST, demo_rp_app.config.PORT, mod.app)
+    server = make_server(demo_rp_app.configure.HOST, demo_rp_app.configure.PORT, mod.app)
     threading.Thread(target=server.serve_forever, daemon=True).start()
 
-    yield f"http://{demo_rp_app.config.HOST}:{demo_rp_app.config.PORT}"
+    yield f"http://{demo_rp_app.configure.HOST}:{demo_rp_app.configure.PORT}"
 
     server.shutdown()
 

@@ -70,29 +70,19 @@ Relying Party (RP)                X2FA                         Browser
 ```
 x2fa/
 ├── src/x2fa/
-│   ├── app.py               # create_app() factory
+│   ├── app.py               # Main app factory (with routes)
+│   ├── app_cli.py           # Minimal app factory (CLI commands)
+│   ├── wsgi.py              # WSGI entry point for app
+│   ├── wsgi_cli.py          # WSGI entry point for CLI
 │   ├── cli.py               # Flask CLI commands
 │   ├── constants.py         # Shared constants (auth methods, sentinels, …)
-│   ├── config.py            # Dynaconf config loader
 │   ├── model/               # SQLAlchemy models (split by domain)
-│   │   ├── base.py          # declarative Base
-│   │   ├── webauthn.py      # Credential, Challenge
-│   │   ├── totp.py          # TOTPSecret, BackupCode
-│   │   ├── audit.py         # AuditLog
-│   │   ├── oidc.py          # OIDCClient, AuthorizationCode, SigningKey
-│   │   └── pki.py           # TrustedCA
-│   ├── oidc/
-│   │   ├── __init__.py      # AuthorizationServer instance
-│   │   └── grants.py        # X2FAAuthorizationCodeGrant, auth methods
-│   ├── routes/
-│   │   ├── auth.py          # OIDC endpoints + discovery
-│   │   ├── setup.py         # WebAuthn registration flow
-│   │   ├── verify.py        # WebAuthn assertion flow
-│   │   ├── totp.py          # TOTP setup & verification
-│   │   └── backup.py        # Backup code verification
-│   ├── init_app/            # App-factory helpers (db, config, security, …)
-│   └── services/
-│       └── crypto.py        # Fernet encryption + bcrypt hashing
+│   ├── oidc/                # Authlib OIDC server
+│   ├── routes/              # Blueprints (auth, setup, verify, totp, backup)
+│   ├── init_app/            # App-factory helpers (config, db, security, …)
+│   ├── helpers/             # Helper utilities (attr_dict, config_pool, …)
+│   └── services/            # Business logic (crypto, …)
+├── src/x2fa/config_files/   # Template config files (.toml.default)
 ├── demo_rp/                 # Demo relying party for manual testing
 ├── docs/                    # Architecture docs and migration guides
 ├── tests/                   # pytest test suite
@@ -122,7 +112,8 @@ uv sync
 
 ## Configuration
 
-Configuration is managed by [Dynaconf](https://www.dynaconf.com/) via TOML files in `src/x2fa/config_files/`.
+Configuration is managed via plain TOML files. The installer creates config files
+in `~/.config/x2fa/` (or `X2FA_CONFIG_ROOT` if set).
 
 ### Key Settings (`x2fa_config.toml`)
 
@@ -168,8 +159,7 @@ The installer walks through all configuration steps and sets up X2FA automatical
 ### Manual Setup
 
 ```bash
-export FLASK_APP=wsgi:app
-export ENV_FOR_DYNACONF=development
+export FLASK_APP=x2fa.wsgi_cli:app
 
 # 1. Create database tables
 flask init-db
@@ -418,8 +408,7 @@ Backup code verification.
 ## CLI Reference
 
 ```bash
-export FLASK_APP=wsgi:app
-export ENV_FOR_DYNACONF=development
+export FLASK_APP=x2fa.wsgi_cli:app
 ```
 
 ### `flask init-db`
@@ -530,8 +519,7 @@ Deletes authorization codes older than 1 hour. Safe to run as a cron job.
 ### Run Locally
 
 ```bash
-export FLASK_APP=wsgi:app
-export ENV_FOR_DYNACONF=development
+export FLASK_APP=x2fa.wsgi_cli:app
 
 uv run flask init-db
 uv run flask init-keys

@@ -1,5 +1,8 @@
 # X2FA Configuration File Handling
 
+> **ARCHIVED DOCUMENT** - This describes the old Dynaconf-based configuration system.
+> The current system uses plain TOML files via `tomllib`.
+
 ## Current Structure
 
 Config files were stored in `src/x2fa/config_files/`:

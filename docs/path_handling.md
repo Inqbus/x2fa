@@ -1,3 +1,8 @@
+> **ARCHIVED DOCUMENT** - This describes path handling concepts. 
+> The current system loads config from `~/.config/x2fa/` via plain TOML.
+
+---
+
 # Path Handling Strategy for X2FA
 
 ## Problem Statement

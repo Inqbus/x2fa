@@ -1,7 +1,7 @@
 """Alembic environment — wired to x2fa's SQLAlchemy Base.metadata.
 
 Does NOT depend on Flask-Migrate. The DB URL is read from the x2fa
-config pool (ENV_FOR_DYNACONF=production by default) or can be
+config pool or can be
 overridden on the Alembic command line with -x sqlalchemy.url=<url>.
 """
 
@@ -37,7 +37,6 @@ def _db_url() -> str:
     Priority:
     1. ``-x sqlalchemy.url=<url>`` passed on the Alembic CLI
     2. ``sqlalchemy.url`` set in alembic.ini [alembic] section
-    3. The x2fa config pool (reads db_config.toml for ENV_FOR_DYNACONF)
     """
     # -x key=value arguments are read via context.get_x_argument()
     x_args = context.get_x_argument(as_dictionary=True)

@@ -18,7 +18,6 @@ def _flask(args: list[str], install_root: Path) -> tuple[bool, str]:
     env = {
         **os.environ,
         "FLASK_APP": "x2fa.wsgi:app",
-        "ENV_FOR_DYNACONF": "production",
     }
     result = subprocess.run(
         [sys.executable, "-m", "flask"] + args,

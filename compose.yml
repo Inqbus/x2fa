@@ -30,8 +30,6 @@ services:
     volumes:
       - x2fa-config:/home/x2fa/.config/x2fa   # TOML config files written by the installer
       - x2fa-data:/home/x2fa/.local/share/x2fa # SQLite DB, CA key, signing keys
-    environment:
-      ENV_FOR_DYNACONF: production
     healthcheck:
       test: ["CMD", "python3", "-c",
              "import urllib.request; urllib.request.urlopen('http://localhost:5000/.well-known/openid-configuration')"]
@@ -48,8 +46,6 @@ services:
     volumes:
       - x2fa-config:/home/x2fa/.config/x2fa
       - x2fa-data:/home/x2fa/.local/share/x2fa
-    environment:
-      ENV_FOR_DYNACONF: production
     command: ["x2fa-install"]
     profiles:
       - installer   # not started by `docker compose up`; run explicitly

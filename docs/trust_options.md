@@ -138,7 +138,7 @@ client_secret_encrypted = Column(LargeBinary, nullable=True)
 
 ```python
 def verify_client_secret_jwt(client_id: str, assertion: str, token_endpoint_url: str) -> bool:
-    fernet = CryptoService(current_app.config.x2fa_security.SECRET_KEY).get_fernet()
+    fernet = CryptoService(current_app.configure.x2fa_security.SECRET_KEY).get_fernet()
     client = db_session.get(OIDCClient, client_id)
     if not client or not client.client_secret_encrypted:
         return False
@@ -195,7 +195,7 @@ secret to the comparison.
 
 ```python
 def verify_client_secret_post(client_id: str, client_secret: str) -> bool:
-    fernet = CryptoService(current_app.config.x2fa_security.SECRET_KEY).get_fernet()
+    fernet = CryptoService(current_app.configure.x2fa_security.SECRET_KEY).get_fernet()
     client = db_session.get(OIDCClient, client_id)
     if not client or not client.client_secret_encrypted:
         return False

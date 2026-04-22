@@ -12,7 +12,6 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory={install_root}
-Environment=ENV_FOR_DYNACONF=production
 ExecStart=uv run gunicorn 'x2fa.wsgi:app' --bind 127.0.0.1:5000
 Restart=on-failure
 RestartSec=5

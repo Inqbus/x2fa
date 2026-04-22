@@ -1,6 +1,9 @@
 # X2FA Architecture v2.1
 **FIDO2 Microservice with OIDC Provider – Self-Sovereign Key Architecture**
-*Date: 2026-04-15*
+*Date: 2026-04-22*
+
+> **ARCHIVED DOCUMENT** - Some sections describe the old Dynaconf-based configuration.
+> The current system uses plain TOML files via `tomllib`.
 
 ---
 
@@ -197,20 +200,38 @@ Configuration is managed by Dynaconf using five thematically separated TOML file
 
 ```python
 # src/x2fa/init_app/config.py
-def config(app: Flask):
-    for key in cfg:
-        setattr(app.config, key, AttrDict(dict(cfg[key])))
+import tomllib
+from x2fa.helpers.attr_dict import AttrDict
 
-    # Startup check: SECRET_KEY must be set
-    if 'SECRET_KEY' not in app.config.x2fa_security:
-        raise RuntimeError("SECRET_KEY not set in secret_config.toml!")
-    app.config['SECRET_KEY'] = app.config.x2fa_security.SECRET_KEY
+def configure(app: Flask):
+    config_by_namespace = load_config()
+    for namespace, config_file_name in CONFIGS.items():
+        setattr(app.config, namespace, getattr(config_by_namespace, namespace))
 
-    # Startup check: Redis required in production
-    if not app.config.x2fa.ENV_FOR_DYNACONF == "testing" and not "RATELIMIT_STORAGE_URI" in app.config.x2fa_ratelimit:
-        raise RuntimeError(
-            "REDIS_URL must be set in production (distributed rate-limiting)."
-        )
+def load_config():
+    config_dir_path = config_dir()
+    _pool = ConfigPool(config_dir_path)
+    
+    for namespace, config_file_name in CONFIGS.items():
+        config_file_path = config_dir_path / config_file_name
+        if not config_file_path.exists():
+            raise RuntimeError(...)
+        
+        with open(config_file_path, "rb") as config_file:
+            data = tomllib.load(config_file)
+        
+        # Use [production] section if available, otherwise [default]
+        if "production" in data:
+            section_data = data["production"]
+        elif "default" in data:
+            section_data = data["default"]
+        else:
+            section_data = {}
+        
+        simple_namespace = AttrDict(**section_data)
+        _pool.add_config(namespace, simple_namespace)
+    
+    return _pool
 ```
 
 ### Session Security (`security_config.toml`)
@@ -252,6 +273,7 @@ from authlib.oidc.core.grants import OpenIDCode
 from sqlalchemy import select
 from flask import g
 
+
 class S256OnlyCodeChallenge(CodeChallenge):
     """Restricts PKCE to S256 only — 'plain' is explicitly rejected."""
     SUPPORTED_CODE_CHALLENGE_METHOD = ["S256"]
@@ -264,8 +286,8 @@ class X2FAAuthorizationCodeGrant(AuthorizationCodeGrant):
     Supports Self-Sovereign Keys: tls_client_auth and private_key_jwt.
     """
     TOKEN_ENDPOINT_AUTH_METHODS = [
-        AUTH_METHOD_TLS_CLIENT_AUTH,   # X.509 client certificate via mTLS
-        AUTH_METHOD_PRIVATE_KEY_JWT,   # JWT with x5c header (certificate chain)
+        AUTH_METHOD_TLS_CLIENT_AUTH,  # X.509 client certificate via mTLS
+        AUTH_METHOD_PRIVATE_KEY_JWT,  # JWT with x5c header (certificate chain)
     ]
 
     def save_authorization_code(self, code, request):
@@ -342,7 +364,6 @@ class X2FAOpenIDCode(OpenIDCode):
 
     def generate_user_info(self, user, scope):
         return {"sub": user}
-
 
 # Registration lives in src/x2fa/init_app/security.py (not at module level here):
 #
@@ -995,18 +1016,18 @@ openssl req -x509 -newkey rsa:4096 -keyout /etc/x2fa/ca_key.pem \
   -subj "/C=US/O=MyOrg/CN=Internal-CA"
 chmod 600 /etc/x2fa/ca_key.pem
 
-ENV_FOR_DYNACONF=production flask add-ca "internal-ca" /etc/x2fa/ca_cert.pem
+ flask add-ca "internal-ca" /etc/x2fa/ca_cert.pem
 
 # Initialize signing key
-ENV_FOR_DYNACONF=production flask init-keys
+ flask init-keys
 
 # Register first client (example)
-ENV_FOR_DYNACONF=production flask add-client "shop.example.com" \
+ flask add-client "shop.example.com" \
   --method tls_client_auth \
   --redirect-uri "https://shop.example.com/auth/callback"
 
 # Start
-ENV_FOR_DYNACONF=production gunicorn "x2fa.wsgi:app" --bind 127.0.0.1:5000
+ gunicorn "x2fa.wsgi:app" --bind 127.0.0.1:5000
 ```
 
 Caddyfile:
@@ -1038,8 +1059,8 @@ RATELIMIT_STORAGE_URI = "redis://localhost:6379/0"
 EOF
 
 uv sync --extra postgres
-ENV_FOR_DYNACONF=production flask init-keys
-ENV_FOR_DYNACONF=production gunicorn "x2fa.wsgi:app" -w 4 --bind 127.0.0.1:5000
+ flask init-keys
+ gunicorn "x2fa.wsgi:app" -w 4 --bind 127.0.0.1:5000
 ```
 
 nginx configuration (with mTLS):

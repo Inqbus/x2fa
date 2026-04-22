@@ -1,7 +1,10 @@
 # X2FA — Packaging and Distribution
 
 **Status:** Proposal  
-**Date:** 2026-04-16
+**Date:** 2026-04-22
+
+> **ARCHIVED DOCUMENT** - Some snippets reference old Dynaconf patterns.
+> The current system uses plain TOML files.
 
 ---
 
@@ -195,7 +198,7 @@ pip install "x2fa[installer]"     # + Textual TUI installer
 
 x2fa-install                      # run the TUI installer
 X2FA_CONFIG_DIR=/etc/x2fa \
-  ENV_FOR_DYNACONF=production \
+   \
   x2fa-server --workers 4         # start Gunicorn
 ```
 
@@ -309,7 +312,7 @@ Type=notify
 User=x2fa
 Group=x2fa
 WorkingDirectory=/var/lib/x2fa
-Environment=ENV_FOR_DYNACONF=production
+Environment=
 Environment=X2FA_CONFIG_DIR=/etc/x2fa
 ExecStart=/opt/x2fa/bin/x2fa-server \
     --bind 127.0.0.1:5000 \
@@ -370,15 +373,15 @@ case "$1" in
     if [ -z "$2" ]; then
         echo "Initialising X2FA database and signing keys..."
         X2FA_CONFIG_DIR="$CONFIG_DIR" \
-        ENV_FOR_DYNACONF=production \
+         \
             su -s /bin/sh x2fa -c "$FLASK init-db"
         X2FA_CONFIG_DIR="$CONFIG_DIR" \
-        ENV_FOR_DYNACONF=production \
+         \
             su -s /bin/sh x2fa -c "$FLASK init-keys"
     fi
 
     # Upgrade: run migrations (once Alembic is added)
-    # X2FA_CONFIG_DIR="$CONFIG_DIR" ENV_FOR_DYNACONF=production \
+    # X2FA_CONFIG_DIR="$CONFIG_DIR"  \
     #     su -s /bin/sh x2fa -c "$FLASK db upgrade"
 
     systemctl daemon-reload || true
@@ -460,7 +463,7 @@ case "${1:-install}" in
   flask)
     # Admin CLI — e.g. ./x2fa.AppImage flask add-client …
     export FLASK_APP=x2fa.wsgi
-    export ENV_FOR_DYNACONF=production
+    export 
     exec "$PYTHON" -m flask "${@:2}"
     ;;
   install|*)
@@ -586,7 +589,7 @@ COPY --from=builder /build/dist/*.whl /tmp/
 RUN pip install --no-cache-dir /tmp/*.whl && rm /tmp/*.whl
 
 # Runtime environment
-ENV ENV_FOR_DYNACONF=production \
+ENV  \
     X2FA_CONFIG_DIR=/etc/x2fa \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
@@ -623,7 +626,6 @@ services:
       - x2fa-data:/var/lib/x2fa
     environment:
       X2FA_CONFIG_DIR: /etc/x2fa
-      ENV_FOR_DYNACONF: production
     depends_on:
       redis:
         condition: service_healthy
@@ -638,7 +640,6 @@ services:
       - x2fa-data:/var/lib/x2fa
     environment:
       X2FA_CONFIG_DIR: /etc/x2fa
-      ENV_FOR_DYNACONF: production
     command: >
       sh -c "flask --app x2fa.wsgi init-db &&
              flask --app x2fa.wsgi init-keys"
@@ -675,8 +676,6 @@ initContainers:
   - name: x2fa-init
     image: ghcr.io/your-org/x2fa:2.0.0
     env:
-      - name: ENV_FOR_DYNACONF
-        value: production
       - name: X2FA_CONFIG_DIR
         value: /etc/x2fa
     command:

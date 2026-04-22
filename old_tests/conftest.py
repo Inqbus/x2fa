@@ -1,10 +1,6 @@
 """Shared fixtures for all X2FA tests."""
 
-# Must be set before any x2fa import so Dynaconf loads the [testing] section
-# from all config files (db_config.toml, security_config.toml, …).
 import os
-
-os.environ.setdefault("ENV_FOR_DYNACONF", "testing")
 
 import pytest
 

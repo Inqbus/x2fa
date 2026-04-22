@@ -6,23 +6,23 @@ X2FA is a FIDO2 microservice with OIDC provider that handles two-factor authenti
 ## Key Commands
 - Run tests: `uv run pytest tests/ -v` (29 unit tests)
 - Run single test: `uv run pytest tests/test_file.py::test_name -v`
-- Start development server: `FLASK_APP=wsgi:app uv run flask run`
-- Initialize database: `FLASK_APP=wsgi:app uv run flask init-db`
-- Initialize keys: `FLASK_APP=wsgi:app uv run flask init-keys`
-- Add client: `FLASK_APP=wsgi:app uv run flask add-client <client_id> <redirect_uri> [--method tls_client_auth|private_key_jwt]`
-- Add CA: `FLASK_APP=wsgi:app uv run flask add-ca <name> <cert_path>`
-- List CAs: `FLASK_APP=wsgi:app uv run flask list-cas`
-- Revoke CA: `FLASK_APP=wsgi:app uv run flask revoke-ca <name>`
-- Issue client cert: `FLASK_APP=wsgi:app uv run flask issue-client-cert <client_id> --ca <name>`
+- Start development server: `FLASK_APP=x2fa.wsgi:app uv run flask run`
+- Initialize database: `FLASK_APP=x2fa.wsgi_cli:app uv run flask init-db`
+- Initialize keys: `FLASK_APP=x2fa.wsgi_cli:app uv run flask init-keys`
+- Add client: `FLASK_APP=x2fa.wsgi_cli:app uv run flask add-client <client_id> <redirect_uri> [--method tls_client_auth|private_key_jwt]`
+- Add CA: `FLASK_APP=x2fa.wsgi_cli:app uv run flask add-ca <name> <cert_path>`
+- List CAs: `FLASK_APP=x2fa.wsgi_cli:app uv run flask list-cas`
+- Revoke CA: `FLASK_APP=x2fa.wsgi_cli:app uv run flask revoke-ca <name>`
+- Issue client cert: `FLASK_APP=x2fa.wsgi_cli:app uv run flask issue-client-cert <client_id> --ca <name>`
 - Run demo RP: `cd demo_rp && uv run python app.py`
 - Run installer TUI: `uv run --extra installer python -m installer`
 
 ## Environment Setup
 - Requires Python 3.11+ and uv package manager
-- `ENV_FOR_DYNACONF=production` for production
-- `ENV_FOR_DYNACONF=testing` for testing
-- Config is loaded via **Dynaconf** from `src/x2fa/config_files/*.toml` and environment variables (prefix `X2FA_`)
+- Config is loaded from XDG-compliant directories: `~/.config/x2fa/` (default)
+- Environment variable `X2FA_CONFIG_ROOT` can override the location for testing
 - X2FA will never be run as root. A special non-privileged user (e.g. `x2fa`) will be used.
+- All management commands require `FLASK_APP=x2fa.wsgi_cli:app`
 
 ## Architecture
 - Flask-based web application with factory pattern (`create_app()` in `src/x2fa/app.py`)
@@ -39,7 +39,6 @@ X2FA is a FIDO2 microservice with OIDC provider that handles two-factor authenti
 x2fa/
 ├── src/x2fa/
 │   ├── app.py              # create_app() factory
-│   ├── config.py           # Dynaconf configuration (cfg object)
 │   ├── config_files/       # *.toml config files (x2fa_config, ratelimit, security, etc.)
 │   ├── model/              # SQLAlchemy models (Credential, TOTPSecret, BackupCode, OIDCClient, TrustedCA, …)
 │   ├── constants.py        # Sentinels (NEVER_USED), action/method strings
@@ -63,7 +62,6 @@ x2fa/
 - **PKCE S256 enforced**: Code challenge method must be `S256`; `plain` is rejected
 - **Nonces stored for 1 hour**: Even after use, to prevent replay of recently-issued ID tokens (60s expiry)
 - **IP addresses never stored**: Audit log contains `SHA256(ip + X2FA_SECRET)` for GDPR compliance
-- **Environment-specific config**: Dynaconf loads `[production]`, `[test]`, `[e2e]` sections from TOML files
 - **Database sentinels**: `NEVER_USED` (1970-01-01) and `NEVER_EXPIRES` (9999-12-31) are timezone-naive
 - **Babel i18n**: `ui_locales` OIDC parameter controls UI language (German default)
 
@@ -82,7 +80,6 @@ x2fa/
 ## Testing Guidelines
 
 Ensure every AI-generated test is deterministic, isolated, fast, and maintainable.  
-Applies to: pytest, pytest-asyncio, Textual TUI, Flask/SQLAlchemy, Dynaconf.
 
 ### 1. Core Principles
 
@@ -163,8 +160,6 @@ def db_session(app):
 ```
 - Tests must rollback. If a test intentionally commits, it must clean up in a `finally` block.
 
-#### 4.3 Dynaconf in Tests
-- Set `ENV_FOR_DYNACONF = "testing"` before app instantiation.
 - Override paths to point into `tmp_path`:
   ```python
   monkeypatch.setenv("X2FA_CONFIG_ROOT", str(tmp_path / "config"))

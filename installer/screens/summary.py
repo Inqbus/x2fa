@@ -147,7 +147,6 @@ class SummaryScreen(Screen):
 
             yield Static("Manual start command (without systemd):", classes="field-label")
             yield Static(
-                "  ENV_FOR_DYNACONF=production "
                 "uv run gunicorn 'x2fa.wsgi:app' --bind 127.0.0.1:5000",
                 classes="hint",
             )
@@ -202,10 +201,10 @@ class SummaryScreen(Screen):
                     "The demo RP is a small Flask app that tests the full OIDC flow.\n"
                     "Run these commands once while X2FA is running, then start the demo RP:\n"
                     "\n"
-                    f"  ENV_FOR_DYNACONF=production flask add-ca demo-rp-ca {ca_cert}\n"
-                    "  ENV_FOR_DYNACONF=production flask add-client demo-rp \\\n"
+                    f"  flask add-ca demo-rp-ca {ca_cert}\n"
+                    "  flask add-client demo-rp \\\n"
                     "      http://localhost:5099/callback --method tls_client_auth\n"
-                    "  ENV_FOR_DYNACONF=production flask issue-client-cert demo-rp \\\n"
+                    "   flask issue-client-cert demo-rp \\\n"
                     "      --ca demo-rp-ca --output demo_rp/\n"
                     "\n"
                     "  # Edit demo_rp/demo_rp_settings.toml, then:\n"
@@ -243,7 +242,7 @@ class SummaryScreen(Screen):
             "  loginctl enable-linger",
             "",
             "Manual start command (without systemd):",
-            "  ENV_FOR_DYNACONF=production uv run gunicorn 'x2fa.wsgi:app' --bind 127.0.0.1:5000",
+            "  uv run gunicorn 'x2fa.wsgi:app' --bind 127.0.0.1:5000",
         ]
 
         if cfg.generated_files:
@@ -280,10 +279,10 @@ class SummaryScreen(Screen):
             "  5. Run `flask issue-client-cert <id> --ca <name>` to add more clients.",
             "",
             "Demo Relying Party (integration test):",
-            f"  ENV_FOR_DYNACONF=production flask add-ca demo-rp-ca {cfg.effective_ca_cert() or '~/.local/share/x2fa/ca_cert.pem'}",
-            "  ENV_FOR_DYNACONF=production flask add-client demo-rp \\",
+            f"  flask add-ca demo-rp-ca {cfg.effective_ca_cert() or '~/.local/share/x2fa/ca_cert.pem'}",
+            "  flask add-client demo-rp \\",
             "      http://localhost:5099/callback --method tls_client_auth",
-            "  ENV_FOR_DYNACONF=production flask issue-client-cert demo-rp \\",
+            "  flask issue-client-cert demo-rp \\",
             "      --ca demo-rp-ca --output demo_rp/",
             "  uv run python demo_rp/app.py  # → http://localhost:5099",
         ]

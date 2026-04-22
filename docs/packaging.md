@@ -100,11 +100,11 @@ x2fa-install
 
 ```bash
 # venv approach:
-ENV_FOR_DYNACONF=production ~/.local/x2fa-venv/bin/gunicorn \
+ ~/.local/x2fa-venv/bin/gunicorn \
     'x2fa.wsgi:app' --bind 127.0.0.1:5000
 
 # uv tool approach (gunicorn is in the same isolated env):
-ENV_FOR_DYNACONF=production gunicorn 'x2fa.wsgi:app' --bind 127.0.0.1:5000
+ gunicorn 'x2fa.wsgi:app' --bind 127.0.0.1:5000
 ```
 
 The installer writes a `~/.config/systemd/user/x2fa.service` that uses the
@@ -130,7 +130,7 @@ uv tool upgrade x2fa
 After upgrading, apply any pending database migrations:
 
 ```bash
-ENV_FOR_DYNACONF=production flask db-upgrade
+ flask db-upgrade
 ```
 
 ### Required changes
@@ -197,7 +197,7 @@ COPY migrations/ migrations/
 FROM python:3.11-slim
 WORKDIR /app
 COPY --from=build /app /app
-ENV ENV_FOR_DYNACONF=production
+ENV 
 EXPOSE 5000
 CMD [".venv/bin/gunicorn", "x2fa.wsgi:app", "--bind", "0.0.0.0:5000"]
 ```
@@ -485,10 +485,10 @@ CLIENT_KEY_PATH  = "demo_rp_client.key.pem"
 **2. Register the demo-rp client in X2FA** (one-off, requires X2FA to be running):
 
 ```bash
-ENV_FOR_DYNACONF=production flask add-ca demo-rp-ca ~/.local/share/x2fa/ca_cert.pem
-ENV_FOR_DYNACONF=production flask add-client demo-rp http://localhost:5099/callback \
+ flask add-ca demo-rp-ca ~/.local/share/x2fa/ca_cert.pem
+ flask add-client demo-rp http://localhost:5099/callback \
     --method tls_client_auth
-ENV_FOR_DYNACONF=production flask issue-client-cert demo-rp \
+ flask issue-client-cert demo-rp \
     --ca demo-rp-ca --output demo_rp/
 ```
 
