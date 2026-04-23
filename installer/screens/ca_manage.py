@@ -107,7 +107,7 @@ class CAManageScreen(Screen):
     def _refresh_ca_list(self) -> None:
         from installer.runner import list_cas
         ok, output = list_cas()
-        self.call_from_thread(self._update_ca_list, ok, output)
+        self.app.call_from_thread(self._update_ca_list, ok, output)
 
     def _update_ca_list(self, ok: bool, output: str) -> None:
         content = self.query_one("#ca_list_content", Static)
@@ -167,16 +167,16 @@ class CAManageScreen(Screen):
         from installer.runner import add_ca
         log = self.query_one("#action_log", Log)
 
-        self.call_from_thread(log.write_line, f"Registering CA '{name}' from {cert_path} …")
+        self.app.call_from_thread(log.write_line, f"Registering CA '{name}' from {cert_path} …")
         ok, output = add_ca(name, cert_path)
         for line in output.splitlines():
-            self.call_from_thread(log.write_line, f"  {line}")
+            self.app.call_from_thread(log.write_line, f"  {line}")
         if ok:
-            self.call_from_thread(log.write_line, "[green]✓  CA registered.[/]")
-            self.call_from_thread(self._hide_form)
-            self.call_from_thread(self._refresh_ca_list)
+            self.app.call_from_thread(log.write_line, "[green]✓  CA registered.[/]")
+            self.app.call_from_thread(self._hide_form)
+            self.app.call_from_thread(self._refresh_ca_list)
         else:
-            self.call_from_thread(log.write_line, "[red]✗  Failed.[/]")
+            self.app.call_from_thread(log.write_line, "[red]✗  Failed.[/]")
 
     @work(thread=True)
     def _execute_renew(
@@ -187,50 +187,50 @@ class CAManageScreen(Screen):
         from installer.runner import add_ca, revoke_ca
         log = self.query_one("#action_log", Log)
 
-        self.call_from_thread(log.write_line, f"Generating new CA certificate …")
+        self.app.call_from_thread(log.write_line, f"Generating new CA certificate …")
         try:
             generate_ca(cn, validity_days, key_path, cert_path)
-            self.call_from_thread(log.write_line, f"  Key:  {key_path}  (mode 0600)")
-            self.call_from_thread(log.write_line, f"  Cert: {cert_path}")
+            self.app.call_from_thread(log.write_line, f"  Key:  {key_path}  (mode 0600)")
+            self.app.call_from_thread(log.write_line, f"  Cert: {cert_path}")
         except Exception as exc:
-            self.call_from_thread(log.write_line, f"[red]✗  CA generation failed: {exc}[/]")
+            self.app.call_from_thread(log.write_line, f"[red]✗  CA generation failed: {exc}[/]")
             return
 
-        self.call_from_thread(log.write_line, f"Registering new CA '{new_name}' …")
+        self.app.call_from_thread(log.write_line, f"Registering new CA '{new_name}' …")
         ok, output = add_ca(new_name, cert_path)
         for line in output.splitlines():
-            self.call_from_thread(log.write_line, f"  {line}")
+            self.app.call_from_thread(log.write_line, f"  {line}")
         if not ok:
-            self.call_from_thread(log.write_line, "[red]✗  Registration failed.[/]")
+            self.app.call_from_thread(log.write_line, "[red]✗  Registration failed.[/]")
             return
-        self.call_from_thread(log.write_line, "[green]✓  New CA registered.[/]")
+        self.app.call_from_thread(log.write_line, "[green]✓  New CA registered.[/]")
 
-        self.call_from_thread(log.write_line, f"Revoking old CA '{old_name}' …")
+        self.app.call_from_thread(log.write_line, f"Revoking old CA '{old_name}' …")
         ok, output = revoke_ca(old_name)
         for line in output.splitlines():
-            self.call_from_thread(log.write_line, f"  {line}")
+            self.app.call_from_thread(log.write_line, f"  {line}")
         status = "[green]✓  Revoked.[/]" if ok else "[yellow]⚠  Revoke failed (check name).[/]"
-        self.call_from_thread(log.write_line, status)
+        self.app.call_from_thread(log.write_line, status)
 
-        self.call_from_thread(log.write_line,
+        self.app.call_from_thread(log.write_line,
             "\n[dim]Re-issue client certs with: "
             f"flask issue-client-cert <client_id> --ca {new_name}[/]")
-        self.call_from_thread(self._hide_form)
-        self.call_from_thread(self._refresh_ca_list)
+        self.app.call_from_thread(self._hide_form)
+        self.app.call_from_thread(self._refresh_ca_list)
 
     @work(thread=True)
     def _execute_revoke(self, name: str) -> None:
         from installer.runner import revoke_ca
         log = self.query_one("#action_log", Log)
 
-        self.call_from_thread(log.write_line, f"Revoking CA '{name}' …")
+        self.app.call_from_thread(log.write_line, f"Revoking CA '{name}' …")
         ok, output = revoke_ca(name)
         for line in output.splitlines():
-            self.call_from_thread(log.write_line, f"  {line}")
+            self.app.call_from_thread(log.write_line, f"  {line}")
         status = "[green]✓  Revoked.[/]" if ok else "[red]✗  Failed.[/]"
-        self.call_from_thread(log.write_line, status)
-        self.call_from_thread(self._hide_form)
-        self.call_from_thread(self._refresh_ca_list)
+        self.app.call_from_thread(log.write_line, status)
+        self.app.call_from_thread(self._hide_form)
+        self.app.call_from_thread(self._refresh_ca_list)
 
     # ── Events ────────────────────────────────────────────────────────────
 

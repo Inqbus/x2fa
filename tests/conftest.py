@@ -168,3 +168,14 @@ def make_self_signed_cert(cn):
 def self_signed_cert():
     """Returns (key, cert, cert_pem, fingerprint) for a self-signed certificate."""
     return make_self_signed_cert("test-client")
+
+
+@pytest.fixture
+def isolated_paths(tmp_path):
+    """Isolate X2FA paths to tmp_path for this test using X2FA_HOME."""
+    import os
+    from x2fa import paths
+    
+    os.environ["X2FA_HOME"] = str(tmp_path)
+    yield tmp_path
+    os.environ.pop("X2FA_HOME", None)
