@@ -107,7 +107,8 @@ class CAManageScreen(Screen):
     def _refresh_ca_list(self) -> None:
         from installer.runner import list_cas
         install_root = self.app.config.install_root
-        ok, output = list_cas(install_root)
+        config_root = self.app.config.x2fa_home
+        ok, output = list_cas(install_root, config_root)
         self.call_from_thread(self._update_ca_list, ok, output)
 
     def _update_ca_list(self, ok: bool, output: str) -> None:
@@ -168,9 +169,10 @@ class CAManageScreen(Screen):
         from installer.runner import add_ca
         log = self.query_one("#action_log", Log)
         install_root = self.app.config.install_root
+        config_root = self.app.config.x2fa_home
 
         self.call_from_thread(log.write_line, f"Registering CA '{name}' from {cert_path} …")
-        ok, output = add_ca(name, cert_path, install_root)
+        ok, output = add_ca(name, cert_path, install_root, config_root)
         for line in output.splitlines():
             self.call_from_thread(log.write_line, f"  {line}")
         if ok:
@@ -189,6 +191,7 @@ class CAManageScreen(Screen):
         from installer.runner import add_ca, revoke_ca
         log = self.query_one("#action_log", Log)
         install_root = self.app.config.install_root
+        config_root = self.app.config.x2fa_home
 
         self.call_from_thread(log.write_line, f"Generating new CA certificate …")
         try:
@@ -200,7 +203,7 @@ class CAManageScreen(Screen):
             return
 
         self.call_from_thread(log.write_line, f"Registering new CA '{new_name}' …")
-        ok, output = add_ca(new_name, cert_path, install_root)
+        ok, output = add_ca(new_name, cert_path, install_root, config_root)
         for line in output.splitlines():
             self.call_from_thread(log.write_line, f"  {line}")
         if not ok:
@@ -209,7 +212,7 @@ class CAManageScreen(Screen):
         self.call_from_thread(log.write_line, "[green]✓  New CA registered.[/]")
 
         self.call_from_thread(log.write_line, f"Revoking old CA '{old_name}' …")
-        ok, output = revoke_ca(old_name, install_root)
+        ok, output = revoke_ca(old_name, install_root, config_root)
         for line in output.splitlines():
             self.call_from_thread(log.write_line, f"  {line}")
         status = "[green]✓  Revoked.[/]" if ok else "[yellow]⚠  Revoke failed (check name).[/]"
@@ -226,9 +229,10 @@ class CAManageScreen(Screen):
         from installer.runner import revoke_ca
         log = self.query_one("#action_log", Log)
         install_root = self.app.config.install_root
+        config_root = self.app.config.x2fa_home
 
         self.call_from_thread(log.write_line, f"Revoking CA '{name}' …")
-        ok, output = revoke_ca(name, install_root)
+        ok, output = revoke_ca(name, install_root, config_root)
         for line in output.splitlines():
             self.call_from_thread(log.write_line, f"  {line}")
         status = "[green]✓  Revoked.[/]" if ok else "[red]✗  Failed.[/]"
