@@ -125,6 +125,7 @@ class ExecuteScreen(Screen):
         from installer.ca import generate_ca, issue_client_cert
         from installer.config_writer import write_configs, write_systemd_unit
         from installer.runner import add_ca, add_client, init_db, init_keys
+        from x2fa import paths
 
         cfg = self.app.config
         method = cfg.client_auth_method
@@ -158,12 +159,12 @@ class ExecuteScreen(Screen):
             return
 
         # 4 — init-db
-        if not run("initdb", "Initialize database", lambda: init_db(cfg.install_root, cfg.x2fa_home)):
+        if not run("initdb", "Initialize database", lambda: init_db()):
             return
 
         # 5 — init-keys
         if not run(
-            "initkeys", "Generate signing keys", lambda: init_keys(cfg.install_root, cfg.x2fa_home)
+            "initkeys", "Generate signing keys", lambda: init_keys()
         ):
             return
 
@@ -197,7 +198,7 @@ class ExecuteScreen(Screen):
             if not run(
                 "add_ca",
                 "Register CA in X2FA",
-                lambda: add_ca(cfg.ca_name, ca_cert, cfg.install_root, cfg.x2fa_home),
+                lambda: add_ca(cfg.ca_name, ca_cert),
             ):
                 return
         else:
@@ -223,8 +224,6 @@ class ExecuteScreen(Screen):
                     cfg.client_id,
                     cfg.client_redirect_uri,
                     method,
-                    cfg.install_root,
-                    cfg.x2fa_home,
                     jwks_uri=cfg.client_jwks_uri or None,
                     cert=cert,
                     secret=cfg.client_secret or None,

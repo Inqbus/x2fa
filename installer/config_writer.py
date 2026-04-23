@@ -2,7 +2,7 @@ import tomli_w
 from importlib.resources import files as _pkg_files
 from pathlib import Path
 
-from installer.models import InstallConfig
+from x2fa import paths
 
 _SYSTEMD_UNIT = """\
 [Unit]
@@ -11,7 +11,6 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory={install_root}
 ExecStart=uv run gunicorn 'x2fa.wsgi:app' --bind 127.0.0.1:5000
 Restart=on-failure
 RestartSec=5
@@ -21,24 +20,22 @@ WantedBy=default.target
 """
 
 
-def write_systemd_unit(config: InstallConfig) -> tuple[bool, str]:
-    """Write ~/.config/systemd/user/x2fa.service. Returns (success, log_message)."""
-    unit_dir = config.x2fa_home / ".config" / "systemd" / "user"
+def write_systemd_unit(config) -> tuple[bool, str]:
+    """Write systemd user service. Returns (success, log_message)."""
+    unit_dir = paths.systemd_user_dir()
     unit_path = unit_dir / "x2fa.service"
     try:
         unit_dir.mkdir(parents=True, exist_ok=True)
-        unit_path.write_text(
-            _SYSTEMD_UNIT.format(install_root=config.install_root)
-        )
+        unit_path.write_text(_SYSTEMD_UNIT)
         unit_path.chmod(0o644)
         return True, f"Service file written: {unit_path}"
     except OSError as exc:
         return False, f"Failed to write systemd unit: {exc}"
 
 
-def write_configs(config: InstallConfig) -> tuple[bool, str]:
+def write_configs(config) -> tuple[bool, str]:
     """Write all TOML config files to XDG config directory. Returns (success, log_message)."""
-    config_dir = config._config_dir()
+    config_dir = paths.config_dir()
     config_dir.mkdir(parents=True, exist_ok=True, mode=0o755)
 
     template_dir = Path(str(_pkg_files("x2fa").joinpath("config_files")))

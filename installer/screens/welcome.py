@@ -10,6 +10,7 @@ from textual.app import ComposeResult
 from textual.containers import Container
 from textual.screen import Screen
 from textual.widgets import Button, Collapsible, Footer, Header, Markdown, Static
+from x2fa import paths
 
 _HELP_TEXT = """\
 ## Preflight Checks
@@ -69,9 +70,10 @@ def _check_dir(path: Path) -> tuple[bool, str]:
     return False, f"chmod u+rwx {ancestor}  (will be created under it)"
 
 
-def _run_checks(config_root: Path | None = None) -> list[dict]:
+def _run_checks() -> list[dict]:
+    from x2fa import paths
     checks = []
-    root = config_root if config_root is not None else Path.home()
+    root = paths.get_home()
     home = Path.home()
 
     def _fmt(p: Path) -> str:
@@ -184,7 +186,7 @@ class WelcomeScreen(Screen):
         self.query_one("#help_panel", Collapsible).collapsed ^= True
 
     def compose(self) -> ComposeResult:
-        checks = _run_checks(self.app.config.x2fa_home)
+        checks = _run_checks()
         blocking_failed = any(not c["ok"] and c["blocking"] for c in checks)
 
         yield Header()
