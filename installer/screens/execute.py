@@ -169,6 +169,8 @@ class ExecuteScreen(Screen):
             return
 
         # 6 — CA  (PKI methods only)
+        from x2fa import paths
+
         ca_cert = None
         if needs_ca:
             if cfg.ca_action == "generate":
@@ -178,12 +180,12 @@ class ExecuteScreen(Screen):
                         generate_ca(
                             cfg.ca_cn,
                             cfg.ca_validity_days,
-                            cfg.ca_key_path,
-                            cfg.ca_cert_path,
+                            str(paths.ca_key_path()),
+                            str(paths.ca_cert_path()),
                         )
                         return True, (
-                            f"Key:  {cfg.ca_key_path}  (mode 0600)\n"
-                            f"Cert: {cfg.ca_cert_path}"
+                            f"Key:  {paths.ca_key_path()}  (mode 0600)\n"
+                            f"Cert: {paths.ca_cert_path()}"
                         )
                     except Exception as exc:
                         return False, str(exc)
@@ -236,6 +238,8 @@ class ExecuteScreen(Screen):
             set_step("client", "skip", "Register OIDC client  (skipped)")
 
         # 7 — issue client cert  (tls_client_auth only)
+        from x2fa import paths as x2fa_paths
+
         if cfg.client_id and method == "tls_client_auth" and ca_cert:
 
             def do_cert():
@@ -243,8 +247,8 @@ class ExecuteScreen(Screen):
                     paths = issue_client_cert(
                         cfg.client_id,
                         ca_cert,
-                        cfg.ca_key_path,
-                        cfg.client_cert_output_dir,
+                        str(x2fa_paths.ca_key_path()),
+                        x2fa_paths.client_cert_dir(),
                     )
                     cfg.generated_files += list(paths.values())
                     return True, "\n".join(f"  {k}: {v}" for k, v in paths.items())

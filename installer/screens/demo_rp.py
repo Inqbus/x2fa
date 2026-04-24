@@ -206,10 +206,11 @@ class DemoRPScreen(Screen):
         if auth_method in {"tls_client_auth", "self_signed_tls_client_auth"}:
             log("── Issue demo-rp client certificate ─────────")
             try:
+                from x2fa import paths
                 paths = issue_client_cert(
                     "demo-rp",
                     ca_cert,
-                    cfg.ca_key_path,
+                    str(paths.ca_key_path()),
                     output_dir,
                 )
                 for k, v in paths.items():
@@ -225,7 +226,8 @@ class DemoRPScreen(Screen):
         # Step 4 — write demo_rp_settings.toml
         log("── Write demo_rp_settings.toml ──────────────")
         try:
-            settings_path = cfg.install_root / "demo_rp" / "demo_rp_settings.toml"
+            from x2fa import paths
+            settings_path = paths.get_home() / "demo_rp" / "demo_rp_settings.toml"
             template_args = {
                 "port": port,
                 "domain": cfg.domain or "your-x2fa-domain.example.com",

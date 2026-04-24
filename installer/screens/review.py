@@ -26,7 +26,8 @@ class ReviewScreen(Screen):
             if cfg.db_type and cfg.db_type != "sqlite":
                 yield Static(f"  URI:   {cfg.db_uri or '(not set)'}", classes="review-row")
             else:
-                default_db = str(cfg._data_dir() / "db.sqlite")
+                from x2fa import paths
+                default_db = str(paths.data_dir() / "db.sqlite")
                 yield Static(f"  Path:  {default_db}", classes="review-row")
 
             # ── Domain ─────────────────────────────────────────────────────
@@ -82,8 +83,9 @@ class ReviewScreen(Screen):
                     years = days / 365
                     yield Static(f"  CN:       {cfg.ca_cn or '(not set)'}", classes="review-row")
                     yield Static(f"  Validity: {days} days (≈ {years:.1f} years)", classes="review-row")
-                    yield Static(f"  Key:      {cfg.ca_key_path or '(not set)'}", classes="review-row")
-                    yield Static(f"  Cert:     {cfg.ca_cert_path or '(not set)'}", classes="review-row")
+                    from x2fa import paths
+                    yield Static(f"  Key:      {paths.ca_key_path()}", classes="review-row")
+                    yield Static(f"  Cert:     {paths.ca_cert_path()}", classes="review-row")
                 else:
                     yield Static(f"  Cert:     {cfg.ca_import_path or '(not set)'}", classes="review-row")
 

@@ -248,11 +248,12 @@ class TestClientScreen:
             assert app.config.client_auth_method == "tls_client_auth"
 
     @pytest.mark.asyncio
-    async def test_cert_dir_field_visible_for_tls(self, tmp_path):
+    async def test_cert_dir_field_is_static_for_tls(self, tmp_path):
+        from textual.widgets import Static
         from installer.screens.client import ClientScreen
         app = DirectScreenApp(ClientScreen, tmp_path)
         async with app.run_test(size=_SIZE):
-            assert "hidden" not in app.screen.query_one("#cert_out_dir", Input).classes
+            assert isinstance(app.screen.query_one("#cert_out_dir", Static), Static)
 
     @pytest.mark.asyncio
     async def test_jwks_uri_hidden_for_tls(self, tmp_path):
@@ -364,18 +365,7 @@ class TestCASetupScreen:
             assert "hidden" not in gen.classes
             assert "hidden" in imp.classes
 
-    @pytest.mark.asyncio
-    async def test_validation_requires_key_and_cert_for_generate(self, tmp_path):
-        from installer.screens.ca_setup import CASetupScreen
-        app = DirectScreenApp(CASetupScreen, tmp_path, config_overrides={
-            "ca_action": "generate",
-            "ca_key_path": "",
-            "ca_cert_path": "",
-        })
-        async with app.run_test(size=_SIZE) as pilot:
-            await pilot.click("#next")
-            await pilot.pause()
-            assert "CASetupScreen" in app.screen.__class__.__name__
+
 
     @pytest.mark.asyncio
     async def test_validation_requires_import_path_for_import(self, tmp_path):

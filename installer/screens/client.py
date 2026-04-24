@@ -140,12 +140,13 @@ class ClientScreen(Screen):
                 )
 
             # ── tls_client_auth ────────────────────────────────────────────
+            from x2fa import paths
             yield Static("Certificate output directory:", id="cert_dir_label",
                          classes=_show(is_tls, "field-label"))
-            yield Input(
-                value=cfg.client_cert_output_dir,
+            yield Static(
+                str(paths.client_cert_dir()),
                 id="cert_out_dir",
-                classes=_show(is_tls),
+                classes=_show(is_tls, "field-label hidden"),
             )
             yield Static(
                 "[dim]The client cert and key will be written here as "
@@ -229,7 +230,6 @@ class ClientScreen(Screen):
             case "client_id":    cfg.client_id                    = event.value
             case "redirect_uri": cfg.client_redirect_uri          = event.value
             case "jwks_uri":     cfg.client_jwks_uri              = event.value
-            case "cert_out_dir": cfg.client_cert_output_dir       = event.value
             case "ss_cert_path": cfg.client_self_signed_cert_path = event.value
 
     def _validate(self) -> bool:

@@ -127,6 +127,7 @@ class SummaryScreen(Screen):
         )
 
         yield Header()
+        from x2fa import paths
         with Container(id="panel"):
             yield Static("[green bold]✓  Installation complete[/]", markup=True,
                          classes="screen-title")
@@ -161,8 +162,9 @@ class SummaryScreen(Screen):
 
             if cfg.client_id and cfg.client_auth_method == "tls_client_auth":
                 yield Static("Client certificate bundle:", classes="field-label")
+                from x2fa import paths
                 yield Static(
-                    f"  Copy  {cfg.client_cert_output_dir}/{cfg.client_id}.cert.pem  "
+                    f"  Copy  {paths.client_cert_dir()}/{cfg.client_id}.cert.pem  "
                     f"and  .key.pem  to your application server.",
                     classes="hint",
                 )
@@ -262,11 +264,12 @@ class SummaryScreen(Screen):
             ]
 
         if cfg.client_id and cfg.client_auth_method == "tls_client_auth":
+            from x2fa import paths
             lines += [
                 "",
                 "Client certificate bundle:",
-                f"  {cfg.client_cert_output_dir}/{cfg.client_id}.cert.pem",
-                f"  {cfg.client_cert_output_dir}/{cfg.client_id}.key.pem",
+                f"  {paths.client_cert_dir()}/{cfg.client_id}.cert.pem",
+                f"  {paths.client_cert_dir()}/{cfg.client_id}.key.pem",
             ]
 
         if proxy_snippet:

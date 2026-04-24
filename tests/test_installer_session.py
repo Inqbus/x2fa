@@ -27,21 +27,21 @@ _ALL_OK_CHECKS = [
 def test_save_and_load_roundtrip(isolated_paths):
     """save_session / load_session round-trip preserves all user-entered fields."""
     cfg = InstallConfig()
-        cfg.domain = "roundtrip.example.com"
-        cfg.proxy_type = "nginx"
-        cfg.db_type = "postgres"
-        cfg.db_uri = "postgresql://x2fa:pw@localhost/x2fa"
-        cfg.client_id = "myapp"
-        cfg.client_redirect_uri = "https://myapp.example.com/cb"
-        cfg.save_session()
+    cfg.domain = "roundtrip.example.com"
+    cfg.proxy_type = "nginx"
+    cfg.db_type = "postgres"
+    cfg.db_uri = "postgresql://x2fa:pw@localhost/x2fa"
+    cfg.client_id = "myapp"
+    cfg.client_redirect_uri = "https://myapp.example.com/cb"
+    cfg.save_session()
 
-        cfg2 = InstallConfig.load_session()
-        assert cfg2.domain == "roundtrip.example.com"
-        assert cfg2.proxy_type == "nginx"
-        assert cfg2.db_type == "postgres"
-        assert cfg2.db_uri == "postgresql://x2fa:pw@localhost/x2fa"
-        assert cfg2.client_id == "myapp"
-        assert cfg2.client_redirect_uri == "https://myapp.example.com/cb"
+    cfg2 = InstallConfig.load_session()
+    assert cfg2.domain == "roundtrip.example.com"
+    assert cfg2.proxy_type == "nginx"
+    assert cfg2.db_type == "postgres"
+    assert cfg2.db_uri == "postgresql://x2fa:pw@localhost/x2fa"
+    assert cfg2.client_id == "myapp"
+    assert cfg2.client_redirect_uri == "https://myapp.example.com/cb"
 
 
 def test_load_session_missing_file_returns_fresh(isolated_paths):
@@ -64,19 +64,17 @@ def test_load_session_corrupt_file_returns_fresh(isolated_paths):
 # ── TUI integration tests ─────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_session_saved_when_navigating_forward(tmp_path):
+async def test_session_saved_when_navigating_forward(isolated_paths):
     """Values entered on a screen are persisted when the user navigates forward."""
     with patch("installer.screens.welcome._run_checks", return_value=_ALL_OK_CHECKS):
-        paths.set_home(tmp_path)
-        try:
-            app = InstallerApp()
-            async with app.run_test(size=_SIZE) as pilot:
-                await pilot.click("#install")       # → WelcomeScreen
-                await pilot.pause()
-                await pilot.click("#next")          # → DatabaseScreen
-                await pilot.pause()
-                await pilot.click("#next")          # → DomainScreen
-                await pilot.pause()
+        app = InstallerApp()
+        async with app.run_test(size=_SIZE) as pilot:
+            await pilot.click("#install")       # → WelcomeScreen
+            await pilot.pause()
+            await pilot.click("#next")          # → DatabaseScreen
+            await pilot.pause()
+            await pilot.click("#next")          # → DomainScreen
+            await pilot.pause()
 
             # Type domain while on DomainScreen
             app.screen.query_one("#domain", Input).value = "forward.example.com"
@@ -86,31 +84,24 @@ async def test_session_saved_when_navigating_forward(tmp_path):
             await pilot.click("#next")          # → SecurityScreen
             await pilot.pause()
 
-            paths.reset_home()
-            paths.set_home(tmp_path)
-            try:
-                session = InstallConfig.load_session()
-                assert session.domain == "forward.example.com", (
-                    f"Expected 'forward.example.com', got '{session.domain}'"
-                )
-            finally:
-                paths.reset_home()
+        session = InstallConfig.load_session()
+        assert session.domain == "forward.example.com", (
+            f"Expected 'forward.example.com', got '{session.domain}'"
+        )
 
 
 @pytest.mark.asyncio
-async def test_session_saved_on_ctrl_q(tmp_path):
+async def test_session_saved_on_ctrl_q(isolated_paths):
     """Values typed on the current screen are persisted when the user presses CTRL-Q."""
     with patch("installer.screens.welcome._run_checks", return_value=_ALL_OK_CHECKS):
-        paths.set_home(tmp_path)
-        try:
-            app = InstallerApp()
-            async with app.run_test(size=_SIZE) as pilot:
-                await pilot.click("#install")       # → WelcomeScreen
-                await pilot.pause()
-                await pilot.click("#next")          # → DatabaseScreen
-                await pilot.pause()
-                await pilot.click("#next")          # → DomainScreen
-                await pilot.pause()
+        app = InstallerApp()
+        async with app.run_test(size=_SIZE) as pilot:
+            await pilot.click("#install")       # → WelcomeScreen
+            await pilot.pause()
+            await pilot.click("#next")          # → DatabaseScreen
+            await pilot.pause()
+            await pilot.click("#next")          # → DomainScreen
+            await pilot.pause()
 
             # Type domain but do NOT navigate — simulate user quitting mid-screen
             app.screen.query_one("#domain", Input).value = "ctrlq.example.com"
@@ -118,26 +109,19 @@ async def test_session_saved_on_ctrl_q(tmp_path):
             await pilot.press("ctrl+q")
             await pilot.pause()
 
-        paths.reset_home()
-        paths.set_home(tmp_path)
-        try:
-            session = InstallConfig.load_session()
-            assert session.domain == "ctrlq.example.com", (
-                f"Expected 'ctrlq.example.com', got '{session.domain}'"
-            )
-        finally:
-            paths.reset_home()
+        session = InstallConfig.load_session()
+        assert session.domain == "ctrlq.example.com", (
+            f"Expected 'ctrlq.example.com', got '{session.domain}'"
+        )
 
 
 @pytest.mark.asyncio
-async def test_session_restored_on_restart(tmp_path):
+async def test_session_restored_on_restart(isolated_paths):
     """A restarted InstallerApp pre-fills config from the saved session."""
     # ── First run: navigate to DomainScreen, enter domain, navigate forward ──
     with patch("installer.screens.welcome._run_checks", return_value=_ALL_OK_CHECKS):
-        paths.set_home(tmp_path)
-        try:
-            app = InstallerApp()
-            async with app.run_test(size=_SIZE) as pilot:
+        app = InstallerApp()
+        async with app.run_test(size=_SIZE) as pilot:
             await pilot.click("#install")
             await pilot.pause()
             await pilot.click("#next")
@@ -150,15 +134,9 @@ async def test_session_restored_on_restart(tmp_path):
             await pilot.click("#next")          # → SecurityScreen (saves)
             await pilot.pause()
 
-        paths.reset_home()
-
     # ── Second run: config must be pre-loaded from session ─────────────────
     with patch("installer.screens.welcome._run_checks", return_value=_ALL_OK_CHECKS):
-        paths.set_home(tmp_path)
-        try:
-            app2 = InstallerApp()
-            assert app2.config.domain == "restart.example.com", (
-                f"Expected 'restart.example.com', got '{app2.config.domain}'"
-            )
-        finally:
-            paths.reset_home()
+        app2 = InstallerApp()
+        assert app2.config.domain == "restart.example.com", (
+            f"Expected 'restart.example.com', got '{app2.config.domain}'"
+        )

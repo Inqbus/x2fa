@@ -83,7 +83,8 @@ class DatabaseScreen(Screen):
                 yield RadioButton("PostgreSQL", id="postgres", value=db == "postgres")
                 yield RadioButton("MySQL / MariaDB", id="mysql", value=db == "mysql")
 
-            default_db = str(cfg._data_dir() / "db.sqlite")
+            from x2fa import paths
+            default_db = str(paths.data_dir() / "db.sqlite")
             db_hint = f"[dim]Database file: {default_db}[/]"
             yield Static(
                 db_hint,

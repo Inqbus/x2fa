@@ -113,31 +113,14 @@ class CASetupScreen(Screen):
                     classes="hint",
                 )
 
-                hint = (
-                    "[dim]Root: /etc/x2fa | User: ~/.x2fa [/]"
-                    if cfg.ca_key_path.startswith(("/etc", str(Path.home())))
-                    else "[dim]Keep offline after install.[/]"
-                )
+                from x2fa import paths
                 yield Static("Private key output path [bold red]*[/]:", markup=True, classes="field-label")
-                yield Input(
-                    value=cfg.ca_key_path,
-                    placeholder="/etc/x2fa/ca_key.pem",
-                    id="ca_key_path",
-                )
-                yield Static(hint, markup=True, classes="hint")
+                yield Static(str(paths.ca_key_path()), classes="field-label hidden")
+                yield Static("[dim]Use X2FA_HOME to change location.[/]", markup=True, classes="hint")
 
-                hint = (
-                    "[dim]Root: /etc/x2fa | User: ~/.x2fa [/]"
-                    if cfg.ca_cert_path.startswith(("/etc", str(Path.home())))
-                    else ""
-                )
                 yield Static("Certificate output path [bold red]*[/]:", markup=True, classes="field-label")
-                yield Input(
-                    value=cfg.ca_cert_path,
-                    placeholder="/etc/x2fa/ca_cert.pem",
-                    id="ca_cert_path",
-                )
-                yield Static(hint, markup=True, classes="hint")
+                yield Static(str(paths.ca_cert_path()), classes="field-label hidden")
+                yield Static("", markup=True, classes="hint")
 
             # ── Import fields ──────────────────────────────────────────────
             with Container(id="imp_fields", classes=imp_cls):
@@ -193,10 +176,6 @@ class CASetupScreen(Screen):
                     self.query_one("#validity_hint", Static).update(
                         "[dim]Enter a number of days.[/]"
                     )
-            case "ca_key_path":
-                cfg.ca_key_path = event.value
-            case "ca_cert_path":
-                cfg.ca_cert_path = event.value
             case "ca_import_path":
                 cfg.ca_import_path = event.value
 
@@ -206,9 +185,7 @@ class CASetupScreen(Screen):
             self.notify("CA name is required.", severity="error")
             return False
         if cfg.ca_action == "generate":
-            if not cfg.ca_key_path or not cfg.ca_cert_path:
-                self.notify("Key and certificate paths are required.", severity="error")
-                return False
+            pass  # paths are fixed, no field to validate
         else:
             if not cfg.ca_import_path:
                 self.notify("CA certificate path is required.", severity="error")
