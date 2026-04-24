@@ -5,23 +5,26 @@ from pathlib import Path
 
 import pytest
 
+from x2fa import paths
 from installer.config_writer import write_configs
 from installer.models import InstallConfig
 
 
 def _config(tmp_path: Path, **overrides) -> InstallConfig:
-    cfg = InstallConfig(
-        install_root=tmp_path,
-        x2fa_home=tmp_path,   # redirect all XDG paths into tmp_path
-        domain="test.example.com",
-        secret_key="a" * 64,
-        secret_salt="b" * 32,
-        db_type="sqlite",
-        use_redis=False,
-    )
-    for k, v in overrides.items():
-        setattr(cfg, k, v)
-    return cfg
+    paths.set_home(tmp_path)
+    try:
+        cfg = InstallConfig(
+            domain="test.example.com",
+            secret_key="a" * 64,
+            secret_salt="b" * 32,
+            db_type="sqlite",
+            use_redis=False,
+        )
+        for k, v in overrides.items():
+            setattr(cfg, k, v)
+        return cfg
+    finally:
+        paths.reset_home()
 
 
 def _run(cfg: InstallConfig):

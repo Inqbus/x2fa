@@ -1,5 +1,6 @@
 """Tests for installer TUI screens — rendering, validation, and navigation."""
 
+import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -7,6 +8,7 @@ import pytest
 from textual.app import App
 from textual.widgets import Button, Input
 
+from x2fa import paths
 from installer.app import APP_CSS
 from installer.models import InstallConfig
 
@@ -31,13 +33,17 @@ class DirectScreenApp(App[None]):
 
     def __init__(self, screen_cls, tmp_path: Path, config_overrides: dict | None = None):
         super().__init__()
-        self.config = InstallConfig(install_root=tmp_path, x2fa_home=tmp_path)
-        self.config.domain = "test.example.com"
-        self.config.client_id = "test-client"
-        self.config.client_redirect_uri = "https://test.example.com/cb"
-        if config_overrides:
-            for k, v in config_overrides.items():
-                setattr(self.config, k, v)
+        paths.set_home(tmp_path)
+        try:
+            self.config = InstallConfig()
+            self.config.domain = "test.example.com"
+            self.config.client_id = "test-client"
+            self.config.client_redirect_uri = "https://test.example.com/cb"
+            if config_overrides:
+                for k, v in config_overrides.items():
+                    setattr(self.config, k, v)
+        finally:
+            paths.reset_home()
         self._screen_cls = screen_cls
 
     def on_mount(self) -> None:
