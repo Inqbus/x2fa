@@ -61,22 +61,14 @@ class InstallConfig:
             return self.db_uri
         return f"sqlite:///{paths.db_path()}"
 
-    def effective_ca_cert(self) -> str:
-        """Return the CA cert path only if the file actually exists on disk.
-
-        Returns an empty string when no CA was created.
-        """
-        import os
+    def effective_ca_cert(self, ca_action: str = "generate") -> str:
+        """Return the CA cert path based on action (generate | import)."""
         from x2fa import paths
 
-        if self.ca_action == "generate":
+        if ca_action == "generate":
             path = paths.ca_cert_path()
         else:
-            path = self.ca_import_path
-        if not path:
-            return ""
-        if not os.path.exists(path):
-            return ""
+            path = self.ca_import_path or ""
         return str(path) if isinstance(path, Path) else path
 
     # ── Session persistence ───────────────────────────────────────────────

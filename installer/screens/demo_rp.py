@@ -90,7 +90,7 @@ class DemoRPScreen(Screen):
 
     def compose(self) -> ComposeResult:
         cfg = self.app.config
-        ca_cert = cfg.effective_ca_cert()
+        ca_cert = cfg.effective_ca_cert(cfg.ca_action)
 
         yield Header()
         with Container(id="panel"):
@@ -170,8 +170,7 @@ class DemoRPScreen(Screen):
             return
         log("[green]Continuing with setup...[/]")
 
-        from x2fa import paths
-        ca_cert = cfg.effective_ca_cert()
+        ca_cert = cfg.effective_ca_cert(cfg.ca_action)
         redirect_uri = f"http://localhost:{port}/callback"
         output_dir = paths.get_home() / "demo_rp"
         auth_method = cfg.client_auth_method

@@ -196,7 +196,7 @@ class ExecuteScreen(Screen):
                 set_step("ca", "skip", f"CA: using existing  {cfg.ca_import_path}")
 
             # 5 — flask add-ca
-            ca_cert = cfg.effective_ca_cert()
+            ca_cert = cfg.effective_ca_cert(cfg.ca_action)
             if not run(
                 "add_ca",
                 "Register CA in X2FA",

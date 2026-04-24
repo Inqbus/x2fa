@@ -120,14 +120,15 @@ class SummaryScreen(Screen):
 
     def compose(self) -> ComposeResult:
         cfg = self.app.config
+        from x2fa import paths
 
+        ca_cert = cfg.effective_ca_cert(cfg.ca_action)
         proxy_snippet = _PROXY_SNIPPETS.get(cfg.proxy_type or "caddy", "").format(
             domain=cfg.domain or "2fa.example.com",
-            ca_cert=cfg.effective_ca_cert() or str(paths.ca_cert_path()),
+            ca_cert=ca_cert,
         )
 
         yield Header()
-        from x2fa import paths
         with Container(id="panel"):
             yield Static("[green bold]✓  Installation complete[/]", markup=True,
                          classes="screen-title")
@@ -200,8 +201,7 @@ class SummaryScreen(Screen):
             )
 
             # Demo RP hint (collapsed by default — not part of the main flow)
-            from x2fa import paths as demo_paths
-            ca_cert = cfg.effective_ca_cert() or str(demo_paths.ca_cert_path())
+            ca_cert = cfg.effective_ca_cert(cfg.ca_action)
             with Collapsible(title="Demo Relying Party  (integration test)", collapsed=True):
                 yield Static(
                     "The demo RP is a small Flask app that tests the full OIDC flow.\n"
@@ -227,9 +227,10 @@ class SummaryScreen(Screen):
 
     def _build_summary_text(self) -> str:
         cfg = self.app.config
+        ca_cert = cfg.effective_ca_cert(cfg.ca_action)
         proxy_snippet = _PROXY_SNIPPETS.get(cfg.proxy_type or "caddy", "").format(
             domain=cfg.domain or "2fa.example.com",
-            ca_cert=cfg.effective_ca_cert() or str(paths.ca_cert_path()),
+            ca_cert=ca_cert,
         )
         unit_path = paths.systemd_user_dir() / "x2fa.service"
 
@@ -286,7 +287,7 @@ class SummaryScreen(Screen):
             "  5. Run `flask issue-client-cert <id> --ca <name>` to add more clients.",
             "",
             "Demo Relying Party (integration test):",
-            f"  flask add-ca demo-rp-ca {cfg.effective_ca_cert() or str(paths.ca_cert_path())}",
+            f"  flask add-ca demo-rp-ca {cfg.effective_ca_cert(cfg.ca_action)}",
             "  flask add-client demo-rp \\",
             "      http://localhost:5099/callback --method tls_client_auth",
             "  flask issue-client-cert demo-rp \\",
