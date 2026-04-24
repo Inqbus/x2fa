@@ -27,7 +27,7 @@ class ReviewScreen(Screen):
                 yield Static(f"  URI:   {cfg.db_uri or '(not set)'}", classes="review-row")
             else:
                 from x2fa import paths
-                default_db = str(paths.data_dir() / "db.sqlite")
+                default_db = paths.data_dir() / "db.sqlite"
                 yield Static(f"  Path:  {default_db}", classes="review-row")
 
             # ── Domain ─────────────────────────────────────────────────────

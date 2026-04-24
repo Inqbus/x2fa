@@ -69,21 +69,26 @@ class InstallConfig:
         import os
         from x2fa import paths
 
-        path = paths.ca_cert_path() if self.ca_action == "generate" else self.ca_import_path
+        if self.ca_action == "generate":
+            path = paths.ca_cert_path()
+        else:
+            path = self.ca_import_path
         if not path:
             return ""
-        return path if os.path.exists(path) else ""
+        if not os.path.exists(path):
+            return ""
+        return str(path) if isinstance(path, Path) else path
 
     # ── Session persistence ───────────────────────────────────────────────
 
     @staticmethod
-    def session_file() -> str:
+    def session_file() -> Path:
         """Location of the installer session file.
 
         Uses X2FA_HOME via paths.py for test isolation.
         """
         from x2fa import paths
-        return str(paths.data_dir() / "installer_session.json")
+        return paths.data_dir() / "installer_session.json"
 
     def save_session(self) -> None:
         """Persist all user-entered fields to the session file."""
@@ -95,8 +100,7 @@ class InstallConfig:
                 continue
             val = getattr(self, f)
             data[f] = str(val) if isinstance(val, Path) else val
-        sf = InstallConfig.session_file()
-        sf_path = Path(sf)
+        sf_path = InstallConfig.session_file()
         sf_path.parent.mkdir(parents=True, exist_ok=True)
         sf_path.write_text(json.dumps(data, indent=2))
 
@@ -106,7 +110,7 @@ class InstallConfig:
         import json
         import sys
 
-        sf_path = Path(cls.session_file())
+        sf_path = cls.session_file()
         if sf_path.exists():
             try:
                 data = json.loads(sf_path.read_text())

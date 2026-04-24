@@ -170,15 +170,19 @@ class DemoRPScreen(Screen):
             return
         log("[green]Continuing with setup...[/]")
 
+        from x2fa import paths
         ca_cert = cfg.effective_ca_cert()
         redirect_uri = f"http://localhost:{port}/callback"
-        output_dir = str(cfg.install_root / "demo_rp")
+        output_dir = paths.get_home() / "demo_rp"
         auth_method = cfg.client_auth_method
 
         # Step 1 — register CA (only for PKI methods)
         log("── Register demo-rp-ca ──────────────────────")
         if auth_method in {"tls_client_auth", "private_key_jwt", "self_signed_tls_client_auth"}:
-            ok, out = add_ca("demo-rp-ca", ca_cert, cfg.install_root)
+            from installer.runner import init_db, init_keys
+            init_db(str(paths.db_path()))
+            init_keys(str(paths.config_dir()))
+            ok, out = add_ca("demo-rp-ca", ca_cert, str(paths.config_dir()))
             for line in (out or "").splitlines():
                 log(f"  {line}")
             if not ok:
@@ -192,7 +196,7 @@ class DemoRPScreen(Screen):
         # Step 2 — register client
         log("── Register demo-rp client ──────────────────")
         ok, out = add_client(
-            "demo-rp", redirect_uri, auth_method, cfg.install_root
+            "demo-rp", redirect_uri, auth_method, str(paths.config_dir())
         )
         for line in (out or "").splitlines():
             log(f"  {line}")
@@ -206,14 +210,13 @@ class DemoRPScreen(Screen):
         if auth_method in {"tls_client_auth", "self_signed_tls_client_auth"}:
             log("── Issue demo-rp client certificate ─────────")
             try:
-                from x2fa import paths
-                paths = issue_client_cert(
+                cert_paths = issue_client_cert(
                     "demo-rp",
                     ca_cert,
-                    str(paths.ca_key_path()),
+                    paths.ca_key_path(),
                     output_dir,
                 )
-                for k, v in paths.items():
+                for k, v in cert_paths.items():
                     log(f"  {k}: {v}")
                 log("[green]  ✓  done[/]")
             except Exception as exc:

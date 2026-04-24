@@ -38,7 +38,7 @@ def write_configs(config) -> tuple[bool, str]:
     config_dir = paths.config_dir()
     config_dir.mkdir(parents=True, exist_ok=True, mode=0o755)
 
-    template_dir = Path(str(_pkg_files("x2fa").joinpath("config_files")))
+    template_dir = _pkg_files("x2fa").joinpath("config_files")
 
     written: list[str] = []
     try:

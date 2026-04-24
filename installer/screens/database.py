@@ -84,7 +84,7 @@ class DatabaseScreen(Screen):
                 yield RadioButton("MySQL / MariaDB", id="mysql", value=db == "mysql")
 
             from x2fa import paths
-            default_db = str(paths.data_dir() / "db.sqlite")
+            default_db = paths.data_dir() / "db.sqlite"
             db_hint = f"[dim]Database file: {default_db}[/]"
             yield Static(
                 db_hint,

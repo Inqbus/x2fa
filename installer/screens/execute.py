@@ -180,8 +180,8 @@ class ExecuteScreen(Screen):
                         generate_ca(
                             cfg.ca_cn,
                             cfg.ca_validity_days,
-                            str(paths.ca_key_path()),
-                            str(paths.ca_cert_path()),
+                            paths.ca_key_path(),
+                            paths.ca_cert_path(),
                         )
                         return True, (
                             f"Key:  {paths.ca_key_path()}  (mode 0600)\n"
@@ -244,14 +244,14 @@ class ExecuteScreen(Screen):
 
             def do_cert():
                 try:
-                    paths = issue_client_cert(
+                    cert_paths = issue_client_cert(
                         cfg.client_id,
                         ca_cert,
-                        str(x2fa_paths.ca_key_path()),
+                        x2fa_paths.ca_key_path(),
                         x2fa_paths.client_cert_dir(),
                     )
-                    cfg.generated_files += list(paths.values())
-                    return True, "\n".join(f"  {k}: {v}" for k, v in paths.items())
+                    cfg.generated_files += list(cert_paths.values())
+                    return True, "\n".join(f"  {k}: {v}" for k, v in cert_paths.items())
                 except Exception as exc:
                     return False, str(exc)
 

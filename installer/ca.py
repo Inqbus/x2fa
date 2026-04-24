@@ -13,8 +13,8 @@ from cryptography.x509.oid import NameOID
 def generate_ca(
     cn: str,
     validity_days: int,
-    key_path: str,
-    cert_path: str,
+    key_path: Path,
+    cert_path: Path,
 ) -> None:
     """Generate a self-signed EC P-256 CA certificate.
 
@@ -51,39 +51,37 @@ def generate_ca(
         .sign(key, hashes.SHA256())
     )
 
-    key_p = Path(key_path)
-    key_p.parent.mkdir(parents=True, exist_ok=True)
-    key_p.write_bytes(
+    key_path.parent.mkdir(parents=True, exist_ok=True)
+    key_path.write_bytes(
         key.private_bytes(
             serialization.Encoding.PEM,
             serialization.PrivateFormat.PKCS8,
             serialization.NoEncryption(),
         )
     )
-    os.chmod(key_p, 0o600)
-    os.chmod(key_p.parent, 0o755)
+    os.chmod(key_path, 0o600)
+    os.chmod(key_path.parent, 0o755)
 
-    cert_p = Path(cert_path)
-    cert_p.parent.mkdir(parents=True, exist_ok=True)
-    cert_p.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
-    os.chmod(cert_p.parent, 0o755)
+    cert_path.parent.mkdir(parents=True, exist_ok=True)
+    cert_path.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
+    os.chmod(cert_path.parent, 0o755)
 
 
 def issue_client_cert(
     client_id: str,
-    ca_cert_path: str,
-    ca_key_path: str,
-    output_dir: str,
+    ca_cert_path: Path,
+    ca_key_path: Path,
+    output_dir: Path,
     validity_days: int = 90,
-) -> dict[str, str]:
+) -> dict[str, Path]:
     """Issue a client certificate signed by the named CA.
 
     Returns {'key': path, 'cert': path, 'ca': path}.
     Raises on any failure.
     """
-    ca_cert = x509.load_pem_x509_certificate(Path(ca_cert_path).read_bytes())
+    ca_cert = x509.load_pem_x509_certificate(ca_cert_path.read_bytes())
     ca_key = serialization.load_pem_private_key(
-        Path(ca_key_path).read_bytes(), password=None
+        ca_key_path.read_bytes(), password=None
     )
 
     client_key = ec.generate_private_key(ec.SECP256R1())
@@ -102,34 +100,19 @@ def issue_client_cert(
     )
 
     safe_id = client_id.replace("/", "_").replace(":", "_")
-    out = Path(output_dir)
-    out.mkdir(parents=True, exist_ok=True, mode=0o755)
+    output_dir.mkdir(parents=True, exist_ok=True, mode=0o755)
 
-    paths = {
-        "key": str(out / f"{safe_id}.key.pem"),
-        "cert": str(out / f"{safe_id}.cert.pem"),
-        "ca": str(out / f"{safe_id}.ca.pem"),
+    return {
+        "key": output_dir / f"{safe_id}.key.pem",
+        "cert": output_dir / f"{safe_id}.cert.pem",
+        "ca": output_dir / f"{safe_id}.ca.pem",
     }
 
-    key_file = Path(paths["key"])
-    key_file.write_bytes(
-        client_key.private_bytes(
-            serialization.Encoding.PEM,
-            serialization.PrivateFormat.PKCS8,
-            serialization.NoEncryption(),
-        )
-    )
-    os.chmod(key_file, 0o600)
-    Path(paths["cert"]).write_bytes(cert.public_bytes(serialization.Encoding.PEM))
-    Path(paths["ca"]).write_bytes(Path(ca_cert_path).read_bytes())
 
-    return paths
-
-
-def get_cert_info(cert_pem_path: str) -> dict:
+def get_cert_info(cert_pem_path: Path) -> dict:
     """Return display info for a PEM certificate file."""
     try:
-        cert = x509.load_pem_x509_certificate(Path(cert_pem_path).read_bytes())
+        cert = x509.load_pem_x509_certificate(cert_pem_path.read_bytes())
         cn_attrs = cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
         return {
             "cn": cn_attrs[0].value if cn_attrs else "(no CN)",

@@ -53,8 +53,7 @@ def test_load_session_missing_file_returns_fresh(isolated_paths):
 
 def test_load_session_corrupt_file_returns_fresh(isolated_paths):
     """load_session returns a fresh config when the file is corrupt JSON."""
-    sf = InstallConfig.session_file()
-    sf_path = Path(sf)
+    sf_path = InstallConfig.session_file()
     sf_path.parent.mkdir(parents=True, exist_ok=True)
     sf_path.write_text("not valid json{{{")
     cfg = InstallConfig.load_session()

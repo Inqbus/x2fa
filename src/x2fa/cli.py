@@ -73,7 +73,7 @@ def _run_alembic_upgrade():
     from sqlalchemy import create_engine, inspect
     
 
-    migrations_dir = Path(str(_pkg_files("x2fa").joinpath("migrations")))
+    migrations_dir = _pkg_files("x2fa").joinpath("migrations")
     ini_path = migrations_dir / "alembic.ini"
 
     db_url = load_config().x2fa_database.SQLALCHEMY_DATABASE_URI
