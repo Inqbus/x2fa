@@ -170,6 +170,7 @@ class DemoRPScreen(Screen):
             return
         log("[green]Continuing with setup...[/]")
 
+        from x2fa import paths
         ca_cert = cfg.effective_ca_cert(cfg.ca_action)
         redirect_uri = f"http://localhost:{port}/callback"
         output_dir = paths.get_home() / "demo_rp"

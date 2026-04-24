@@ -173,7 +173,6 @@ class ExecuteScreen(Screen):
 
         ca_cert = None
         if needs_ca:
-            if cfg.ca_action == "generate":
 
                 def do_ca():
                     try:
