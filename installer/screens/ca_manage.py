@@ -81,9 +81,10 @@ class CAManageScreen(Screen):
                 yield Static("Validity (days):", id="lbl_days", classes="field-label hidden")
                 yield Input(value="3650", placeholder="3650", id="f_days", classes="hidden")
                 yield Static("New key output path:", id="lbl_key", classes="field-label hidden")
-                yield Input(placeholder="/etc/x2fa/ca_key_new.pem", id="f_key", classes="hidden")
+                from x2fa import paths
+                yield Input(placeholder=str(paths.ca_key_path()), id="f_key", classes="hidden")
                 yield Static("New cert output path:", id="lbl_new_cert", classes="field-label hidden")
-                yield Input(placeholder="/etc/x2fa/ca_cert_new.pem", id="f_new_cert", classes="hidden")
+                yield Input(placeholder=str(paths.ca_cert_path()), id="f_new_cert", classes="hidden")
 
                 # Revoke-only: CA name (uses f_name)
 
