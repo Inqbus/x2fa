@@ -214,12 +214,18 @@ class X2FAPrivateKeyJwtAuth(JWTBearerClientAssertion):
 
     def _key_from_jwks_uri(self, client, headers):
         import json
+        import ssl
         import urllib.request
         from authlib.jose import JsonWebKey
 
         kid = headers.get("kid")
         try:
-            with urllib.request.urlopen(client.jwks_uri, timeout=5) as resp:
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = True
+            ctx.verify_mode = ssl.CERT_REQUIRED
+            req = urllib.request.Request(client.jwks_uri)
+            req.add_header("User-Agent", "X2FA-JWKS-Fetcher/1.0")
+            with urllib.request.urlopen(req, timeout=5, context=ctx) as resp:
                 jwks = json.loads(resp.read())
         except Exception as exc:
             raise InvalidClientError(

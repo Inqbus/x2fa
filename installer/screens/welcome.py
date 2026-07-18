@@ -56,18 +56,32 @@ problems at runtime. Review the hint and decide whether to fix it first.
 
 
 def _check_dir(path: Path) -> tuple[bool, str]:
-    """Return (ok, hint) for a directory that the installer must be able to write to."""
-    if path.exists():
-        if os.access(path, os.W_OK):
-            return True, ""
-        return False, f"chmod u+rwx {path}"
+    """Return (ok, hint) for a directory that the installer must be able to write to.
+
+    Uses EAFP (try/except) instead of LBYL (os.access) to avoid TOCTOU races.
+    """
+    try:
+        test_file = path / ".write_test"
+        test_file.write_text("")
+        test_file.unlink()
+        return True, ""
+    except OSError:
+        pass
+
     # Directory doesn't exist yet — walk up to find the first existing ancestor.
     ancestor = path.parent
     while not ancestor.exists() and ancestor != ancestor.parent:
         ancestor = ancestor.parent
-    if os.access(ancestor, os.W_OK):
-        return True, ""   # mkdir -p will succeed
-    return False, f"chmod u+rwx {ancestor}  (will be created under it)"
+
+    try:
+        test_file = ancestor / ".write_test"
+        test_file.write_text("")
+        test_file.unlink()
+        return True, ""
+    except OSError:
+        pass
+
+    return False, f"chmod u+rwx {path}"
 
 
 def _run_checks() -> list[dict]:

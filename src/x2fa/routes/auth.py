@@ -1,4 +1,4 @@
-"""OIDC endpoints: /authorize, /token, /.well-known/*, /jwks, /done demo callback."""
+"""OIDC endpoints: /authorize, /token, /.well-known/*, /jwks."""
 
 from http import HTTPStatus
 from urllib.parse import urlencode
@@ -229,48 +229,4 @@ def token():
     return oauth.create_token_response()
 
 
-# ---------------------------------------------------------------------------
-# Demo Callback (local testing only)
-# ---------------------------------------------------------------------------
 
-
-@auth_bp.route("/done")
-def demo_done():
-    """
-    Demo callback that displays the received authorization code.
-    Do NOT use in production — this endpoint accepts any redirect without
-    authentication.
-    """
-    code = request.args.get("code", "")
-    state = request.args.get("state", "")
-    error = request.args.get("error", "")
-
-    if error:
-        return render_template(
-            "error.html",
-            status_code=str(HTTPStatus.BAD_REQUEST.value),
-            title="Error from OIDC server",
-            message=error,
-        ), HTTPStatus.BAD_REQUEST
-
-    return f"""<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8">
-<title>Demo Callback</title>
-<style>
-  body{{font-family:system-ui;max-width:500px;margin:60px auto;padding:0 1rem}}
-  .ok{{color:#16a34a;font-size:1.3rem;font-weight:bold}}
-  table{{border-collapse:collapse;width:100%}}
-  td{{padding:.5rem;border-bottom:1px solid #eee}}
-  code{{background:#f4f4f4;padding:.1rem .3rem;border-radius:3px;font-size:.9rem;word-break:break-all}}
-</style></head>
-<body>
-<p class="ok">&#10003; Authorization code received</p>
-<table>
-  <tr><td><b>code</b></td><td><code>{code[:20]}&hellip;</code></td></tr>
-  <tr><td><b>state</b></td><td><code>{state}</code></td></tr>
-</table>
-<p style="color:#888;font-size:.85rem;margin-top:2rem">
-  This is a test endpoint. In a real application, the RP now exchanges the code
-  at /token to obtain the ID token.
-</p>
-</body></html>"""

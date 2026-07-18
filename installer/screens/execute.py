@@ -118,6 +118,10 @@ class ExecuteScreen(Screen):
         self.query_one("#abort", Button).label = "Quit"
         self.query_one("#retry", Button).disabled = False
 
+    def _update_generated_files(self, paths_list: list) -> None:
+        """Append generated file paths to the config (main-thread only)."""
+        self.app.config.generated_files.extend(paths_list)
+
     # ── Background worker ─────────────────────────────────────────────────
 
     @work(thread=True)
@@ -248,7 +252,9 @@ class ExecuteScreen(Screen):
                         paths.ca_key_path(),
                         paths.client_cert_dir(),
                     )
-                    cfg.generated_files += list(cert_paths.values())
+                    self.app.call_from_thread(
+                        self._update_generated_files, list(cert_paths.values())
+                    )
                     return True, "\n".join(f"  {k}: {v}" for k, v in cert_paths.items())
                 except Exception as exc:
                     return False, str(exc)

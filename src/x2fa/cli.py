@@ -1,6 +1,8 @@
 """Flask CLI commands for X2FA administration."""
 
 import secrets
+from pathlib import Path
+
 import click
 from flask import current_app
 from flask.cli import with_appcontext
@@ -36,6 +38,19 @@ from x2fa.model import (
 
 from x2fa.init_app.database import db
 from x2fa.paths import data_dir
+
+
+def _resolve_file(path_str: str, label: str = "path") -> Path:
+    """Resolve and validate a file path stays within the filesystem root.
+
+    Prevents path traversal attacks by ensuring the resolved path is
+    a regular file (not a symlink to an arbitrary location) and that
+    the parent directory is writable.
+    """
+    p = Path(path_str).expanduser().resolve()
+    if not p.is_file():
+        raise click.ClickException(f"{label}: file does not exist: {path_str}")
+    return p
 
 
 @click.command("init-db")
@@ -189,7 +204,9 @@ def add_client(client_id, redirect_uri, method, scopes, jwks_uri, cert, secret):
     if method == AUTH_METHOD_SELF_SIGNED_TLS:
         from cryptography import x509
         from cryptography.hazmat.primitives import hashes
-        cert_pem = open(cert).read()
+
+        cert_path = _resolve_file(cert, "Certificate")
+        cert_pem = cert_path.read_text()
         try:
             cert_obj = x509.load_pem_x509_certificate(cert_pem.encode())
         except Exception as exc:
@@ -338,7 +355,8 @@ def add_ca(name, cert_path):
     from cryptography import x509
     from cryptography.hazmat.primitives import hashes, serialization
 
-    cert_pem = open(cert_path).read()
+    cert_path = _resolve_file(cert_path, "CA certificate")
+    cert_pem = cert_path.read_text()
     try:
         cert = x509.load_pem_x509_certificate(cert_pem.encode())
     except Exception as exc:
@@ -451,9 +469,11 @@ def issue_client_cert(client_id, ca_name, validity_days, output):
         raise click.ClickException(f"Failed to parse CA certificate: {exc}")
 
     # The CA private key is not stored in the DB — must be provided via file.
-    ca_key_path = click.prompt("Path to CA private key file")
+    ca_key_path = _resolve_file(
+        click.prompt("Path to CA private key file"), "CA private key"
+    )
     try:
-        ca_key_pem = open(ca_key_path, "rb").read()
+        ca_key_pem = ca_key_path.read_bytes()
         ca_key = serialization.load_pem_private_key(ca_key_pem, password=None)
     except Exception as exc:
         raise click.ClickException(f"Failed to load CA private key: {exc}")
@@ -511,7 +531,8 @@ def update_client_cert(client_id, cert):
     from cryptography import x509
     from cryptography.hazmat.primitives import hashes
 
-    cert_pem = open(cert).read()
+    cert_path = _resolve_file(cert, "Certificate")
+    cert_pem = cert_path.read_text()
     try:
         cert_obj = x509.load_pem_x509_certificate(cert_pem.encode())
     except Exception as exc:

@@ -5,6 +5,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+# Maximum time a single flask CLI command is allowed to run.
+# Longer-running commands (e.g. init-db on a slow disk) should increase this.
+_FLASK_TIMEOUT = 120  # seconds
+
 
 def _flask(args: list[str]) -> tuple[bool, str]:
     """Run `flask <args>` using the current Python interpreter.
@@ -16,18 +20,23 @@ def _flask(args: list[str]) -> tuple[bool, str]:
     determined by paths.py which respects X2FA_HOME.
     """
     from x2fa import paths
-    
+
     env = {
         **os.environ,
         "FLASK_APP": "x2fa.wsgi_cli:app",
     }
-    result = subprocess.run(
-        [sys.executable, "-m", "flask"] + args,
-        cwd=paths.config_dir(),
-        env=env,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "flask"] + args,
+            cwd=paths.config_dir(),
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=_FLASK_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        return False, f"Command timed out after {_FLASK_TIMEOUT}s"
+
     return result.returncode == 0, (result.stdout + result.stderr).strip()
 
 
