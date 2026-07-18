@@ -73,7 +73,15 @@ x2fa/
 
 ## Reading Files
 - **CRITICAL**: When reading files, always read the **COMPLETE** file content, never request partial snippets. Use the Read tool with full file access.
-- Do not use `sed` to edit files. Always show diffs.
+- **CRITICAL**: Do not use `sed` to edit files. Always show diffs.
+
+
+---
+
+## Git guidelines
+
+- **CRITICAL**: Run all tests before a comit. Ask the user if the commit should take place even when the tests do not pass.
+- **CRITICAL**: After comitting do not run any tests.
 
 ---
 
