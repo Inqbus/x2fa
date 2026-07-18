@@ -102,10 +102,25 @@ def issue_client_cert(
     safe_id = client_id.replace("/", "_").replace(":", "_")
     output_dir.mkdir(parents=True, exist_ok=True, mode=0o755)
 
+    key_bytes = client_key.private_bytes(
+        serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption(),
+    )
+    cert_bytes = cert.public_bytes(serialization.Encoding.PEM)
+
+    key_path = output_dir / f"{safe_id}.key.pem"
+    cert_path = output_dir / f"{safe_id}.cert.pem"
+    ca_path = output_dir / f"{safe_id}.ca.pem"
+
+    key_path.write_bytes(key_bytes)
+    cert_path.write_bytes(cert_bytes)
+    ca_path.write_bytes(ca_cert.public_bytes(serialization.Encoding.PEM))
+
     return {
-        "key": output_dir / f"{safe_id}.key.pem",
-        "cert": output_dir / f"{safe_id}.cert.pem",
-        "ca": output_dir / f"{safe_id}.ca.pem",
+        "key": key_path,
+        "cert": cert_path,
+        "ca": ca_path,
     }
 
 

@@ -122,6 +122,8 @@ class ExecuteScreen(Screen):
 
     @work(thread=True)
     def _run_installation(self) -> None:
+        from pathlib import Path as _Path
+
         from installer.ca import generate_ca, issue_client_cert
         from installer.config_writer import write_configs, write_systemd_unit
         from installer.runner import add_ca, add_client, init_db, init_keys
@@ -169,8 +171,6 @@ class ExecuteScreen(Screen):
             return
 
         # 6 — CA  (PKI methods only)
-        from x2fa import paths
-
         ca_cert = None
         if needs_ca:
             if cfg.ca_action == "generate":
@@ -238,17 +238,15 @@ class ExecuteScreen(Screen):
             set_step("client", "skip", "Register OIDC client  (skipped)")
 
         # 7 — issue client cert  (tls_client_auth only)
-        from x2fa import paths as x2fa_paths
-
         if cfg.client_id and method == "tls_client_auth" and ca_cert:
 
             def do_cert():
                 try:
                     cert_paths = issue_client_cert(
                         cfg.client_id,
-                        ca_cert,
-                        x2fa_paths.ca_key_path(),
-                        x2fa_paths.client_cert_dir(),
+                        _Path(ca_cert),
+                        paths.ca_key_path(),
+                        paths.client_cert_dir(),
                     )
                     cfg.generated_files += list(cert_paths.values())
                     return True, "\n".join(f"  {k}: {v}" for k, v in cert_paths.items())
