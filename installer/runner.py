@@ -15,13 +15,15 @@ def _flask(args: list[str]) -> tuple[bool, str]:
     resolvable from any working directory. The paths for config and data are
     determined by paths.py which respects X2FA_HOME.
     """
+    from x2fa import paths
+    
     env = {
         **os.environ,
         "FLASK_APP": "x2fa.wsgi_cli:app",
     }
     result = subprocess.run(
         [sys.executable, "-m", "flask"] + args,
-        cwd=Path.cwd(),
+        cwd=paths.config_dir(),
         env=env,
         capture_output=True,
         text=True,

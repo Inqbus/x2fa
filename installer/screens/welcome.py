@@ -182,12 +182,21 @@ def _run_checks() -> list[dict]:
 class WelcomeScreen(Screen):
     BINDINGS = [("f1", "toggle_help", "Help")]
 
+    def __init__(self) -> None:
+        super().__init__()
+        self._checks: list[dict] | None = None
+
     def action_toggle_help(self) -> None:
         self.query_one("#help_panel", Collapsible).collapsed ^= True
 
+    @property
+    def checks(self) -> list[dict]:
+        if self._checks is None:
+            self._checks = _run_checks()
+        return self._checks
+
     def compose(self) -> ComposeResult:
-        checks = _run_checks()
-        blocking_failed = any(not c["ok"] and c["blocking"] for c in checks)
+        blocking_failed = any(not c["ok"] and c["blocking"] for c in self.checks)
 
         yield Header()
         with Container(id="panel"):
@@ -195,7 +204,7 @@ class WelcomeScreen(Screen):
             with Collapsible(title="Help  (F1)", id="help_panel", collapsed=True):
                 yield Markdown(_HELP_TEXT)
 
-            for c in checks:
+            for c in self.checks:
                 if c["ok"]:
                     mark = "[green]✓[/]"
                 elif c["blocking"]:

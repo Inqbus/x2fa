@@ -177,5 +177,6 @@ def isolated_paths(tmp_path):
     from x2fa import paths
     
     os.environ["X2FA_HOME"] = str(tmp_path)
+    print(f"\n[isolated_paths] X2FA_HOME={os.environ['X2FA_HOME']}\n")
     yield tmp_path
     os.environ.pop("X2FA_HOME", None)
