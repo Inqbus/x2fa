@@ -1,250 +1,343 @@
-# X2FA Installer
+# X2FA — Installer
 
-A Textual TUI wizard that takes a fresh X2FA installation to a running,
-production-ready instance in a single session.
+The X2FA installer is a Textual-based TUI (Text User Interface) that walks
+through the complete setup process. It can be run as a standalone tool or
+invoked programmatically.
 
----
-
-## Running the installer
-
-**From a wheel (recommended for production):**
+## Installation
 
 ```bash
-uv tool install 'x2fa[installer] @ x2fa-2.0.0-py3-none-any.whl'
+uv venv
+source .venv/bin/activate
+uv pip install -e ".[installer]"
+```
+
+Or use the entry point:
+
+```bash
 x2fa-install
 ```
 
-**From the source tree (development):**
+## Entry Points
 
-```bash
-uv run installer
-```
-
-**Optional flag:**
-
-```
---x2fa-home DIR   Override the base directory for all config and data files.
-                  Default: ~  (config lands in ~/.config/x2fa/, data in ~/.local/share/x2fa/)
-                  Useful for testing or running two instances on the same host.
-```
-
----
+| Method | Command |
+|--------|---------|
+| Entry point | `x2fa-install` |
+| Direct | `uv run --extra installer python -m installer` |
+| Module | `uv run python -m installer` |
 
 ## Screens
 
-The installer is a linear wizard. Each screen shows `← Back` and `Continue →`
-buttons for navigation. Session state is automatically saved to
-`~/.local/share/x2fa/installer_session.json` so a partial run can be resumed.
+The installer consists of 10 screens plus a main menu:
 
-### 1. Preflight (WelcomeScreen)
+### Main Menu
 
-Runs a set of environment checks before any files are written.
+| Button | Action |
+|--------|--------|
+| ⚙ Fresh Installation | Start the full setup wizard |
+| 🔑 Manage CAs | Add, list, revoke, or renew CAs |
+| ✕ Quit | Exit the installer |
 
-| Check | Type | Action if it fails |
-|---|---|---|
-| Python ≥ 3.11 | **Blocking** | `uv python install 3.11` |
-| uv package manager | **Blocking** | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
-| `~/.config/x2fa` writable | **Blocking** | `mkdir -p ~/.config/x2fa && chmod u+rwx ~/.config/x2fa` |
-| `~/.local/share/x2fa` writable | **Blocking** | `mkdir -p ~/.local/share/x2fa && chmod u+rwx ~/.local/share/x2fa` |
-| `~/.config/systemd/user` writable | **Blocking** | `mkdir -p ~/.config/systemd/user && chmod u+rwx ~/.config/systemd/user` |
-| Running as root | Warning | Create a dedicated user and re-run as that user |
-| Port 5000 free | Warning | `lsof -ti:5000 \| xargs kill` |
-| Redis reachable on localhost:6379 | Warning | Only needed for multiple Gunicorn workers |
+### Installation Wizard
 
-**Blocking** checks hide the Continue button until resolved.
-**Warning** checks allow continuation but may cause runtime problems.
+The wizard follows this flow:
 
-Press **F1** for detailed guidance on each check.
+```mermaid
+flowchart LR
+    MainMenu["MainMenuScreen"] --> Welcome["WelcomeScreen"]
+    Welcome --> Database["DatabaseScreen"]
+    Database --> Domain["DomainScreen"]
+    Domain --> Security["SecurityScreen"]
+    Security --> CAScreen{"PKI method?"}
+    CAScreen -- Yes --> CASetup["CAScreen"]
+    CAScreen -- No --> Client["ClientScreen"]
+    CASetup --> Client
+    Client --> Review["ReviewScreen"]
+    Review --> Execute["ExecuteScreen"]
+    Execute --> Summary["SummaryScreen"]
 
-### 2. Database (DatabaseScreen)
+    MainMenu --> CAManage["CAManageScreen"]
+    MainMenu --> Quit["Quit"]
+```
 
-Choose the database backend:
+### Screen Details
 
-| Option | Notes |
-|---|---|
-| **SQLite** (default) | Zero-config. Single writer. Good for most deployments. |
-| **PostgreSQL** | Requires `psycopg2-binary`; install with `uv sync --extra postgres`. |
-| **MySQL** | Requires `pymysql`; install with `uv sync --extra mysql`. |
+#### WelcomeScreen
 
-For PostgreSQL and MySQL, a connection URI input is shown with a **Test connection**
-button that verifies reachability before continuing.
+- Displays preflight check results
+- Shows system information (Python version, uv availability, port status)
+- "Next" button only enabled after all checks pass
+- Checks are cached to prevent re-evaluation on re-render
 
-### 3. Domain & Proxy (DomainScreen)
+#### DatabaseScreen
+
+| Field | Default | Options |
+|-------|---------|---------|
+| Database Type | `sqlite` | `sqlite`, `postgres`, `mysql` |
+| Database URI | Auto-generated | User can override |
+
+For SQLite, the database file is stored at `$X2FA_HOME/.local/share/x2fa/db.sqlite`.
+
+For PostgreSQL/MySQL, the user provides a connection URI.
+
+#### DomainScreen
 
 | Field | Description |
-|---|---|
-| Domain | The public hostname X2FA will be served from (e.g. `2fa.myapp.io`) |
-| Reverse proxy | `caddy` / `nginx` / `traefik` / `other` — selects the config snippet shown in Summary |
+|-------|-------------|
+| Domain | Public hostname (e.g., `auth.example.com`) |
+| Proxy Type | Reverse proxy: `caddy`, `nginx`, `traefik`, `other` |
 
-The `ORIGIN` (`https://<domain>`) is derived automatically and written into
-`x2fa_config.toml`.
+Generates reverse proxy configuration snippets.
 
-### 4. Security (SecurityScreen)
+#### SecurityScreen
 
-Generates cryptographic material automatically:
+| Field | Description |
+|-------|-------------|
+| Secret Key | Auto-generated (32 bytes, hex) |
+| Secret Salt | Auto-generated (32 bytes, hex) |
+| Use Redis | Optional rate limiting backend |
+| Redis URI | `redis://localhost:6379/0` |
 
-| Value | Purpose |
-|---|---|
-| `SECRET_KEY` | Signs sessions, encrypts TOTP secrets, signs JWTs. **Changing it after install invalidates all sessions and encrypted secrets.** |
-| `SECRET_SALT` | Anonymises IP addresses in the audit log. |
+#### CAScreen (Certificate Authority)
 
-Rate limiter storage:
+Shown only for PKI authentication methods (`tls_client_auth`, `private_key_jwt`).
 
-- **memory://** — single Gunicorn worker; no external dependency.
-- **Redis URI** — required when running multiple workers. A connection test is run on blur.
+| Option | Description |
+|--------|-------------|
+| Generate | Create a new CA key/cert pair |
+| Import | Import an existing CA certificate |
 
-### 5. Client Authentication (ClientScreen)
+**Generated CA:**
 
-Registers the first OIDC relying-party client. Fields adapt based on the selected method.
+| Field | Default |
+|-------|---------|
+| CA Name | `x2fa-internal-ca` |
+| CA Common Name | `X2FA Internal CA` |
+| Validity Days | 3650 (10 years) |
 
-| Method | Trust model | Installer generates | Production-suitable |
-|---|---|---|---|
-| `tls_client_auth` | CA-signed mTLS certificate | CA key + cert, client cert + key | **Yes** (recommended) |
-| `private_key_jwt` | JWT signed by RP's own EC key, verified via JWKS | — | Yes |
-| `self_signed_tls_client_auth` | SHA-256 fingerprint of a self-signed cert you provide | — | Acceptable |
-| `client_secret_jwt` | HMAC-signed JWT | 64-char hex secret | With caution |
-| `client_secret_post` | Secret in POST body | 64-char hex secret | No |
-| `client_secret_basic` | HTTP Basic auth | 64-char hex secret | No |
+**Imported CA:**
 
-For `client_secret_*` methods the plaintext secret is generated in the installer
-process, passed to `flask add-client --secret`, and shown **once** on the Summary
-screen. It is never written to the session file.
+| Field | Description |
+|-------|-------------|
+| CA Import Path | Path to PEM-encoded certificate |
 
-### 6. CA Setup (CASetupScreen)
+Path traversal protection: `_resolve_file()` validates the path.
 
-Shown only for `tls_client_auth` and `private_key_jwt`.
+#### ClientScreen
 
-- **Generate new CA** — creates a self-signed CA key + cert with configurable CN and
-  validity period. Key is written to `~/.local/share/x2fa/ca_key.pem` (mode 0600).
-- **Import existing CA** — provide the path to an existing CA cert PEM file.
+| Field | Description |
+|-------|-------------|
+| Client ID | Unique client identifier |
+| Redirect URI | Valid redirect URI |
+| Auth Method | See below |
 
-### 7. Review (ReviewScreen)
+**Authentication Method Options:**
 
-A read-only summary of every collected value grouped by topic. Last chance to correct
-mistakes before the irreversible execute step.
+| Method | Requires CA | Extra Fields |
+|--------|-------------|--------------|
+| `tls_client_auth` | Yes | — |
+| `private_key_jwt` | Yes | JWKS URI |
+| `self_signed_tls_client_auth` | No | Self-signed cert path |
+| `client_secret_jwt` | No | — |
+| `client_secret_post` | No | — |
+| `client_secret_basic` | No | — |
 
-### 8. Execute (ExecuteScreen)
+#### ReviewScreen
 
-Runs all installation steps sequentially with live output:
+Read-only summary of all configuration choices before execution.
 
-| Step | Command | Idempotent? |
-|---|---|---|
-| Write configuration files | `config_writer.write_configs()` | Yes — overwrites |
-| Write systemd user service | `config_writer.write_systemd_unit()` | Yes — overwrites |
-| Initialize database | `flask init-db` → Alembic `upgrade head` | Yes — safe on existing DB |
-| Generate signing keys | `flask init-keys` | Yes — skips if present |
-| Generate CA certificate | `installer.ca.generate_ca()` | No — creates new files |
-| Register CA in X2FA | `flask add-ca` | Yes — skips if already registered |
-| Register OIDC client | `flask add-client` | Yes — updates if already registered |
-| Issue client certificate | `installer.ca.issue_client_cert()` | No — creates new cert |
-| Enable systemd service | `systemctl --user enable --now x2fa.service` | Yes |
+#### ExecuteScreen
 
-A **Retry** button appears on step failure to re-run from that step.
+Performs the actual installation:
 
-The systemd activation step is non-blocking: if it fails (e.g. no D-Bus over SSH)
-the installation is still considered successful and a hint is shown.
+1. Writes TOML config files to `~/.config/x2fa/`
+2. Initializes the database (`flask init-db`)
+3. Generates signing keys (`flask init-keys`)
+4. Generates/imports CA key and certificate
+5. Registers the OIDC client
+6. Issues client certificate (for PKI methods)
+7. Displays generated files list
 
-### 9. Summary (SummaryScreen)
+Uses `call_from_thread` to prevent UI freezes during long operations.
+Subprocess calls have a 120-second timeout.
 
-Displays after a successful run:
+#### SummaryScreen (Post-Install)
 
-- systemd unit path and enable commands
-- Manual start command
-- Generated file paths (CA key, CA cert, client cert, client key)
-- **Client secret** (for `client_secret_*` methods) — highlighted with a
-  "record this now" warning
-- Reverse proxy config snippet for the chosen proxy type
+Displays:
+
+- Start command (`gunicorn` or `flask run`)
+- Generated files list
+- Reverse proxy configuration snippet
 - Next-steps checklist
+- Systemd enable command (if selected)
 
-A **Copy summary** button copies the full text to the clipboard (or opens an overlay
-on systems without clipboard access).
+### CA Management Screen
 
-A **Set up Demo RP →** button opens the optional Demo RP screen.
+Separate from the installation wizard, this screen manages existing CAs:
 
-### 10. Demo RP Setup (DemoRPScreen) — optional
+| Action | Description |
+|--------|-------------|
+| Add CA | Import a new CA certificate |
+| List CAs | Display all registered CAs |
+| Revoke CA | Deactivate a CA |
+| Renew CA | Generate new cert for existing CA |
 
-Registers the bundled demo relying party for end-to-end testing with support for **all six auth methods**:
+## Configuration Model
 
-1. **Preflight checks** — verifies port availability, X2FA reachability, and demo_rp directory writability
-2. `flask add-ca demo-rp-ca <ca_cert>` (idempotent, only for PKI methods)
-3. `flask add-client demo-rp http://localhost:<port>/callback --method <your-auth-method>`
-4. Issue `demo-rp.cert.pem` + `demo-rp.key.pem` (only for PKI methods)
-5. Write `demo_rp/demo_rp_settings.toml` with correct auth method
+All installer choices are stored in `InstallConfig` (dataclass):
 
-The installer automatically uses the same auth method as the main installation:
-- For secret methods, appends the generated secret to the settings file
-- For PKI methods, uses the CA key to issue the demo RP certificate
-- For `self_signed_tls_client_auth`, prompts for the self-signed cert path
-
-The file `demo_rp/demo_rp_settings.toml` contains example configurations for all six methods in comments.
-
-Available for all auth methods (PKI and secret).
-
-### 11. CA Manage (CAManageScreen) — main menu option
-
-Available from the main menu (not part of the install flow). Lists registered CAs and
-allows revoking them via `flask revoke-ca`.
-
----
-
-## Architecture
-
+```python
+@dataclass
+class InstallConfig:
+    # Database
+    db_type: str = "sqlite"
+    db_uri: str = ""
+    
+    # Domain & Proxy
+    domain: str = ""
+    proxy_type: str = "caddy"
+    
+    # Security
+    secret_key: str = ""
+    secret_salt: str = ""
+    use_redis: bool = False
+    redis_uri: str = "redis://localhost:6379/0"
+    
+    # CA
+    ca_action: str = "generate"
+    ca_name: str = "x2fa-internal-ca"
+    ca_cn: str = "X2FA Internal CA"
+    ca_validity_days: int = 3650
+    ca_import_path: str = ""
+    
+    # Client
+    client_id: str = ""
+    client_redirect_uri: str = ""
+    client_auth_method: str = "tls_client_auth"
+    client_jwks_uri: str = ""
+    client_self_signed_cert_path: str = ""
+    
+    # Deployment
+    enable_systemd: bool = True
+    
+    # Results (transient)
+    generated_files: list[str] = field(default_factory=list)
+    install_error: str | None = None
+    client_secret: str = ""
 ```
-installer/
-├── __main__.py          # entry point; argparse; friendly error for missing [installer] extra
-├── app.py               # InstallerApp (Textual); screen routing; session save/load
-├── models.py            # InstallConfig dataclass; XDG paths; session persistence
-├── runner.py            # thin wrappers around flask CLI (subprocess via sys.executable)
-├── ca.py                # CA key+cert generation; client cert issuance (cryptography lib)
-├── config_writer.py     # writes *.toml config files; writes systemd unit file
-└── screens/
-    ├── welcome.py       # preflight checks
-    ├── database.py      # DB backend selection + connection test
-    ├── domain.py        # domain + proxy type
-    ├── security.py      # SECRET_KEY / SECRET_SALT generation; Redis toggle
-    ├── client.py        # OIDC client fields; auth method selection
-    ├── ca_setup.py      # CA generate / import
-    ├── review.py        # read-only config summary before execute
-    ├── execute.py       # step runner with live log; retry button
-    ├── summary.py       # post-install summary; copy button; demo-rp launch
-    ├── demo_rp.py       # optional demo RP registration
-    └── ca_manage.py     # CA list + revoke (post-install)
+
+### Session Persistence
+
+The installer persists user choices to `$X2FA_HOME/.local/share/x2fa/installer_session.json`.
+
+Transient fields (`generated_files`, `install_error`, `client_secret`) are excluded.
+
+## Preflight Checks
+
+The WelcomeScreen runs these checks:
+
+| Check | Description |
+|-------|-------------|
+| Python ≥ 3.11 | Required version |
+| uv available | Package manager |
+| Port 5000 free | Not already in use |
+| Redis (optional) | Available if `use_redis=True` |
+
+## Security Features
+
+### Path Traversal Protection
+
+CA import paths are validated using `_resolve_file()`:
+
+```python
+def _resolve_file(path_str: str, label: str = "path") -> Path:
+    p = Path(path_str).expanduser().resolve()
+    if not p.is_file():
+        raise click.ClickException(f"{label}: file does not exist: {path_str}")
+    return p
 ```
 
-**Key design decisions:**
+### Race Condition Prevention
 
-- `runner.py` uses `sys.executable -m flask` (never `uv run flask`) so it always
-  uses the same Python environment as the installer, whether that is a dev venv or a
-  `uv tool install` environment.
-- Auth method constants (`PKI_CA_METHODS`, `SECRET_METHODS`, individual method names)
-  are defined once in `x2fa.constants` and imported by both the installer and the app.
-- The client secret is generated in `execute.py` before the subprocess call and passed
-  to `flask add-client --secret`. It is never parsed from command output.
-- `InstallConfig` fields excluded from session persistence:
-  `install_root`, `config_root`, `generated_files`, `install_error`, `client_secret`.
+The `ExecuteScreen` uses `call_from_thread` for `generated_files` mutation
+to prevent DOM race conditions during long-running subprocess calls.
 
----
+### Subprocess Timeout
 
-## Session persistence
+All Flask CLI calls have a 120-second timeout:
 
-The installer saves all user-entered fields to
-`~/.local/share/x2fa/installer_session.json` whenever a screen is pushed or popped.
-On the next run, the saved values pre-fill every screen. Sensitive fields and
-transient results are excluded (see above).
+```python
+result = subprocess.run(
+    [sys.executable, "-m", "flask", "init-db"],
+    capture_output=True, timeout=120
+)
+```
 
-To start fresh, delete the session file:
+### TOCTOU Fix
+
+The WelcomeScreen uses EAFP (Easier to Ask Forgiveness than Permission)
+instead of `os.access()` to avoid time-of-check to time-of-use races.
+
+## Usage Examples
+
+### Fresh Installation
 
 ```bash
-rm ~/.local/share/x2fa/installer_session.json
+x2fa-install
+# Follow the wizard:
+# 1. Welcome → Next
+# 2. Database → SQLite (default) → Next
+# 3. Domain → auth.example.com → Next
+# 4. Security → Accept defaults → Next
+# 5. CA → Generate → Next
+# 6. Client → Enter details → Next
+# 7. Review → Execute
+# 8. Summary → Done
 ```
 
----
+### CA Management
 
-## What the installer does NOT do
+```bash
+x2fa-install
+# Select "Manage CAs" → Add CA → Enter name and cert path
+```
 
-- **Reverse proxy configuration** — generates a ready-to-paste config snippet;
-  the operator pastes it and reloads the proxy.
-- **Firewall rules** — out of scope.
-- **Non-interactive / headless mode** — no `--answers` flag yet; planned.
-- **Multi-instance management** — use `--x2fa-home` to separate instances;
-  no shared management UI.
+### Relocate Home Directory
+
+```bash
+x2fa-install --x2fa-home /opt/x2fa
+```
+
+```mermaid
+graph LR
+    subgraph Root["installer/"]
+        main["__main__.py<br/>Entry point"]
+        app["app.py<br/>InstallerApp,<br/>MainMenuScreen"]
+        models["models.py<br/>InstallConfig"]
+        runner["runner.py<br/>Subprocess,<br/>Flask CLI"]
+        ca["ca.py<br/>CA generation,<br/>cert issuance"]
+        config["config_writer.py<br/>TOML generation"]
+        preflight["preflight.py<br/>Preflight checks"]
+    end
+
+    subgraph Screens["screens/"]
+        welcome["welcome.py<br/>Preflight results"]
+        database["database.py<br/>DB type/URI"]
+        domain["domain.py<br/>Domain & proxy"]
+        security_s["security.py<br/>Secret keys, Redis"]
+        ca_setup["ca_setup.py<br/>CA generation/import"]
+        ca_manage["ca_manage.py<br/>Add/List/Revoke"]
+        client["client.py<br/>OIDC client config"]
+        review["review.py<br/>Config review"]
+        execute["execute.py<br/>Execution & logging"]
+        summary["summary.py<br/>Post-install summary"]
+    end
+
+    main --> app
+    app --> models
+    app --> runner
+    app --> ca
+    app --> config
+    app --> preflight
+    app --> Screens
+```
