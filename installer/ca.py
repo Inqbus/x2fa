@@ -124,15 +124,4 @@ def issue_client_cert(
     }
 
 
-def get_cert_info(cert_pem_path: Path) -> dict:
-    """Return display info for a PEM certificate file."""
-    try:
-        cert = x509.load_pem_x509_certificate(cert_pem_path.read_bytes())
-        cn_attrs = cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
-        return {
-            "cn": cn_attrs[0].value if cn_attrs else "(no CN)",
-            "expires": cert.not_valid_after_utc.date().isoformat(),
-            "fingerprint": cert.fingerprint(hashes.SHA256()).hex(":"),
-        }
-    except Exception as exc:
-        return {"error": str(exc)}
+
