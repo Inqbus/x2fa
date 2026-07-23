@@ -103,7 +103,7 @@ x2fa/
 ## Installation
 
 ```bash
-git clone <repo>
+git clone https://github.com/Inqbus/x2fa/
 cd x2fa
 uv sync
 ```
