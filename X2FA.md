@@ -660,9 +660,3 @@ flask add-ca production-ca /etc/ssl/ca.cert.pem
 flask issue-client-cert myapp --ca production-ca --output /etc/x2fa/clients/
 flask add-client myapp https://myapp.example.com/callback
 ```
-
----
-
-## License
-
-MIT
