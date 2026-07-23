@@ -1,0 +1,9 @@
+X2FA — FIDO2/TOTP two-factor authentication microservice with OIDC provider
+Copyright 2026 Inqbus
+
+This product includes software developed by Inqbus
+(https://github.com/Inqbus/x2fa).
+
+If you use, modify, or redistribute this software, attribution to
+"Inqbus X2FA" with a link to the repository is required as part of the
+Apache License, Version 2.0, Section 4(d).
