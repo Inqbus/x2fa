@@ -4,6 +4,11 @@
 > embed as an authentication building block in their applications — without
 > handing data to third parties and without operating an enterprise IdM colossus.**
 
+## Shortcut to X2FA installation
+
+[X2FA.md](X2FA.md)
+
+
 ## Why X2FA exists
 
 Anyone who wants strong two-factor authentication for an application today
