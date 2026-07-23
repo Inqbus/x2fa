@@ -1,6 +1,6 @@
 import hashlib
 
-from flask import request, g, Flask
+from flask import current_app, request, g
 
 from x2fa.model import AuditLog
 
@@ -12,7 +12,7 @@ def client_ip() -> str:
     ].strip() or request.environ.get("REMOTE_ADDR", "unknown")
 
 
-def audit_log(app: Flask, action: str, method: str, user_id: str) -> None:
+def audit_log(action: str, method: str, user_id: str) -> None:
     """
     Writes a pseudonymous audit record.
 
@@ -20,7 +20,7 @@ def audit_log(app: Flask, action: str, method: str, user_id: str) -> None:
     This satisfies GDPR pseudonymisation requirements.
     """
     ip = client_ip()
-    salt = app.config.x2fa_security["SECRET_SALT"]
+    salt = current_app.config.x2fa_security["SECRET_SALT"]
     ip_hash = hashlib.sha256((ip + salt).encode()).hexdigest()
     g.db_session.add(
         AuditLog(
