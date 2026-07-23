@@ -29,6 +29,20 @@ graph LR
     style X2FA fill:#1a73e8,color:#fff
 ```
 
+
+## AI usage
+
+X2FA is a child of man and AI.
+* I am a programmer with 40 years of experience.
+* Dolores is my AI peer programmer (DGX10 Local, QWEN 3.6).
+
+Without Dolores I would have never started this project.
+I am sure that Dolores may introduce errors, write tests that are nothing but dreams.
+But without Dolores I would have written other errors and errorneous tests and still have published x2fa.
+I am sure that having a peer programmer even if it is an AI is better than to have none.
+And I learned that an AI finds more problems than my real peer.
+So please let us accept that AI is a valid peer.  
+
 ## Guiding principles
 
 ### 1. FIDO2/Passkey-first
@@ -120,3 +134,5 @@ X2FA is open source. Contributions that follow the guiding principles —
 lean, standards-compliant, secure by default — are welcome. Proposals that
 violate the non-goals will be declined, kindly but firmly.
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
+
+ 
