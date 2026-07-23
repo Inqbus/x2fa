@@ -10,10 +10,10 @@ authentication methods — from PKI-based (mTLS, private_key_jwt) to shared-secr
 |-----------|-------------|
 | **Web framework** | Flask (factory pattern via `create_app()`) |
 | **ORM** | SQLAlchemy (SQLite default, PostgreSQL/MySQL via extras) |
-| **Migrations** | Alembic (no `DROP` — `init-db` stamps + upgrades) |
+| **Migrations** | None — `init-db` creates all tables (no Alembic) |
 | **Rate limiting** | Flask-Limiter (Redis required for multi-worker) |
 | **OIDC** | Authlib server (Authorization Code + PKCE S256) |
-| **FIDO2** | py_webauthn 2.x (WebAuthn / FIDO2) |
+| **FIDO2** | py_webauthn 3.x (WebAuthn / FIDO2) |
 | **TOTP** | pyotp |
 | **I18n** | Flask-Babel (German default) |
 | **Installer** | Textual TUI (`x2fa-install` / `uv run --extra installer`) |
@@ -108,7 +108,7 @@ uv run pytest tests/ -m unit -v
 | Register OIDC client | `FLASK_APP=x2fa.wsgi_cli:app uv run flask add-client <id> <uri> [--method <method>]` |
 | Add CA | `FLASK_APP=x2fa.wsgi_cli:app uv run flask add-ca <name> <cert>` |
 | Issue client cert | `FLASK_APP=x2fa.wsgi_cli:app uv run flask issue-client-cert <id> --ca <name>` |
-| Apply migrations | `FLASK_APP=x2fa.wsgi_cli:app uv run flask db-upgrade` |
+| Rotate signing keys | `FLASK_APP=x2fa.wsgi_cli:app uv run flask rotate-keys` |
 | Cleanup | `FLASK_APP=x2fa.wsgi_cli:app uv run flask cleanup-codes` |
 
 ## Documentation Structure

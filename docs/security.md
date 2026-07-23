@@ -318,12 +318,13 @@ The `secure` package enforces security headers:
 
 | Header | Value |
 |--------|-------|
-| `Strict-Transport-Security` | Max-age enforced |
 | `X-Content-Type-Options` | `nosniff` |
 | `X-Frame-Options` | `DENY` |
-| `X-XSS-Protection` | `1; mode=block` |
-| `Content-Security-Policy` | Restricted |
+| `Content-Security-Policy` | Restricted (nonce-based) |
 | `Referrer-Policy` | `strict-origin-when-cross-origin` |
+
+**Note:** `Strict-Transport-Security` and `X-XSS-Protection` are not set.
+HSTS should be enforced by the reverse proxy (nginx/Caddy) in front of X2FA.
 
 ## 12. TLS / SSL Verification
 
@@ -366,7 +367,7 @@ ca_key_path.chmod(0o600)  # Owner read/write only
 | JWKS fetch with SSL verification | ✅ |
 | Path traversal protection | ✅ |
 | Rate limiting on all verification endpoints | ✅ |
-| Security headers via `secure` package | ✅ |
+| Security headers (CSP, X-Frame-Options, etc.) | ✅ |
 | AuthorizationCode not deleted after use (used=True) | ✅ |
 | Sign count regression detection | ✅ |
 | TOCTOU race prevention | ✅ |

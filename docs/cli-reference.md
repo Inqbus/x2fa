@@ -12,23 +12,14 @@ export FLASK_APP=x2fa.wsgi_cli:app
 
 ### `flask init-db`
 
-Creates all database tables on a fresh database. Uses Alembic internally.
+Creates all database tables on a fresh database.
 
 ```bash
 FLASK_APP=x2fa.wsgi_cli:app uv run flask init-db
 ```
 
-- Creates all tables via Alembic `upgrade head`
-- Stamps the schema version if tables already exist (safe to re-run)
-- **Does not drop existing data** — use with caution on production databases
-
-### `flask db-upgrade`
-
-Applies pending Alembic migrations. Safe for existing installations.
-
-```bash
-FLASK_APP=x2fa.wsgi_cli:app uv run flask db-upgrade
-```
+- Creates all tables directly (no Alembic migrations)
+- Safe to re-run — does not drop existing data
 
 ## Key Management
 

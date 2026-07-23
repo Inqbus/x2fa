@@ -72,7 +72,7 @@ def create_app() -> Flask:
     db.init_app(app)      # Flask-SQLAlchemy
     babel(app)            # i18n (German default)
     routes(app)           # Register 5 blueprints + CLI commands
-    security(app)         # secure.py headers
+    security(app)         # security.py headers
     errors(app)           # HTTP error handlers
     limiter.init_app(app) # Flask-Limiter
     return app
