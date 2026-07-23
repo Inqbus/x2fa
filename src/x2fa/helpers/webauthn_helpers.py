@@ -1,6 +1,6 @@
 """Thin wrapper around py_webauthn 2.x for X2FA."""
 
-# import os
+from flask import current_app
 
 from webauthn import (
     generate_authentication_options,
@@ -28,8 +28,8 @@ from webauthn.helpers.structs import (
 def build_registration_options_json(user_id: str, challenge: bytes) -> str:
     """Returns a JSON string that can be sent directly to the frontend."""
     options = generate_registration_options(
-        rp_id=app.configure.x2fa.DOMAIN,
-        rp_name=app.configure.x2fa.NAME,
+        rp_id=current_app.config.x2fa.DOMAIN,
+        rp_name=current_app.config.x2fa.NAME,
         user_id=user_id.encode(),
         user_name=user_id,
         challenge=challenge,
@@ -60,8 +60,8 @@ def verify_registration(challenge: bytes, credential_json: str) -> dict:
         verification = verify_registration_response(
             credential=credential_json,
             expected_challenge=challenge,
-            expected_rp_id=app.configure.x2fa.DOMAIN,
-            expected_origin=app.configure.x2fa.ORIGIN,
+            expected_rp_id=current_app.config.x2fa.DOMAIN,
+            expected_origin=current_app.config.x2fa.ORIGIN,
             require_user_verification=True,
         )
     except Exception as exc:
@@ -134,7 +134,7 @@ def build_authentication_options_json(
     credential_ids: list[bytes],
     transports: list[list[str]] | None = None,
 ) -> str:
-    domain = app.configure.x2fa.DOMAIN
+    domain = current_app.config.x2fa.DOMAIN
 
     def _to_transport_enums(
         raw: list[str] | None,
@@ -177,8 +177,8 @@ def verify_authentication(
         verification = verify_authentication_response(
             credential=credential_json,
             expected_challenge=challenge,
-            expected_rp_id=app.configure.x2fa.DOMAIN,
-            expected_origin=app.configure.x2fa.ORIGIN,
+            expected_rp_id=current_app.config.x2fa.DOMAIN,
+            expected_origin=current_app.config.x2fa.ORIGIN,
             credential_public_key=stored_public_key,
             credential_current_sign_count=stored_sign_count,
             require_user_verification=True,
