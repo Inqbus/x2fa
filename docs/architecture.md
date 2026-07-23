@@ -186,52 +186,7 @@ Both are timezone-naive because SQLAlchemy `DateTime` columns (without
 `timezone=True`) store naive datetimes in SQLite and PostgreSQL
 (`TIMESTAMP WITHOUT TIME ZONE`).
 
-## 6. Cryptography
-
-| Operation | Algorithm | Storage |
-|-----------|-----------|---------|
-| ID token signing | ES256 (EC P-256) | Fernet-encrypted private key in DB |
-| Client secret | Fernet (symmetric) | Fernet-encrypted in DB |
-| TOTP secret | Fernet (symmetric) | Fernet-encrypted in DB |
-| Backup codes | bcrypt (12 rounds) | bcrypt hash in DB |
-| WebAuthn | ECDSA P-256 | Raw bytes in DB |
-| CA verification | RSA/ECDSA PKCS1v15/ECDSA | In-memory verification against stored cert |
-
-## 7. Rate Limiting
-
-Flask-Limiter is configured per-endpoint. Default limits are defined in
-the TOML config files. Redis is required for multi-worker deployments
-(gunicorn with `--workers > 1`).
-
-| Endpoint | Default Limit |
-|----------|---------------|
-| `/authorize` | Configurable |
-| `/token` | Configurable |
-| `/verify/complete` | Configurable |
-| `/setup/complete` | Configurable |
-| `/totp/setup/verify` | Configurable |
-| `/totp/verify` | Configable |
-| `/backup/verify` | Configurable |
-
-## 8. Configuration System
-
-X2FA uses XDG-compliant TOML config files loaded via `tomllib`:
-
-| File | Path | Purpose |
-|------|------|---------|
-| `x2fa_config.toml` | `~/.config/x2fa/` | Domain, database URI, OIDC settings |
-| `security_config.toml` | `~/.config/x2fa/` | SECRET_KEY, session cookie settings |
-| `db_config.toml` | `~/.config/x2fa/` | Database-specific settings |
-| `ratelimit_config.toml` | `~/.config/x2fa/` | Rate limiting configuration |
-| `babel_config.toml` | `~/.config/x2fa/` | i18n / locale settings |
-
-Override the config root with `X2FA_HOME`:
-
-```bash
-X2FA_HOME=/tmp/x2fa-test FLASK_APP=x2fa.wsgi:app uv run flask run
-```
-
-## 9. Session Management
+## 6. Session Management
 
 X2FA uses Flask server-side sessions. OIDC request parameters are stored in
 the session after Phase 1 of `/authorize`, preventing URL-based state leakage.
@@ -246,7 +201,7 @@ Key session keys:
 | `setup_mode` | bool | True if `app:setup` scope requested |
 | `backup_codes` | list[str] | One-time display of backup codes (popped after display) |
 
-## 10. Filesystem Layout
+## 7. Filesystem Layout
 
 | Path | Contents |
 |------|----------|

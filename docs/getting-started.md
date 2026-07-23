@@ -1,8 +1,8 @@
 # X2FA — Getting Started
 
-X2FA is a FIDO2 / TOTP microservice with an OIDC provider. It handles two-factor
-authentication for relying parties (RPs) and supports six client authentication
-methods (mTLS, private_key_jwt, self-signed TLS, and three shared-secret variants).
+X2FA is a FIDO2 / TOTP microservice with an integrated OIDC provider. It provides
+two-factor authentication (2FA) for relying parties (RPs) and supports six client
+authentication methods — from PKI-based (mTLS, private_key_jwt) to shared-secret approaches.
 
 ## Quick Overview
 
@@ -99,10 +99,25 @@ uv run pytest tests/test_file.py::test_name -v
 uv run pytest tests/ -m unit -v
 ```
 
-## Next Steps
+## Quick Reference
 
-- [Architecture](architecture.md) — System design, data models, authentication flows
-- [CLI Reference](cli-reference.md) — All Flask CLI commands
-- [OIDC / Authentication](oidc-auth.md) — Client auth methods, authorization flow
-- [Installer](installer.md) — TUI installer workflow
-- [Security](security.md) — Security model, encryption, audit logging
+| Task | Command |
+|------|---------|
+| Initialize database | `FLASK_APP=x2fa.wsgi_cli:app uv run flask init-db` |
+| Create signing keys | `FLASK_APP=x2fa.wsgi_cli:app uv run flask init-keys` |
+| Register OIDC client | `FLASK_APP=x2fa.wsgi_cli:app uv run flask add-client <id> <uri> [--method <method>]` |
+| Add CA | `FLASK_APP=x2fa.wsgi_cli:app uv run flask add-ca <name> <cert>` |
+| Issue client cert | `FLASK_APP=x2fa.wsgi_cli:app uv run flask issue-client-cert <id> --ca <name>` |
+| Apply migrations | `FLASK_APP=x2fa.wsgi_cli:app uv run flask db-upgrade` |
+| Cleanup | `FLASK_APP=x2fa.wsgi_cli:app uv run flask cleanup-codes` |
+
+## Documentation Structure
+
+| File | Content |
+|------|---------|
+| **getting-started.md** | This file — installation, quickstart, configuration |
+| [architecture.md](architecture.md) | System design, request flows, data models, session management |
+| [cli-reference.md](cli-reference.md) | All Flask CLI commands, path resolution |
+| [oidc-auth.md](oidc-auth.md) | OIDC discovery, 6 auth methods, authorization/token endpoint, 2FA flows |
+| [installer.md](installer.md) | Textual TUI, screens, InstallConfig, preflight checks |
+| [security.md](security.md) | Cryptography, audit logging, WebAuthn security, PKCE, rate limiting |

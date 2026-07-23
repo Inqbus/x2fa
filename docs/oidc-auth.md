@@ -189,15 +189,6 @@ Triggered after successful 2FA (`session["2fa_verified"] = True`):
 - Cleans up OIDC session state
 - Redirects to `redirect_uri?code=...&state=...`
 
-### PKCE Enforcement
-
-PKCE S256 is **mandatory**. The `plain` challenge method is explicitly rejected.
-
-```python
-if code_challenge_method != "S256":
-    abort(HTTPStatus.BAD_REQUEST, _("Only code_challenge_method=S256 is supported."))
-```
-
 ## 5. Token Endpoint
 
 ### `POST /token`
@@ -295,13 +286,6 @@ TOTP setup:
 3. On success: `session["2fa_verified"] = True`
 
 ## 8. Security Considerations
-
-### Nonce Replay Protection
-
-AuthorizationCodes werden nach Token-Exchange nicht physisch gelöscht (nur `used=True` markiert).
-`cleanup-codes` entfernt sie erst nach 1h. Das ermöglicht dem RP, das ID-Token
-(60s Expiry) auch nach dem Token-Exchange zu verarbeiten. Der echte Replay-Schutz
-kommt daher, dass der AuthorizationCode selbst nicht erneut getauscht werden kann.
 
 ### Session Security
 

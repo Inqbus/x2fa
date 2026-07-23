@@ -14,7 +14,7 @@ X2FA supports six OIDC client authentication methods:
 | `self_signed_tls_client_auth` | PKI (self-signed) | No (but cert must be imported) |
 | `client_secret_jwt` | Shared Secret | No |
 | `client_secret_post` | Shared Secret | No |
-|`client_secret_basic` | Shared Secret | No |
+| `client_secret_basic` | Shared Secret | No |
 
 ### PKI Methods
 
@@ -236,12 +236,12 @@ def _oidc_error_redirect(error: str, description: str = ""):
 
 ### Nonce Replay Protection
 
-AuthorizationCodes werden nach Token-Exchange nicht physisch gelöscht (nur `used=True` markiert).
-`cleanup-codes` entfernt sie erst nach 1h. Das ermöglicht dem RP, das ID-Token
-(60s Expiry) auch nach dem Token-Exchange zu verarbeiten. Der echte Replay-Schutz
-kommt daher, dass der AuthorizationCode selbst nicht erneut getauscht werden kann.
+AuthorizationCodes are not physically deleted after token exchange (only `used=True` marked).
+`cleanup-codes` removes them after 1h. This allows the RP to process the ID token
+(60s expiry) even after the token exchange. The real replay protection comes from
+the fact that the AuthorizationCode itself cannot be exchanged again (`used=True`).
 
-- `None` nonce ist gültig (OIDC Core erklärt nonce im Code-Flow als optional)
+- `None` nonce is valid (OIDC Core specifies nonce as optional in the code flow)
 
 ## 9. Rate Limiting
 
